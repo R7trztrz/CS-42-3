@@ -1,0 +1,65 @@
+
+# Ignore everything by default.
+*
+
+# Git must be able to traverse directories before an individual file can be
+# explicitly allowed below.
+!*/
+
+# Repository and build metadata that belongs in version control.
+!.gitattributes
+!.gitignore
+!README.md
+!readme.md
+!pom.xml
+!mvnw
+!mvnw.cmd
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.properties
+
+# Shareable configuration template; the real local .env remains ignored.
+!.env.example
+
+# Application source and resources.
+!src/
+!src/**/
+!src/**/*.java
+!src/**/*.kt
+!src/**/*.groovy
+!src/**/*.yaml
+!src/**/*.yml
+!src/**/*.properties
+!src/**/*.xml
+!src/**/*.sql
+!src/**/*.json
+!src/**/*.html
+!src/**/*.css
+!src/**/*.js
+!src/**/*.ts
+!src/**/*.txt
+!src/**/*.md
+!src/**/*.png
+!src/**/*.jpg
+!src/**/*.jpeg
+!src/**/*.webp
+!src/**/*.svg
+
+# Container and deployment definitions, when present.
+!Dockerfile
+!Dockerfile.*
+!compose.yml
+!compose.yaml
+!docker-compose.yml
+!docker-compose.yaml
+
+# Keep sensitive and generated content denied explicitly.
+.env
+.env.*
+!.env.example
+secrets/
+.idea/
+target/
+build/
+*.class
+*.jar
