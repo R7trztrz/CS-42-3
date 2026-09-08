@@ -1,0 +1,10 @@
+# Ignore all entries in the repository root by default.
+/*
+
+# Keep the root ignore rules and project README under version control.
+!/.gitignore
+!/README.md
+
+# Allow the application directories; their own ignore rules still apply.
+!/SurveyPlatformBackend/
+!/SurveyPlatformFrontend/
