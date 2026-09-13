@@ -1,5 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 
+import LoginPage from '../auth/pages/LoginPage'
+
 import MainLayout from '../layouts/MainLayout'
 import Home from '../pages/Home'
 import Facebook from '../pages/Facebook'
@@ -11,6 +13,10 @@ import Bluesky from '../pages/Bluesky'
 import TruthSocial from '../pages/TruthSocial'
 
 const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
   {
     path: '/',
     element: <MainLayout />,
