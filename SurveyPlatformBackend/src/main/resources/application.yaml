@@ -13,3 +13,7 @@ spring:
 
   flyway:
     enabled: true
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}

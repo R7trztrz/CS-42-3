@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.UUID;
 
@@ -33,6 +34,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/studies")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('RESEARCHER')")
 @Tag(name = "Studies", description = "Research study management APIs.")
 public class StudyController {
 
@@ -74,38 +76,27 @@ public class StudyController {
         return ResponseEntity.status(HttpStatus.CREATED).body(StudyResponse.from(study));
     }
 
-    // Keep the endpoint fail-closed until the shared authentication adapter is available.
+    // Extracts the authenticated researcher's UUID from the validated JWT subject.
+    // Researcher role access is enforced by @PreAuthorize at the controller level.
     private UUID requireResearcherId(Authentication authentication) {
 
-        if (!(authentication instanceof JwtAuthenticationToken token) || !token.isAuthenticated()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required.");
+        if (!(authentication instanceof JwtAuthenticationToken token)
+                || !token.isAuthenticated()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Authentication required."
+            );
         }
 
-        Object userIdClaim = token.getToken().getClaims().get("userId");
-        UUID ownerId;
+        String researcherId = token.getToken().getSubject();
 
         try {
-            // check if the userId claim is a String
-            if (!(userIdClaim instanceof String userId)) {
-                throw new IllegalArgumentException();
-            }
-
-            // check if the userId is a valid UUID
-            ownerId = UUID.fromString(userId);
-
-            // check if the UUID is valid
-            if (!ownerId.toString().equalsIgnoreCase(userId)) {
-                throw new IllegalArgumentException();
-            }
-
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authentication identity.");
+            return UUID.fromString(researcherId);
+        } catch (IllegalArgumentException | NullPointerException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid authentication identity."
+            );
         }
-
-        if (!"researcher".equals(token.getToken().getClaims().get("role"))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Researcher access required.");
-        }
-
-        return ownerId;
     }
 }
