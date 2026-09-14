@@ -192,3 +192,22 @@ pnpm build
 ```
 
 The build should complete successfully without TypeScript or Vite errors.
+
+## Eye-tracking Calibration (FR-49)
+
+The headless calibration module and its integration boundaries are documented in
+[docs/fr-49-calibration.md](docs/fr-49-calibration.md).
+
+For changes to this module, also run:
+
+```bash
+pnpm lint
+pnpm typecheck:eyetracking
+pnpm test
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
+The browser tests use synthetic media tracks and do not request a real camera.
+The participant page, durable session event queue and browsing gaze collector are
+integration responsibilities described in the module documentation.
