@@ -1,12 +1,13 @@
 package com.cs_42_3.surveyplatformbackend.survey.exception;
 
+import java.util.UUID;
+
 /**
- * Thrown for both "doesn't exist" and "exists but isn't yours" — findByIdAndResearcherId
- * returning empty covers both cases identically, which is the "stealth" 404 strategy
- * discussed for UC-04 (don't let a 403 leak whether a resource exists at all).
+ * Indicates that a question is absent or is not owned by the current researcher.
  */
 public class QuestionNotFoundException extends RuntimeException {
-    public QuestionNotFoundException(Long id) {
-        super("Question not found: " + id);
+
+    public QuestionNotFoundException(UUID questionId) {
+        super("Question not found: " + questionId);
     }
 }

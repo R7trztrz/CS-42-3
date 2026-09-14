@@ -1,41 +1,48 @@
 package com.cs_42_3.surveyplatformbackend.survey.repository;
 
-import com.cs_42_3.surveyplatformbackend.survey.entity.Question;
-import com.cs_42_3.surveyplatformbackend.survey.entity.QuestionType;
+import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
+import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface QuestionRepository extends JpaRepository<Question, Long> {
+/**
+ * Persistence operations for reusable survey questions.
+ */
+public interface QuestionRepository extends JpaRepository<Question, UUID> {
 
     /**
-     * UC-21: list + optional type/keyword filtering, always scoped to the requesting
-     * researcher (UC-04 ownership constraint enforced here at the query level, not just
-     * checked after the fact).
+     * Finds questions owned by one researcher with optional type and text filters.
      *
-     * A single JPQL query with null-checked optional parameters is used instead of the
-     * JPA Specification API — the filter set is small and fixed (type + keyword), so the
-     * extra abstraction isn't earning its complexity for v1.
+     * @param researcherId owner of the returned questions
+     * @param type optional question type
+     * @param keyword optional case-insensitive text fragment
+     * @return matching questions ordered by most recent update
      */
     @Query("""
             SELECT q FROM Question q
             WHERE q.researcherId = :researcherId
               AND (:type IS NULL OR q.type = :type)
               AND (:keyword IS NULL OR LOWER(q.questionText) LIKE LOWER(CONCAT('%', :keyword, '%')))
-            ORDER BY q.updatedAt DESC
+            ORDER BY q.updatedAt DESC, q.id DESC
             """)
-    List<Question> search(
-            @Param("researcherId") Long researcherId,
+    List<Question> searchQuestions(
+            @Param("researcherId") UUID researcherId,
             @Param("type") QuestionType type,
             @Param("keyword") String keyword
     );
 
     /**
-     * Ownership-scoped single lookup — used by edit/delete so a researcher can never
-     * fetch (or find out the existence of) a question that isn't theirs.
+     * Finds a question only when it belongs to the supplied researcher.
+     *
+     * @param questionId question identifier
+     * @param researcherId expected owner
+     * @return the owned question, or an empty result
      */
-    Optional<Question> findByIdAndResearcherId(Long id, Long researcherId);
+    Optional<Question> findByIdAndResearcherId(UUID questionId, UUID researcherId);
 }

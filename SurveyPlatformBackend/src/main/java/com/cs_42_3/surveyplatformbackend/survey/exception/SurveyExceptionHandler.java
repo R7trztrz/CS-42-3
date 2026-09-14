@@ -1,51 +1,117 @@
 package com.cs_42_3.surveyplatformbackend.survey.exception;
 
+import com.cs_42_3.surveyplatformbackend.survey.api.QuestionController;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
- * Deliberately only handles this package's own exception types (QuestionNotFoundException,
- * QuestionValidationException) plus MethodArgumentNotValidException (raised by @Valid on
- * QuestionRequest). It does NOT catch generic Exception/RuntimeException, so it's safe to
- * coexist with any other @RestControllerAdvice a teammate adds elsewhere in the project —
- * Spring dispatches by the most specific matching exception type across all advices, so
- * there's no risk of this one swallowing errors that belong to another module.
+ * Converts exceptions from {@link QuestionController} into a stable survey error response.
  */
-@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RestControllerAdvice(assignableTypes = QuestionController.class)
 public class SurveyExceptionHandler {
 
     @ExceptionHandler(QuestionNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(QuestionNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body(HttpStatus.NOT_FOUND, ex.getMessage()));
+    public ResponseEntity<SurveyErrorResponse> handleQuestionNotFound(
+            QuestionNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                "QUESTION_NOT_FOUND",
+                exception.getMessage(),
+                request
+        );
     }
 
-    @ExceptionHandler(QuestionValidationException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(QuestionValidationException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(HttpStatus.BAD_REQUEST, ex.getMessage()));
+    @ExceptionHandler(InvalidQuestionDataException.class)
+    public ResponseEntity<SurveyErrorResponse> handleInvalidQuestionData(
+            InvalidQuestionDataException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "QUESTION_VALIDATION_ERROR",
+                exception.getMessage(),
+                request
+        );
+    }
+
+    @ExceptionHandler(InvalidResearcherIdentityException.class)
+    public ResponseEntity<SurveyErrorResponse> handleInvalidResearcherIdentity(
+            InvalidResearcherIdentityException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_RESEARCHER_IDENTITY",
+                exception.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleBeanValidation(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors().stream()
+    public ResponseEntity<SurveyErrorResponse> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request
+    ) {
+        String message = exception.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .findFirst()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .orElse("Invalid request");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body(HttpStatus.BAD_REQUEST, message));
+                .orElse("Request validation failed");
+        return buildResponse(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", message, request);
     }
 
-    private Map<String, Object> body(HttpStatus status, String message) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        return body;
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<SurveyErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "MALFORMED_REQUEST",
+                "Request body is malformed or contains an unsupported value",
+                request
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<SurveyErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "MALFORMED_REQUEST",
+                "Path or query parameter has an invalid value",
+                request
+        );
+    }
+
+    private ResponseEntity<SurveyErrorResponse> buildResponse(
+            HttpStatus status,
+            String code,
+            String message,
+            HttpServletRequest request
+    ) {
+        SurveyErrorResponse response = new SurveyErrorResponse(
+                code,
+                message,
+                Instant.now(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(status).body(response);
     }
 }
