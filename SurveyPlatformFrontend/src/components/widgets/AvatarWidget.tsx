@@ -1,15 +1,28 @@
 import { useNode } from '@craftjs/core'
+import type { PlatformStyle } from './types'
 
 type AvatarWidgetProps = {
   src?: string
   alt?: string
   size?: number
+  styleId?: PlatformStyle
+}
+
+const platformAvatarStyles: Record<PlatformStyle, string> = {
+  facebook: 'rounded-full ring-1 ring-gray-200',
+  instagram: 'rounded-full ring-2 ring-pink-500',
+  tiktok: 'rounded-full ring-2 ring-cyan-400',
+  x: 'rounded-full ring-1 ring-gray-300',
+  threads: 'rounded-full ring-1 ring-black',
+  bluesky: 'rounded-full ring-2 ring-sky-400',
+  'truth-social': 'rounded-full ring-2 ring-blue-700',
 }
 
 function AvatarWidget({
   src,
   alt = 'User avatar',
   size = 40,
+  styleId = 'facebook',
 }: AvatarWidgetProps) {
   const {
     connectors: { connect, drag },
@@ -20,7 +33,7 @@ function AvatarWidget({
       ref={(ref) => {
         if (ref) connect(drag(ref))
       }}
-      className="cursor-move overflow-hidden rounded-full bg-gray-200"
+      className={`cursor-move overflow-hidden bg-gray-200 ${platformAvatarStyles[styleId]}`}
       style={{ width: size, height: size }}
     >
       {src ? (
@@ -44,6 +57,7 @@ AvatarWidget.craft = {
     src: '',
     alt: 'User avatar',
     size: 40,
+    styleId: 'facebook',
   },
 }
 

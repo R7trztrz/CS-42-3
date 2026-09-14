@@ -21,7 +21,8 @@ function Toolbox() {
             if (ref) {
               connectors.create(
                 ref,
-                <TextWidget text="New text widget" />
+                <TextWidget text="New text widget"
+                 styleId="facebook" />
               )
             }
           }}
@@ -36,7 +37,7 @@ function Toolbox() {
             if (ref) {
               connectors.create(
                 ref,
-                <AvatarWidget />
+                <AvatarWidget styleId="facebook"/>
               )
             }
           }}
@@ -51,7 +52,7 @@ function Toolbox() {
             if (ref) {
               connectors.create(
                 ref,
-                <ImageWidget />
+                <ImageWidget styleId="facebook"/>
               )
             }
           }}
@@ -70,6 +71,7 @@ function Toolbox() {
                   likes={0}
                   comments={0}
                   shares={0}
+                  styleId="facebook"
                 />
               )
             }
