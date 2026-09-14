@@ -1,3 +1,5 @@
+import WidgetEditor from '../pages/WidgetEditor'
+
 import { createBrowserRouter } from 'react-router-dom'
 
 import MainLayout from '../layouts/MainLayout'
@@ -46,6 +48,10 @@ const router = createBrowserRouter([
       {
         path: 'truth-social',
         element: <TruthSocial />,
+      },
+      {
+        path: 'widget-editor',
+        element: <WidgetEditor />,
       },
     ],
   },
