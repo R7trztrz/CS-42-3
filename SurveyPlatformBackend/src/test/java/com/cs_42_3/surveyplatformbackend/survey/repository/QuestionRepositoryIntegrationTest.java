@@ -102,23 +102,14 @@ class QuestionRepositoryIntegrationTest {
     }
 
     @Test
-    void searchQuestionsAppliesOwnershipTypeKeywordAndStableOrdering() {
+    void searchQuestionsWithoutFiltersReturnsOnlyOwnedQuestionsInStableOrder() {
         UUID otherResearcherId = UUID.randomUUID();
         insertResearcher(otherResearcherId);
 
-        Question first = saveTextQuestion(researcherId, "Target Alpha");
-        Question second = saveTextQuestion(researcherId, "TARGET Beta");
-        saveTextQuestion(otherResearcherId, "Target Hidden");
-        questionRepository.saveAndFlush(Question.create(
-                researcherId,
-                QuestionType.SCALE,
-                "Target Scale",
-                false,
-                1,
-                5,
-                null,
-                null
-        ));
+        Question first = saveTextQuestion(researcherId, "First owned question");
+        Question second = saveTextQuestion(researcherId, "Second owned question");
+        Question newest = saveScaleQuestion(researcherId, "Newest owned question");
+        saveTextQuestion(otherResearcherId, "Hidden question");
 
         jdbcTemplate.update(
                 """
@@ -129,24 +120,86 @@ class QuestionRepositoryIntegrationTest {
                 first.getId(),
                 second.getId()
         );
+        jdbcTemplate.update(
+                """
+                        UPDATE questions
+                        SET updated_at = TIMESTAMPTZ '2026-09-14 07:00:00+00'
+                        WHERE id = ?
+                        """,
+                newest.getId()
+        );
         entityManager.clear();
+
+        List<Question> results = questionRepository.searchQuestions(
+                researcherId,
+                null,
+                null
+        );
+        List<UUID> tiedIds = List.of(first.getId(), second.getId()).stream()
+                .sorted(Comparator.comparing(UUID::toString).reversed())
+                .toList();
+
+        assertThat(results)
+                .extracting(Question::getId)
+                .containsExactly(newest.getId(), tiedIds.get(0), tiedIds.get(1));
+    }
+
+    @Test
+    void searchQuestionsByTypeOnlyReturnsOwnedQuestionsOfThatType() {
+        UUID otherResearcherId = UUID.randomUUID();
+        insertResearcher(otherResearcherId);
+
+        saveTextQuestion(researcherId, "Owned text question");
+        Question ownedScale = saveScaleQuestion(researcherId, "Owned scale question");
+        saveScaleQuestion(otherResearcherId, "Hidden scale question");
+
+        List<Question> results = questionRepository.searchQuestions(
+                researcherId,
+                QuestionType.SCALE,
+                null
+        );
+
+        assertThat(results)
+                .extracting(Question::getId)
+                .containsExactly(ownedScale.getId());
+    }
+
+    @Test
+    void searchQuestionsByKeywordOnlyMatchesOwnedQuestionsIgnoringCase() {
+        UUID otherResearcherId = UUID.randomUUID();
+        insertResearcher(otherResearcherId);
+
+        saveTextQuestion(researcherId, "Target Alpha");
+        saveScaleQuestion(researcherId, "TARGET Scale");
+        saveTextQuestion(researcherId, "Unrelated question");
+        saveTextQuestion(otherResearcherId, "Target Hidden");
+
+        List<Question> results = questionRepository.searchQuestions(
+                researcherId,
+                null,
+                "target"
+        );
+
+        assertThat(results)
+                .extracting(Question::getQuestionText)
+                .containsExactlyInAnyOrder("Target Alpha", "TARGET Scale");
+    }
+
+    @Test
+    void searchQuestionsByTypeAndKeywordAppliesBothFilters() {
+        Question matchingQuestion = saveTextQuestion(researcherId, "Target Alpha");
+        saveScaleQuestion(researcherId, "Target Scale");
+        saveTextQuestion(researcherId, "Unrelated question");
 
         List<Question> results = questionRepository.searchQuestions(
                 researcherId,
                 QuestionType.TEXT,
                 "target"
         );
-        List<UUID> actualIds = results.stream()
-                .map(Question::getId)
-                .toList();
-        List<UUID> expectedIds = actualIds.stream()
-                .sorted(Comparator.comparing(UUID::toString).reversed())
-                .toList();
 
         assertThat(results)
-                .extracting(Question::getQuestionText)
-                .containsExactlyInAnyOrder("Target Alpha", "TARGET Beta");
-        assertThat(actualIds).containsExactlyElementsOf(expectedIds);
+                .extracting(Question::getId)
+                .containsExactly(matchingQuestion.getId());
     }
 
     @Test
@@ -264,6 +317,19 @@ class QuestionRepositoryIntegrationTest {
                 false,
                 null,
                 null,
+                null,
+                null
+        ));
+    }
+
+    private Question saveScaleQuestion(UUID ownerId, String questionText) {
+        return questionRepository.saveAndFlush(Question.create(
+                ownerId,
+                QuestionType.SCALE,
+                questionText,
+                false,
+                1,
+                5,
                 null,
                 null
         ));
