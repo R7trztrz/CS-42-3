@@ -8,6 +8,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
@@ -27,6 +28,7 @@ public class StudyServiceImpl implements StudyService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('RESEARCHER')")
     public Study createStudy(UUID ownerId, String title, String description) {
         Study study = new Study(ownerId, title, description);
 

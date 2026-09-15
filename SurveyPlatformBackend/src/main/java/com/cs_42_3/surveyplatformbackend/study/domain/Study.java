@@ -37,7 +37,7 @@ public class Study {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    // Keep the identifier until the account entity and foreign key are defined.
+    // Reference the researcher by UUID; Flyway manages the database foreign key.
     @NotNull
     @Column(name = "owner_id", nullable = false, updatable = false)
     private UUID ownerId;
