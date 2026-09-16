@@ -1,3 +1,5 @@
+import WidgetEditor from '../pages/WidgetEditor'
+
 import { createBrowserRouter } from 'react-router-dom'
 
 import LoginPage from '../auth/pages/LoginPage'
@@ -57,6 +59,10 @@ const router = createBrowserRouter([
       {
         path: 'truth-social',
         element: <TruthSocial />,
+      },
+      {
+        path: 'widget-editor',
+        element: <WidgetEditor />,
       },
     ],
   },
