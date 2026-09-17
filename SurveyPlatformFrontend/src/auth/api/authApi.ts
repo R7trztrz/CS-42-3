@@ -50,5 +50,3 @@ export async function loginResearcher(
 
     return (await response.json()) as LoginResponse
 }
-
-

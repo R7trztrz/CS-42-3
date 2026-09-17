@@ -3,6 +3,7 @@ import WidgetEditor from '../pages/WidgetEditor'
 import { createBrowserRouter } from 'react-router-dom'
 
 import LoginPage from '../auth/pages/LoginPage'
+import RegisterPage from '../auth/pages/RegisterPage'
 
 import MainLayout from '../layouts/MainLayout'
 import Home from '../pages/Home'
@@ -18,6 +19,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />,
   },
   {
     path: '/',
