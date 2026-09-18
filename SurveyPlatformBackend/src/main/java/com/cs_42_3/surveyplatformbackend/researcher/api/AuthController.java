@@ -184,7 +184,7 @@ public class AuthController {
                                         {
                                           "token": "eyJhbGciOiJIUzI1NiJ9.example.signature",
                                           "tokenType": "Bearer",
-                                          "expiresIn": 3600
+                                          "expiresIn": 7200
                                         }
                                         """
                             )
@@ -240,7 +240,7 @@ public class AuthController {
         LoginResponse response = new LoginResponse(
                 token,
                 "Bearer",
-                3600
+                7200
         );
 
         return ResponseEntity.ok(response);
