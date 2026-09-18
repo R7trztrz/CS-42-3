@@ -13,8 +13,9 @@ public interface StudyService {
 
     /**
      * Creates a draft study for an authenticated researcher.
-     * The caller must authenticate and authorize the researcher and derive the
-     * owner ID from that identity, never from a client-supplied ownership field.
+     * The caller must derive the owner ID from authenticated identity, never from
+     * a client-supplied ownership field. The service enforces the RESEARCHER role
+     * when invoked through its Spring-managed proxy.
      *
      * @param ownerId the authenticated researcher's identifier
      * @param title the nonblank study title, at most 255 characters

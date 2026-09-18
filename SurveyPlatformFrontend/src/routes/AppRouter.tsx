@@ -1,4 +1,9 @@
+import WidgetEditor from '../pages/WidgetEditor'
+
 import { createBrowserRouter } from 'react-router-dom'
+
+import LoginPage from '../auth/pages/LoginPage'
+import RegisterPage from '../auth/pages/RegisterPage'
 
 import MainLayout from '../layouts/MainLayout'
 import Home from '../pages/Home'
@@ -11,6 +16,14 @@ import Bluesky from '../pages/Bluesky'
 import TruthSocial from '../pages/TruthSocial'
 
 const router = createBrowserRouter([
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />,
+  },
   {
     path: '/',
     element: <MainLayout />,
@@ -46,6 +59,10 @@ const router = createBrowserRouter([
       {
         path: 'truth-social',
         element: <TruthSocial />,
+      },
+      {
+        path: 'widget-editor',
+        element: <WidgetEditor />,
       },
     ],
   },

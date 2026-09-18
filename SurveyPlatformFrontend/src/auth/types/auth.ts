@@ -12,6 +12,17 @@ export interface RegisterResponse {
     role: ResearcherRole
 }
 
+export interface LoginRequest {
+    email: string
+    password: string
+}
+
+export interface LoginResponse {
+    token: string
+    tokenType: string
+    expiresIn: number
+}
+
 export interface ApiErrorResponse {
     error?: string
 }
