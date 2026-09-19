@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useRef, useState, type FormEvent } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
 import type { TurnstileInstance } from '@marsidev/react-turnstile'
@@ -188,6 +189,18 @@ export default function RegisterPage() {
                     >
                         {isSubmitting ? 'Creating account...' : 'Create account'}
                     </button>
+                    <div className="text-center">
+                        <p className="mb-2 text-sm text-gray-600">
+                            Already have an account?
+                        </p>
+
+                        <Link
+                            to="/login"
+                            className="block w-full rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                            Log in
+                        </Link>
+                    </div>
                 </form>
             </div>
         </main>
