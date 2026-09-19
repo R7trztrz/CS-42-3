@@ -4,6 +4,7 @@ export interface RegisterRequest {
     email: string
     password: string
     confirmPassword: string
+    captchaToken: string
 }
 
 export interface RegisterResponse {
@@ -21,6 +22,12 @@ export interface LoginResponse {
     token: string
     tokenType: string
     expiresIn: number
+}
+
+export interface ChangePasswordRequest {
+    currentPassword: string
+    newPassword: string
+    confirmNewPassword: string
 }
 
 export interface ApiErrorResponse {

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { loginResearcher } from '../api/authApi'
 
 export default function LoginPage() {
@@ -108,6 +108,18 @@ export default function LoginPage() {
                     >
                         {isSubmitting ? 'Logging in...' : 'Log in'}
                     </button>
+                    <div className="text-center">
+                        <p className="mb-2 text-sm text-gray-600">
+                            Don't have an account?
+                        </p>
+
+                        <Link
+                            to="/register"
+                            className="block w-full rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                            Create account
+                        </Link>
+                    </div>
                 </form>
             </div>
         </main>
