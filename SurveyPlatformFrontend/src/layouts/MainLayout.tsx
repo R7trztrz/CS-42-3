@@ -1,6 +1,14 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useNavigate } from 'react-router-dom'
 
 function MainLayout() {
+    const navigate = useNavigate()
+
+    const handleLogout = () => {
+        localStorage.removeItem('researcherToken')
+        localStorage.removeItem('researcherTokenType')
+
+        navigate('/login', { replace: true })
+    }
   return (
     <div>
       <header>
@@ -14,7 +22,10 @@ function MainLayout() {
           <Link to="/x">X</Link>{' | '}
           <Link to="/threads">Threads</Link>{' | '}
           <Link to="/bluesky">Bluesky</Link>{' | '}
-          <Link to="/truth-social">Truth Social</Link>
+            <Link to="/truth-social">Truth Social</Link>{' | '}
+            <button type="button" onClick={handleLogout}>
+                Logout
+            </button>
         </nav>
       </header>
 

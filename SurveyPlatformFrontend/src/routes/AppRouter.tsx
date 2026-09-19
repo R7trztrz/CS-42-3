@@ -4,6 +4,7 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import LoginPage from '../auth/pages/LoginPage'
 import RegisterPage from '../auth/pages/RegisterPage'
+import ProtectedRoute from '../auth/components/ProtectedRoute'
 
 import MainLayout from '../layouts/MainLayout'
 import Home from '../pages/Home'
@@ -25,44 +26,49 @@ const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
-    path: '/',
-    element: <MainLayout />,
+    element: <ProtectedRoute />,
     children: [
       {
-        index: true,
-        element: <Home />,
-      },
-      {
-        path: 'facebook',
-        element: <Facebook />,
-      },
-      {
-        path: 'instagram',
-        element: <Instagram />,
-      },
-      {
-        path: 'tiktok',
-        element: <TikTok />,
-      },
-      {
-        path: 'x',
-        element: <X />,
-      },
-      {
-        path: 'threads',
-        element: <Threads />,
-      },
-      {
-        path: 'bluesky',
-        element: <Bluesky />,
-      },
-      {
-        path: 'truth-social',
-        element: <TruthSocial />,
-      },
-      {
-        path: 'widget-editor',
-        element: <WidgetEditor />,
+        path: '/',
+        element: <MainLayout />,
+        children: [
+          {
+            index: true,
+            element: <Home />,
+          },
+          {
+            path: 'facebook',
+            element: <Facebook />,
+          },
+          {
+            path: 'instagram',
+            element: <Instagram />,
+          },
+          {
+            path: 'tiktok',
+            element: <TikTok />,
+          },
+          {
+            path: 'x',
+            element: <X />,
+          },
+          {
+            path: 'threads',
+            element: <Threads />,
+          },
+          {
+            path: 'bluesky',
+            element: <Bluesky />,
+          },
+          {
+            path: 'truth-social',
+            element: <TruthSocial />,
+          },
+          {
+            path: 'widget-editor',
+            element: <WidgetEditor />,
+          },
+        ],
       },
     ],
   },
