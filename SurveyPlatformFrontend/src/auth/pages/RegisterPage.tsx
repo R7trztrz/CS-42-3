@@ -1,10 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
+import { Turnstile } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 import { registerResearcher } from '../api/authApi'
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    const [captchaToken, setCaptchaToken] = useState('')
+
+    const turnstileRef = useRef<TurnstileInstance | null>(null)
 
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
@@ -33,6 +38,11 @@ export default function RegisterPage() {
             return
         }
 
+        if (!captchaToken) {
+            setError('Please complete the human verification.')
+            return
+        }
+
         try {
             setIsSubmitting(true)
 
@@ -40,6 +50,7 @@ export default function RegisterPage() {
                 email,
                 password,
                 confirmPassword,
+                captchaToken,
             })
 
             setSuccess('Registration successful. You can now log in.')
@@ -54,6 +65,8 @@ export default function RegisterPage() {
                 setError('Registration failed.')
             }
         } finally {
+            setCaptchaToken('')
+            turnstileRef.current?.reset()
             setIsSubmitting(false)
         }
     }
@@ -134,6 +147,21 @@ export default function RegisterPage() {
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
                         />
                     </div>
+
+                    <Turnstile
+                        ref={turnstileRef}
+                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => {
+                            setCaptchaToken(token)
+                        }}
+                        onExpire={() => {
+                            setCaptchaToken('')
+                        }}
+                        onError={() => {
+                            setCaptchaToken('')
+                            setError('Human verification failed. Please try again.')
+                        }}
+                    />
 
                     {error && (
                         <div

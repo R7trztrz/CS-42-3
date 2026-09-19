@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@craftjs/core": "^0.2.12",
+    "@marsidev/react-turnstile": "^1.6.1",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.20.0",
     "react": "^18.3.1",

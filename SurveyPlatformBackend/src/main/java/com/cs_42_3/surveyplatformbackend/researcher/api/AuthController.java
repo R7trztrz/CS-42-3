@@ -7,6 +7,8 @@ import com.cs_42_3.surveyplatformbackend.researcher.api.dto.RegisterResponse;
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
 import com.cs_42_3.surveyplatformbackend.researcher.service.JwtService;
 import com.cs_42_3.surveyplatformbackend.researcher.service.ResearcherService;
+import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationException;
+import com.cs_42_3.surveyplatformbackend.security.turnstile.TurnstileService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,13 +39,16 @@ public class AuthController {
 
     private final ResearcherService researcherService;
     private final JwtService jwtService;
+    private final TurnstileService turnstileService;
 
     public AuthController(
             ResearcherService researcherService,
-            JwtService jwtService
+            JwtService jwtService,
+            TurnstileService turnstileService
     ) {
         this.researcherService = researcherService;
         this.jwtService = jwtService;
+        this.turnstileService = turnstileService;
     }
 
     /**
@@ -61,6 +66,9 @@ public class AuthController {
                 The email must be valid and must not already be registered.
                 The password must contain at least 8 characters, and password and
                 confirmPassword must match.
+                
+                A valid Cloudflare Turnstile human-verification token is required
+                before the account can be created.
 
                 New accounts are automatically assigned the RESEARCHER role.
                 The password is stored as a BCrypt hash and is never returned by the API.
@@ -115,6 +123,14 @@ public class AuthController {
                                                   "error": "Passwords do not match"
                                                 }
                                                 """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Human verification failed",
+                                            value = """
+                                                {
+                                                  "error": "Human verification failed."
+                                                }
+                                                """
                                     )
                             }
                     )
@@ -137,6 +153,10 @@ public class AuthController {
     public ResponseEntity<RegisterResponse> register(
             @Valid @RequestBody RegisterRequest request
     ) {
+        if (!turnstileService.verify(request.getCaptchaToken())) {
+            throw new HumanVerificationException();
+        }
+
         Researcher researcher = researcherService.register(request);
 
         RegisterResponse response = new RegisterResponse(
