@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.common.exception;
 
+import com.cs_42_3.surveyplatformbackend.researcher.service.CurrentPasswordIncorrectException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.DuplicateEmailException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.InvalidCredentialsException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.PasswordMismatchException;
@@ -93,6 +94,15 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(new ErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(CurrentPasswordIncorrectException.class)
+    public ResponseEntity<ErrorResponse> handleCurrentPasswordIncorrect(
+            CurrentPasswordIncorrectException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(exception.getMessage()));
     }
 }

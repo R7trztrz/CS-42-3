@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.researcher.api;
 
+import com.cs_42_3.surveyplatformbackend.researcher.api.dto.ChangePasswordRequest;
 import com.cs_42_3.surveyplatformbackend.researcher.api.dto.LoginRequest;
 import com.cs_42_3.surveyplatformbackend.researcher.api.dto.LoginResponse;
 import com.cs_42_3.surveyplatformbackend.researcher.api.dto.RegisterRequest;
@@ -7,6 +8,7 @@ import com.cs_42_3.surveyplatformbackend.researcher.api.dto.RegisterResponse;
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
 import com.cs_42_3.surveyplatformbackend.researcher.service.JwtService;
 import com.cs_42_3.surveyplatformbackend.researcher.service.ResearcherService;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitExceededException;
 import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitService;
 import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationException;
@@ -16,6 +18,7 @@ import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +30,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 /**
  * Provides authentication-related endpoints for researcher accounts.
@@ -45,17 +49,20 @@ public class AuthController {
     private final JwtService jwtService;
     private final TurnstileService turnstileService;
     private final RateLimitService rateLimitService;
+    private final CurrentResearcher currentResearcher;
 
     public AuthController(
             ResearcherService researcherService,
             JwtService jwtService,
             TurnstileService turnstileService,
-            RateLimitService rateLimitService
+            RateLimitService rateLimitService,
+            CurrentResearcher currentResearcher
     ) {
         this.researcherService = researcherService;
         this.jwtService = jwtService;
         this.turnstileService = turnstileService;
         this.rateLimitService = rateLimitService;
+        this.currentResearcher = currentResearcher;
     }
 
     /**
@@ -313,5 +320,90 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Changes the password of the authenticated researcher.
+     *
+     * @param request password change request
+     * @return empty response when the password is changed successfully
+     */
+    @PostMapping("/change-password")
+    @PreAuthorize("hasRole('RESEARCHER')")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "Change researcher password",
+            description = """
+            Changes the password of the currently authenticated researcher.
+
+            The current password must be correct. The new password must contain
+            at least 8 characters and must match confirmNewPassword.
+
+            The researcher identity is derived from the authenticated JWT and
+            cannot be supplied or changed by the client.
+
+            After a successful password change, the old password can no longer
+            be used to log in.
+            """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Password changed successfully",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid password change request",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "Incorrect current password",
+                                            value = """
+                                            {
+                                              "error": "Current password is incorrect"
+                                            }
+                                            """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Weak new password",
+                                            value = """
+                                            {
+                                              "error": "New password must be at least 8 characters long"
+                                            }
+                                            """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Password mismatch",
+                                            value = """
+                                            {
+                                              "error": "New passwords do not match"
+                                            }
+                                            """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Authentication token is missing, invalid, or expired",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Authenticated user does not have the RESEARCHER role",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        researcherService.changePassword(
+                currentResearcher.getId(),
+                request
+        );
+
+        return ResponseEntity.noContent().build();
     }
 }
