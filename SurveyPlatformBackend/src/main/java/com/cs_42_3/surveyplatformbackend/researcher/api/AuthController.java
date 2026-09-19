@@ -7,9 +7,13 @@ import com.cs_42_3.surveyplatformbackend.researcher.api.dto.RegisterResponse;
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
 import com.cs_42_3.surveyplatformbackend.researcher.service.JwtService;
 import com.cs_42_3.surveyplatformbackend.researcher.service.ResearcherService;
+import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitExceededException;
+import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitService;
 import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationException;
 import com.cs_42_3.surveyplatformbackend.security.turnstile.TurnstileService;
+
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,15 +44,18 @@ public class AuthController {
     private final ResearcherService researcherService;
     private final JwtService jwtService;
     private final TurnstileService turnstileService;
+    private final RateLimitService rateLimitService;
 
     public AuthController(
             ResearcherService researcherService,
             JwtService jwtService,
-            TurnstileService turnstileService
+            TurnstileService turnstileService,
+            RateLimitService rateLimitService
     ) {
         this.researcherService = researcherService;
         this.jwtService = jwtService;
         this.turnstileService = turnstileService;
+        this.rateLimitService = rateLimitService;
     }
 
     /**
@@ -148,11 +155,32 @@ public class AuthController {
                                         """
                             )
                     )
+            ),
+            @ApiResponse(
+                    responseCode = "429",
+                    description = "Too many registration requests",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                            {
+                              "error": "Too many requests. Please try again later."
+                            }
+                            """
+                            )
+                    )
             )
     })
     public ResponseEntity<RegisterResponse> register(
-            @Valid @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpRequest
     ) {
+        String clientIp = httpRequest.getRemoteAddr();
+
+        if (!rateLimitService.allowRegister(clientIp)) {
+            throw new RateLimitExceededException();
+        }
+
         if (!turnstileService.verify(request.getCaptchaToken())) {
             throw new HumanVerificationException();
         }
@@ -248,11 +276,32 @@ public class AuthController {
                                         """
                             )
                     )
+            ),
+            @ApiResponse(
+                    responseCode = "429",
+                    description = "Too many login requests",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                            {
+                              "error": "Too many requests. Please try again later."
+                            }
+                            """
+                            )
+                    )
             )
     })
     public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest
     ) {
+        String clientIp = httpRequest.getRemoteAddr();
+
+        if (!rateLimitService.allowLogin(clientIp)) {
+            throw new RateLimitExceededException();
+        }
+
         Researcher researcher = researcherService.login(request);
 
         String token = jwtService.generateToken(researcher);
