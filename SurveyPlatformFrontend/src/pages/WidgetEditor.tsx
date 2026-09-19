@@ -6,6 +6,7 @@ import {
   ActionBarWidget,
 } from '../components/widgets'
 import Toolbox from '../components/editor/Toolbox'
+import PropertiesPanel from '../components/editor/PropertiesPanel'
 
 function CanvasContainer({ children }: { children?: React.ReactNode }) {
   return (
@@ -26,13 +27,15 @@ function WidgetEditor() {
         Widget Editor
       </h1>
 
-      <Editor resolver={{ 
-        TextWidget, 
-        AvatarWidget,
-        ImageWidget,
-        ActionBarWidget,
-        CanvasContainer 
-        }}>
+      <Editor
+        resolver={{
+          TextWidget,
+          AvatarWidget,
+          ImageWidget,
+          ActionBarWidget,
+          CanvasContainer,
+        }}
+      >
         <div className="flex gap-6">
           <Toolbox />
 
@@ -43,6 +46,8 @@ function WidgetEditor() {
               </Element>
             </Frame>
           </div>
+
+          <PropertiesPanel />
         </div>
       </Editor>
     </div>
