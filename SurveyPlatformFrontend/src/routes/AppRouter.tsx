@@ -5,6 +5,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import LoginPage from '../auth/pages/LoginPage'
 import RegisterPage from '../auth/pages/RegisterPage'
 import ProtectedRoute from '../auth/components/ProtectedRoute'
+import ChangePasswordPage from '../auth/pages/ChangePasswordPage'
 
 import MainLayout from '../layouts/MainLayout'
 import Home from '../pages/Home'
@@ -67,6 +68,10 @@ const router = createBrowserRouter([
           {
             path: 'widget-editor',
             element: <WidgetEditor />,
+          },
+          {
+            path: 'account/change-password',
+            element: <ChangePasswordPage />,
           },
         ],
       },

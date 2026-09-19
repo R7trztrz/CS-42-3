@@ -22,10 +22,11 @@ function MainLayout() {
           <Link to="/x">X</Link>{' | '}
           <Link to="/threads">Threads</Link>{' | '}
           <Link to="/bluesky">Bluesky</Link>{' | '}
-            <Link to="/truth-social">Truth Social</Link>{' | '}
-            <button type="button" onClick={handleLogout}>
-                Logout
-            </button>
+          <Link to="/truth-social">Truth Social</Link>{' | '}
+          <Link to="/account/change-password">Change password</Link>{' | '}
+          <button type="button" onClick={handleLogout}>
+              Logout
+          </button>
         </nav>
       </header>
 

@@ -24,6 +24,12 @@ export interface LoginResponse {
     expiresIn: number
 }
 
+export interface ChangePasswordRequest {
+    currentPassword: string
+    newPassword: string
+    confirmNewPassword: string
+}
+
 export interface ApiErrorResponse {
     error?: string
 }
