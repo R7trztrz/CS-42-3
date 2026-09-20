@@ -13,8 +13,8 @@ import jakarta.validation.constraints.Size;
 public record CreateStudyRequest(
         @Schema(description = "Study title; must contain non-whitespace characters.",
                 example = "Social media browsing study", maxLength = 255, requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank
-        @Size(max = 255)
+        @NotBlank(message = "Title is required")
+        @Size(max = 255, message = "Title must not exceed 255 characters")
         String title,
 
         @Schema(description = "Optional description of the study.",

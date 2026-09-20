@@ -38,19 +38,19 @@ public class Study {
     private UUID id;
 
     // Reference the researcher by UUID; Flyway manages the database foreign key.
-    @NotNull
+    @NotNull(message = "Owner is required")
     @Column(name = "owner_id", nullable = false, updatable = false)
     private UUID ownerId;
 
-    @NotBlank
-    @Size(max = 255)
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
     @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @NotNull
+    @NotNull(message = "Status is required")
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private StudyStatus status = StudyStatus.DRAFT;

@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.study.api;
 
+import com.cs_42_3.surveyplatformbackend.common.exception.ErrorResponse;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.api.dto.CreateStudyRequest;
 import com.cs_42_3.surveyplatformbackend.study.api.dto.StudyResponse;
@@ -61,7 +62,7 @@ public class StudyController {
             @ApiResponse(responseCode = "401", description = "Authentication is missing or invalid, or the JWT subject is not a canonical UUID.",
                     content = @Content),
             @ApiResponse(responseCode = "403", description = "The authenticated identity does not have the RESEARCHER role.",
-                    content = @Content)
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<StudyResponse> createStudy(
             @Valid @RequestBody CreateStudyRequest request) {
