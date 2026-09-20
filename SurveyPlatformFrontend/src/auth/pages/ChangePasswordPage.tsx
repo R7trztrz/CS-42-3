@@ -1,16 +1,10 @@
-import { Link } from 'react-router-dom'
-import { useRef, useState, type FormEvent } from 'react'
-import { Turnstile } from '@marsidev/react-turnstile'
-import type { TurnstileInstance } from '@marsidev/react-turnstile'
-import { registerResearcher } from '../api/authApi'
+import { useState, type FormEvent } from 'react'
+import { changePassword } from '../api/authApi'
 
-export default function RegisterPage() {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
-    const [captchaToken, setCaptchaToken] = useState('')
-
-    const turnstileRef = useRef<TurnstileInstance | null>(null)
+export default function ChangePasswordPage() {
+    const [currentPassword, setCurrentPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmNewPassword, setConfirmNewPassword] = useState('')
 
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
@@ -22,52 +16,37 @@ export default function RegisterPage() {
         setError('')
         setSuccess('')
 
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-        if (!emailPattern.test(email)) {
-            setError('Please enter a valid email address.')
+        if (newPassword.length < 8) {
+            setError('New password must be at least 8 characters long.')
             return
         }
 
-        if (password.length < 8) {
-            setError('Password must be at least 8 characters long.')
-            return
-        }
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match.')
-            return
-        }
-
-        if (!captchaToken) {
-            setError('Please complete the human verification.')
+        if (newPassword !== confirmNewPassword) {
+            setError('New passwords do not match.')
             return
         }
 
         try {
             setIsSubmitting(true)
 
-            await registerResearcher({
-                email,
-                password,
-                confirmPassword,
-                captchaToken,
+            await changePassword({
+                currentPassword,
+                newPassword,
+                confirmNewPassword,
             })
 
-            setSuccess('Registration successful. You can now log in.')
+            setSuccess('Password changed successfully.')
 
-            setEmail('')
-            setPassword('')
-            setConfirmPassword('')
+            setCurrentPassword('')
+            setNewPassword('')
+            setConfirmNewPassword('')
         } catch (error) {
             if (error instanceof Error) {
                 setError(error.message)
             } else {
-                setError('Registration failed.')
+                setError('Password change failed.')
             }
         } finally {
-            setCaptchaToken('')
-            turnstileRef.current?.reset()
             setIsSubmitting(false)
         }
     }
@@ -76,11 +55,11 @@ export default function RegisterPage() {
         <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
             <div className="w-full max-w-md rounded-xl bg-white p-8 shadow">
                 <h1 className="mb-2 text-2xl font-semibold text-gray-900">
-                    Create researcher account
+                    Change password
                 </h1>
 
                 <p className="mb-6 text-sm text-gray-600">
-                    Register to create and manage research studies.
+                    Update the password for your researcher account.
                 </p>
 
                 <form
@@ -90,18 +69,20 @@ export default function RegisterPage() {
                 >
                     <div>
                         <label
-                            htmlFor="email"
+                            htmlFor="currentPassword"
                             className="mb-1 block text-sm font-medium text-gray-700"
                         >
-                            Email
+                            Current password
                         </label>
 
                         <input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(event) => setEmail(event.target.value)}
-                            autoComplete="email"
+                            id="currentPassword"
+                            type="password"
+                            value={currentPassword}
+                            onChange={(event) =>
+                                setCurrentPassword(event.target.value)
+                            }
+                            autoComplete="current-password"
                             required
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
                         />
@@ -109,17 +90,19 @@ export default function RegisterPage() {
 
                     <div>
                         <label
-                            htmlFor="password"
+                            htmlFor="newPassword"
                             className="mb-1 block text-sm font-medium text-gray-700"
                         >
-                            Password
+                            New password
                         </label>
 
                         <input
-                            id="password"
+                            id="newPassword"
                             type="password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            value={newPassword}
+                            onChange={(event) =>
+                                setNewPassword(event.target.value)
+                            }
                             autoComplete="new-password"
                             required
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
@@ -132,37 +115,24 @@ export default function RegisterPage() {
 
                     <div>
                         <label
-                            htmlFor="confirmPassword"
+                            htmlFor="confirmNewPassword"
                             className="mb-1 block text-sm font-medium text-gray-700"
                         >
-                            Confirm password
+                            Confirm new password
                         </label>
 
                         <input
-                            id="confirmPassword"
+                            id="confirmNewPassword"
                             type="password"
-                            value={confirmPassword}
-                            onChange={(event) => setConfirmPassword(event.target.value)}
+                            value={confirmNewPassword}
+                            onChange={(event) =>
+                                setConfirmNewPassword(event.target.value)
+                            }
                             autoComplete="new-password"
                             required
                             className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
                         />
                     </div>
-
-                    <Turnstile
-                        ref={turnstileRef}
-                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                        onSuccess={(token) => {
-                            setCaptchaToken(token)
-                        }}
-                        onExpire={() => {
-                            setCaptchaToken('')
-                        }}
-                        onError={() => {
-                            setCaptchaToken('')
-                            setError('Human verification failed. Please try again.')
-                        }}
-                    />
 
                     {error && (
                         <div
@@ -187,20 +157,10 @@ export default function RegisterPage() {
                         disabled={isSubmitting}
                         className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {isSubmitting ? 'Creating account...' : 'Create account'}
+                        {isSubmitting
+                            ? 'Changing password...'
+                            : 'Change password'}
                     </button>
-                    <div className="text-center">
-                        <p className="mb-2 text-sm text-gray-600">
-                            Already have an account?
-                        </p>
-
-                        <Link
-                            to="/login"
-                            className="block w-full rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50"
-                        >
-                            Log in
-                        </Link>
-                    </div>
                 </form>
             </div>
         </main>

@@ -42,4 +42,10 @@ public class RegisterRequest {
             message = "Password confirmation must be at least 8 characters long"
     )
     private String confirmPassword;
+    @Schema(
+            description = "Cloudflare Turnstile verification token.",
+            example = "turnstile-verification-token"
+    )
+    @NotBlank(message = "Human verification is required")
+    private String captchaToken;
 }
