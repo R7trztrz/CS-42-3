@@ -9,6 +9,8 @@ import java.util.UUID;
 
 /**
  * Public study representation, excluding persistence locking metadata.
+ *
+ * @author Simon Tian
  */
 @Schema(description = "Study details returned by the API. Newly created studies have DRAFT status.")
 public record StudyResponse(
