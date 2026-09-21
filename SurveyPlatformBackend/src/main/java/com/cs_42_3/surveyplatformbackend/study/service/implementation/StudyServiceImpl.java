@@ -13,9 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 import java.util.UUID;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Implements FR-11 study creation within a transaction.
+ * Implements study creation and owner-scoped queries within transactions.
  *
  * @author Simon Tian
  */
@@ -25,6 +31,29 @@ public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
     private final Validator validator;
+
+    @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('RESEARCHER')")
+    public Page<Study> listStudies(UUID ownerId, int page, int size) {
+        // Reject invalid bounds before constructing a pageable or querying storage.
+        if (page < 0 || size < 1 || size > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Page must be nonnegative and size must be between 1 and 100.");
+        }
+        var pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
+        return studyRepository.findAllByOwnerId(ownerId, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('RESEARCHER')")
+    public Study getStudy(UUID ownerId, UUID studyId) {
+        // Missing and foreign-owned studies deliberately have the same response.
+        return studyRepository.findByIdAndOwnerId(studyId, ownerId)
+                .orElseThrow(StudyNotFoundException::new);
+    }
 
     @Override
     @Transactional

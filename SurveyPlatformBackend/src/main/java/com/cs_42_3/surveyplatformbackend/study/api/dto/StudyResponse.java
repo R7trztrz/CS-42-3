@@ -12,7 +12,7 @@ import java.util.UUID;
  *
  * @author Simon Tian
  */
-@Schema(description = "Study details returned by the API. Newly created studies have DRAFT status.")
+@Schema(description = "Basic study details. Participation links are pending FR-14 integration.")
 public record StudyResponse(
         @Schema(description = "Server-generated study identifier.", format = "uuid", example = "550e8400-e29b-41d4-a716-446655440000")
         UUID id,
@@ -20,7 +20,7 @@ public record StudyResponse(
         String title,
         @Schema(description = "Optional study description.", example = "Investigate browsing behaviour in a simulated social media feed.")
         String description,
-        @Schema(description = "Study lifecycle state. Creation always returns DRAFT.", example = "DRAFT")
+        @Schema(description = "Current study lifecycle state. Creation returns DRAFT.", example = "DRAFT")
         StudyStatus status,
         @Schema(description = "Creation timestamp in UTC.", format = "date-time", example = "2026-09-11T00:00:00Z")
         Instant createdAt,

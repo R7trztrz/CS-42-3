@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.study.service;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 
 /**
  * Defines study management operations.
@@ -10,6 +11,11 @@ import java.util.UUID;
  * @author Simon Tian
  */
 public interface StudyService {
+    /** Returns an owner's studies in stable creation order using bounded pagination. */
+    Page<Study> listStudies(UUID ownerId, int page, int size);
+
+    /** Returns an owned study or throws StudyNotFoundException without exposing other owners. */
+    Study getStudy(UUID ownerId, UUID studyId);
 
     /**
      * Creates a draft study for an authenticated researcher.
