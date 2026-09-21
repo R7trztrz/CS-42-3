@@ -4,6 +4,9 @@ import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Provides persistence operations for studies.
@@ -13,4 +16,9 @@ import java.util.UUID;
  * @author Simon Tian
  */
 public interface StudyRepository extends JpaRepository<Study, UUID> {
+    /** Retrieves only studies owned by the requested researcher. */
+    Page<Study> findAllByOwnerId(UUID ownerId, Pageable pageable);
+
+    /** Combines resource lookup and ownership filtering in one query. */
+    Optional<Study> findByIdAndOwnerId(UUID id, UUID ownerId);
 }

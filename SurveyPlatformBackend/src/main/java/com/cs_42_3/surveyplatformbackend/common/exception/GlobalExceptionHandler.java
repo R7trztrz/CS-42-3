@@ -8,6 +8,7 @@ import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitExceededExc
 import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationException;
 
 import jakarta.validation.ConstraintViolationException;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,9 +22,17 @@ import org.springframework.web.server.ResponseStatusException;
  * Handles application exceptions and returns consistent API error responses.
  *
  * @author Jiale Chen
+ * @author Simon Tian
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** Does not distinguish absent studies from studies belonging to another owner. */
+    @ExceptionHandler(StudyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleStudyNotFound(StudyNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ErrorCode.STUDY_NOT_FOUND.code(), exception.getMessage()));
+    }
 
     /*
      * TODO(global exception coverage): the framework exceptions listed below have no
@@ -39,7 +48,9 @@ public class GlobalExceptionHandler {
      *     POST /api/studies with a non-JSON Content-Type.
      * - HttpRequestMethodNotSupportedException (405)
      *     Thrown by handler mapping when the path matches but the HTTP method does not.
-     *     Triggered by e.g. GET /api/studies, which only exposes POST.
+     *     Triggered by e.g. DELETE /api/studies, which has no matching operation.
+     * - MethodArgumentTypeMismatchException (400)
+     *     Triggered by malformed study UUIDs or nonnumeric pagination parameters.
      * - DataIntegrityViolationException (500)
      *     Thrown when a database constraint fails, e.g. the studies.owner_id foreign key
      *     or a CHECK constraint, surfaced at transaction commit. Its message embeds the
