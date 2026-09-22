@@ -21,6 +21,11 @@
 # Shareable configuration template; the real local .env remains ignored.
 !.env.example
 
+# Design/handoff notes, not part of the application build.
+!docs/
+!docs/**/
+!docs/**/*.md
+
 # Application source and resources.
 !src/
 !src/**/
