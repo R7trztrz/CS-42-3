@@ -26,6 +26,10 @@ import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictExc
 import org.springframework.dao.OptimisticLockingFailureException;
 import jakarta.persistence.OptimisticLockException;
 import java.util.Objects;
+import com.cs_42_3.surveyplatformbackend.feed.domain.StudyFeed;
+import com.cs_42_3.surveyplatformbackend.feed.repository.FeedTemplateRepository;
+import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
+import com.cs_42_3.surveyplatformbackend.feed.exception.FeedTemplateNotFoundException;
 
 /**
  * Implements study creation and owner-scoped queries within transactions.
@@ -38,6 +42,8 @@ public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
     private final Validator validator;
+    private final FeedTemplateRepository feedTemplateRepository;
+    private final StudyFeedRepository studyFeedRepository;
 
     @Override
     @Transactional
@@ -98,7 +104,9 @@ public class StudyServiceImpl implements StudyService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('RESEARCHER')")
-    public Study createStudy(UUID ownerId, String title, String description) {
+    public Study createStudy(UUID ownerId, String title, String description, String templateCode) {
+        var template = feedTemplateRepository.findById(templateCode)
+                .orElseThrow(FeedTemplateNotFoundException::new);
         Study study = new Study(ownerId, title, description);
 
         // Reuse entity constraints before invoking persistence.
@@ -107,6 +115,9 @@ public class StudyServiceImpl implements StudyService {
             throw new ConstraintViolationException(violations);
         }
 
-        return studyRepository.save(study);
+        // Flush the parent first because the feed uses a scalar foreign key, not a JPA association.
+        Study saved = studyRepository.saveAndFlush(study);
+        studyFeedRepository.saveAndFlush(new StudyFeed(saved.getId(), template));
+        return saved;
     }
 }

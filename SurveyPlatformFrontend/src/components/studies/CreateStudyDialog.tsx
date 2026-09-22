@@ -141,6 +141,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
       const study = await createStudy({
         title: title.trim(),
         description: description.trim() || undefined,
+        templateCode: selectedTemplate,
       })
       onCreated(study, selectedTemplate)
     } catch (error) {

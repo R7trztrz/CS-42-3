@@ -19,6 +19,13 @@ public record CreateStudyRequest(
 
         @Schema(description = "Optional description of the study.",
                 example = "Investigate browsing behaviour in a simulated social media feed.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        String description
+        String description,
+
+        @Schema(description = "Required system template code. Template content may be unconfigured.",
+                example = "blank", allowableValues = {"blank", "facebook", "instagram", "tiktok",
+                "x", "threads", "bluesky", "truth-social"}, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "Template code is required")
+        @Size(max = 32, message = "Template code must not exceed 32 characters")
+        String templateCode
 ) {
 }

@@ -199,3 +199,35 @@ $credential = Get-Credential -UserName $env:SPRING_DATASOURCE_USERNAME -Message 
 $env:SPRING_DATASOURCE_PASSWORD = $credential.GetNetworkCredential().Password
 Remove-Variable credential
 ```
+
+## Creating a study with a feed template
+
+`POST /api/studies` now requires a template identifier:
+
+```json
+{
+  "title": "Social media study",
+  "description": "Example description",
+  "templateCode": "blank"
+}
+```
+
+Supported codes are `blank`, `facebook`, `instagram`, `tiktok`, `x`,
+`threads`, `bluesky`, and `truth-social`. Missing codes return HTTP 400;
+unknown codes return HTTP 400 with `FEED_TEMPLATE_NOT_FOUND`.
+
+Flyway V5 creates the read-only application catalog `feed_templates` and the
+per-study `study_feeds` table. The stable template code is its primary identifier.
+All eight initial template documents and schema versions are SQL NULL until the
+frontend supplies their content. The blank template is also a placeholder, not
+an implemented empty editor document.
+
+Creation atomically saves the study and an independent copy of its template's
+content, theme and schema version. A placeholder can create a study, but its null
+content must not be treated as publishable. Template changes affect future
+creations only; existing copies are not overwritten. Existing studies are not
+backfilled because their original template choice is unknown.
+
+Add template content through a new migration after agreeing on the editor JSON
+contract. Do not rewrite V5 after it has been applied. Feed retrieval/editing,
+legacy-study initialization and publishing are separate follow-up work.
