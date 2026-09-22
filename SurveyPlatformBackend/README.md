@@ -2,7 +2,11 @@
 
 Backend service for SurveyPlatform, a University of Sydney COMP5703 project. Built with Java, Spring Boot, and PostgreSQL, it provides the foundation for developing the survey platform.
 
-The project is currently at the initialization stage. The application entry point, database connection, dependencies, and application context test are in place. Business APIs, user login, JWT issuance, and JWT validation configuration have not yet been implemented.
+The backend currently provides the core researcher authentication and authorization flow together with the Study API foundation.
+
+Implemented functionality includes researcher registration and login, BCrypt password hashing, JWT issuance and validation, stateless request authentication, RESEARCHER role-based authorization, authenticated researcher identity handling, password change, Cloudflare Turnstile verification for registration, and rate limiting for authentication endpoints.
+
+The backend also exposes OpenAPI documentation through Swagger UI and uses Flyway migrations to manage the PostgreSQL schema.
 
 ## Technology Stack and Dependencies
 
@@ -15,7 +19,7 @@ The project is currently at the initialization stage. The application entry poin
 | Spring Data JPA / Hibernate | Managed by Spring Boot | Entity mapping, database access, and transaction support |
 | PostgreSQL JDBC | Managed by Spring Boot | PostgreSQL database connectivity |
 | Flyway + PostgreSQL module | Managed by Spring Boot | Database migration management and execution |
-| Spring Security OAuth2 Resource Server | Managed by Spring Boot | Spring Security integration and Bearer token / JWT validation support; security configuration is still required |
+| Spring Security OAuth2 Resource Server | Managed by Spring Boot | Stateless Bearer-token authentication, JWT validation, and role-based authorization |
 | Validation | Managed by Spring Boot | Input validation using Jakarta Bean Validation |
 | springdoc OpenAPI | 3.1.0 | OpenAPI documentation generation and Swagger UI |
 | Apache Commons CSV | 1.14.1 | CSV parsing, writing, and field escaping |
@@ -23,6 +27,9 @@ The project is currently at the initialization stage. The application entry poin
 | Lombok | Managed by Spring Boot | Compile-time generation of constructors, accessors, and other boilerplate |
 | DevTools | Managed by Spring Boot | Automatic application restarts after recompilation during development |
 | Spring Boot Test Starters | Managed by Spring Boot | Test support for MVC, JPA, security, validation, Flyway, and Actuator |
+| BCrypt | Via Spring Security | Researcher password hashing and verification |
+| Cloudflare Turnstile | External service | Human verification for researcher registration |
+| Bucket4j | 8.20.0 | In-memory rate limiting for authentication endpoints |
 
 Refer to `pom.xml` for the dependency definitions.
 
@@ -32,19 +39,100 @@ Refer to `pom.xml` for the dependency definitions.
 SurveyPlatformBackend/
 ├── .mvn/wrapper/                  # Maven Wrapper configuration
 ├── src/main/java/com/cs_42_3/surveyplatformbackend/
+│   ├── common/
+│   │   └── exception/             # Shared API error handling
+│   ├── config/                    # Security and application configuration
+│   ├── researcher/
+│   │   ├── api/                   # Researcher authentication APIs
+│   │   ├── domain/                # Researcher entity and roles
+│   │   ├── repository/            # Researcher persistence
+│   │   └── service/               # Authentication and JWT services
+│   ├── security/
+│   │   ├── ratelimit/             # Authentication rate limiting
+│   │   └── turnstile/             # Cloudflare Turnstile verification
+│   ├── study/                     # Study APIs, domain and services
 │   └── SurveyPlatformBackendApplication.java
 ├── src/main/resources/
-│   └── application.yaml          # Application configuration
-├── src/test/java/com/cs_42_3/surveyplatformbackend/
-│   └── SurveyPlatformBackendApplicationTests.java
-├── .env.example                  # Sanitized environment template
+│   ├── application.yaml           # Application configuration
+│   └── db/migration/              # Flyway database migrations
+├── src/test/
+├── .env.example                   # Sanitized environment template
 ├── .gitignore
-├── mvnw                          # Linux/macOS Maven Wrapper
-├── mvnw.cmd                      # Windows Maven Wrapper
+├── mvnw
+├── mvnw.cmd
 └── pom.xml
 ```
 
-The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the database schema without creating or updating tables. Add future migration scripts under `src/main/resources/db/migration/`, using names such as `V1__create_initial_tables.sql`. This directory and the application migration scripts have not yet been added.
+The project uses Flyway for database schema management. Migration scripts are stored under `src/main/resources/db/migration/`.
+
+The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables.
+
+## Authentication and Security
+
+Researcher authentication is implemented using Spring Security and JWT.
+
+Current authentication and security features include:
+
+- Researcher registration with email and password validation
+- BCrypt password hashing and verification
+- Researcher login with generic invalid-credential responses
+- Signed JWT access tokens
+- Stateless JWT validation for protected requests
+- `RESEARCHER` role-based authorization
+- Authenticated researcher identity extraction for resource ownership
+- Researcher password change with current-password verification
+- Cloudflare Turnstile verification during registration
+- Per-IP rate limiting for registration and login
+
+Public authentication endpoints:
+
+- `POST /auth/register`
+- `POST /auth/login`
+
+Authenticated endpoint:
+
+- `POST /auth/change-password`
+
+Swagger UI is available while the backend is running at:
+
+`http://localhost:8080/swagger-ui/index.html`
+
+### JWT Configuration and Token Generation
+
+The backend uses an HS256 JWT signing key. `JWT_SECRET` must contain a Base64-encoded random secret.
+
+A suitable development secret can be generated with:
+
+```bash
+openssl rand -base64 32
+```
+
+Copy the generated value into the backend `.env` file:
+
+```env
+JWT_SECRET=<generated-base64-secret>
+```
+
+Do not commit the generated secret to the repository.
+
+JWT access tokens are issued automatically after a successful researcher login.
+
+Send a request to:
+
+```text
+POST /auth/login
+```
+
+with a valid researcher email and password. A successful response contains the JWT access token.
+
+The token should be included in protected API requests using the HTTP `Authorization` header:
+
+```text
+Authorization: Bearer <access-token>
+```
+
+When using Swagger UI, call `/auth/login`, copy the returned access token, click **Authorize**, and paste the token into the Bearer authentication field.
+
 
 ## Prerequisites
 
@@ -59,15 +147,17 @@ All database values in this document are examples. Replace them with the values 
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/example_database` | JDBC URL containing the host, port, and database name |
 | `SPRING_DATASOURCE_USERNAME` | `example_user` | Database username |
 | `SPRING_DATASOURCE_PASSWORD` | `replace-with-local-password` | Database password |
+| `JWT_SECRET` | `replace-with-base64-encoded-secret` | Base64-encoded secret used to sign and verify JWT access tokens |
+| `TURNSTILE_SECRET` | `your-turnstile-secret` | Cloudflare Turnstile server-side verification secret |
 
-`application.yaml` reads these variables through placeholders such as `${SPRING_DATASOURCE_URL}`. These credentials authenticate database connections; they are separate from platform user credentials.
+`application.yaml` reads these values from environment variables. The datasource variables configure the PostgreSQL connection, while `JWT_SECRET` and `TURNSTILE_SECRET` are security secrets used by the application. These values must be kept separate from platform user credentials and must not be committed to the repository.
 
 Copy `.env.example` to a local `.env` file to store your configuration. Spring Boot and Maven do not load `.env` files automatically.
 
 ## Running with IntelliJ IDEA
 
 1. Import the backend directory or its `pom.xml` as a Maven project. Select JDK 17 and the project Maven Wrapper.
-2. Copy `.env.example` to `.env` in the backend directory and enter your database connection values.
+2. Copy `.env.example` to `.env` in the backend directory and configure the database, JWT secret, and Turnstile secret values.
 3. Open **Run → Edit Configurations** and select or create the run configuration for `SurveyPlatformBackendApplication`.
 4. In **Environment variables**, use **Browse for .env files and scripts** to select the backend `.env` file. If the field is hidden, enable it through **Modify options → Environment variables**.
 5. Apply the configuration and run the application.
@@ -92,9 +182,13 @@ Set each environment variable, then start the application:
 $env:SPRING_DATASOURCE_URL = 'jdbc:postgresql://localhost:5432/example_database'
 $env:SPRING_DATASOURCE_USERNAME = 'example_user'
 $env:SPRING_DATASOURCE_PASSWORD = 'replace-with-local-password'
+$env:JWT_SECRET = 'replace-with-a-base64-encoded-secret'
+$env:TURNSTILE_SECRET = 'your-turnstile-secret'
 
 .\mvnw.cmd spring-boot:run
 ```
+> The actual Cloudflare Turnstile secret must not be committed to the repository.
+> Team members should obtain the development secret through a private channel and store it only in their local `.env` file.
 
 These variables apply only to the current PowerShell session and its child processes. They remain available when restarting the application in the same session, but must be set again in a new session. Press `Ctrl + C` to stop the application.
 
