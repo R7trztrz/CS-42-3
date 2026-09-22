@@ -39,7 +39,7 @@ export default function LoginPage() {
             localStorage.setItem('researcherToken', response.token)
             localStorage.setItem('researcherTokenType', response.tokenType)
 
-            navigate('/')
+            navigate('/researcher-dashboard', { replace: true })
         } catch (error) {
             if (error instanceof Error) {
                 setError(error.message)

@@ -1,12 +1,24 @@
 import { Editor, Frame, Element } from '@craftjs/core'
+import { useSearchParams } from 'react-router-dom'
 import {
   AvatarWidget,
   TextWidget,
   ImageWidget,
   ActionBarWidget,
-} from '../components/widgets'
-import Toolbox from '../components/editor/Toolbox'
-import PropertiesPanel from '../components/editor/PropertiesPanel'
+} from '../../components/widgets'
+import Toolbox from '../../components/editor/Toolbox'
+import PropertiesPanel from '../../components/editor/PropertiesPanel'
+
+const templateNames = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  tiktok: 'TikTok',
+  x: 'X',
+  threads: 'Threads',
+  bluesky: 'Bluesky',
+  'truth-social': 'Truth Social',
+  'blank-canvas': 'Blank Canvas',
+} as const
 
 function CanvasContainer({ children }: { children?: React.ReactNode }) {
   return (
@@ -21,11 +33,20 @@ CanvasContainer.craft = {
 }
 
 function WidgetEditor() {
+  const [searchParams] = useSearchParams()
+  const templateId = searchParams.get('template')
+  const currentTemplate =
+    templateNames[templateId as keyof typeof templateNames] ??
+    templateNames['blank-canvas']
+
   return (
     <div className="p-8">
-      <h1 className="mb-6 text-3xl font-bold">
+      <h1 className="text-3xl font-bold">
         Widget Editor
       </h1>
+      <p className="mb-6 mt-2 text-sm font-medium text-gray-600">
+        Current template: {currentTemplate}
+      </p>
 
       <Editor
         resolver={{
