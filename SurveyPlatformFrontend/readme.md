@@ -68,6 +68,10 @@ SurveyPlatformFrontend/
 ├── public/
 ├── src/
 │   ├── assets/
+│   ├── auth/
+│   │   ├── api/                   # Authentication API calls
+│   │   ├── pages/                 # Login, registration, and password-change pages
+│   │   └── types/                 # Authentication request/response types
 │   ├── components/
 │   │   ├── editor/
 │   │   └── widgets/
@@ -108,6 +112,38 @@ The current frontend foundation includes:
 - Drag-and-drop widget creation into the editor canvas
 - Tailwind CSS based styling
 - Axios based API service configuration
+- Researcher registration and login pages
+- Login and registration page navigation
+- JWT-based authenticated frontend session handling
+- Protected researcher routes with redirect to `/login` when unauthenticated
+- Researcher logout by clearing the locally stored authentication token
+- Researcher password-change page and validation
+- Cloudflare Turnstile integration for researcher registration
+- Automatic Bearer-token attachment for authenticated backend requests
+
+## Researcher Authentication
+
+The frontend provides researcher authentication and protected navigation integrated with the Spring Boot backend.
+
+Current authentication routes include:
+
+- `/register` — researcher account registration
+- `/login` — researcher login
+- `/account/change-password` — authenticated password change
+
+After a successful login, the returned JWT access token is stored in browser `localStorage`.
+
+Authenticated API requests automatically include the token using the HTTP `Authorization` header:
+
+```text
+Authorization: Bearer <access-token>
+```
+
+Protected researcher routes redirect unauthenticated users to `/login`.
+
+Logging out removes the stored authentication token and redirects the researcher back to the login page.
+
+The registration page also integrates Cloudflare Turnstile for human verification before account creation.
 
 ## Reusable Widgets
 
@@ -145,7 +181,7 @@ Further functionality such as platform-specific styling, property editing, and s
 
 The frontend uses Axios for communication with backend services.
 
-The API configuration is located in:
+The shared API configuration is located in:
 
 ```text
 src/services/api.ts
@@ -157,9 +193,12 @@ Example:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8080
+VITE_TURNSTILE_SITE_KEY=your-turnstile-site-key
 ```
 
-Environment-specific values should not be committed directly to the repository.
+`VITE_TURNSTILE_SITE_KEY` is a public client-side key used by the registration page. It is different from the backend `TURNSTILE_SECRET`, which must remain private.
+
+Environment-specific configuration should be stored in `.env` files as appropriate. Never place backend secrets, such as `TURNSTILE_SECRET`, in frontend `VITE_*` variables because Vite exposes them to the browser.
 
 ## Development Workflow
 
