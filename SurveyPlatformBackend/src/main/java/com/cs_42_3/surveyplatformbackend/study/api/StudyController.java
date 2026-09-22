@@ -122,13 +122,14 @@ public class StudyController {
             summary = "Create a draft study",
             description = "Implements FR-11. Creates a study in DRAFT status using the supplied title and optional description. "
                     + "Ownership is derived from the authenticated JWT sub claim (UUID); the RESEARCHER role is required. "
-                    + "The request cannot assign ownership or status. This operation does not create a questionnaire or feed."
+                    + "The request cannot assign ownership or status. A required templateCode initializes an independent feed "
+                    + "in the same transaction. Placeholder templates have null content; no questionnaire is created."
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Draft study created.",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = StudyResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed JSON or invalid request fields. Error response schema is not yet standardized.",
+            @ApiResponse(responseCode = "400", description = "Malformed JSON, invalid fields or unknown templateCode (FEED_TEMPLATE_NOT_FOUND). Framework error response schema is not yet standardized.",
                     content = @Content),
             @ApiResponse(responseCode = "401", description = "Authentication is missing or invalid, or the JWT subject is not a canonical UUID.",
                     content = @Content),
@@ -139,7 +140,7 @@ public class StudyController {
             @Valid @RequestBody CreateStudyRequest request) {
 
         UUID ownerId = currentResearcher.getId();
-        Study study = studyService.createStudy(ownerId, request.title(), request.description());
+        Study study = studyService.createStudy(ownerId, request.title(), request.description(), request.templateCode());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(StudyResponse.from(study));
     }

@@ -22,7 +22,7 @@ public interface StudyService {
     Study getStudy(UUID ownerId, UUID studyId);
 
     /**
-     * Creates a draft study for an authenticated researcher.
+     * Creates a draft study and an independent feed from the selected system template.
      * The caller must derive the owner ID from authenticated identity, never from
      * a client-supplied ownership field. The service enforces the RESEARCHER role
      * when invoked through its Spring-managed proxy.
@@ -30,8 +30,9 @@ public interface StudyService {
      * @param ownerId the authenticated researcher's identifier
      * @param title the nonblank study title, at most 255 characters
      * @param description the optional study description
+     * @param templateCode stable system template identifier; placeholder content is allowed
      * @return the persisted draft study
      * @throws jakarta.validation.ConstraintViolationException if the study is invalid
      */
-    Study createStudy(UUID ownerId, String title, String description);
+    Study createStudy(UUID ownerId, String title, String description, String templateCode);
 }

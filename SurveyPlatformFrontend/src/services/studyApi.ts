@@ -3,6 +3,7 @@ import api from './api'
 export type CreateStudyRequest = {
   title: string
   description?: string
+  templateCode: string
 }
 
 export type StudyResponse = {

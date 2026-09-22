@@ -11,6 +11,7 @@ import jakarta.validation.ConstraintViolationException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictException;
+import com.cs_42_3.surveyplatformbackend.feed.exception.FeedTemplateNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -28,6 +29,14 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** Rejects an invalid template selection before creating any study records. */
+    @ExceptionHandler(FeedTemplateNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedTemplateNotFound(
+            FeedTemplateNotFoundException exception) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(ErrorCode.FEED_TEMPLATE_NOT_FOUND.code(), exception.getMessage()));
+    }
 
     /** Maps the study lifecycle rule without exposing persistence details. */
     @ExceptionHandler(StudyNotEditableException.class)
