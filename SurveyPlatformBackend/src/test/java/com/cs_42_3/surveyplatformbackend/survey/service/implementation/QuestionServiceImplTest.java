@@ -6,9 +6,11 @@ import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
+import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionInUseException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
+import com.cs_42_3.surveyplatformbackend.survey.service.QuestionUsageGuard;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,14 +48,18 @@ class QuestionServiceImplTest {
     @Mock
     private CurrentResearcherProvider currentResearcherProvider;
 
+    @Mock
+    private QuestionUsageGuard questionUsageGuard;
+
     private QuestionServiceImpl questionService;
 
     @BeforeEach
     void setUp() {
-        questionService = new QuestionServiceImpl(questionRepository, currentResearcherProvider);
+        questionService = new QuestionServiceImpl(questionRepository, currentResearcherProvider, questionUsageGuard);
         lenient().when(currentResearcherProvider.getCurrentResearcherId()).thenReturn(RESEARCHER_ID);
         lenient().when(questionRepository.saveAndFlush(any(Question.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(questionUsageGuard.isReferencedByAnyQuestionnaire(any())).thenReturn(false);
     }
 
     @Test
@@ -349,6 +355,33 @@ class QuestionServiceImplTest {
         questionService.deleteQuestion(QUESTION_ID);
 
         verify(questionRepository).delete(question);
+    }
+
+    @Test
+    void updateQuestionRejectsQuestionEnabledInAQuestionnaire() {
+        Question question = textQuestion("In use");
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        when(questionUsageGuard.isReferencedByAnyQuestionnaire(QUESTION_ID)).thenReturn(true);
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.TEXT, "New text", false, List.of(), null, null, null, null
+        );
+
+        assertThatThrownBy(() -> questionService.updateQuestion(QUESTION_ID, request))
+                .isInstanceOf(QuestionInUseException.class);
+        verify(questionRepository, never()).saveAndFlush(any(Question.class));
+    }
+
+    @Test
+    void deleteQuestionRejectsQuestionEnabledInAQuestionnaire() {
+        Question question = textQuestion("In use");
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        when(questionUsageGuard.isReferencedByAnyQuestionnaire(QUESTION_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> questionService.deleteQuestion(QUESTION_ID))
+                .isInstanceOf(QuestionInUseException.class);
+        verify(questionRepository, never()).delete(any(Question.class));
     }
 
     @Test

@@ -2,17 +2,18 @@ package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionRequest;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
+import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionInUseException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
 import com.cs_42_3.surveyplatformbackend.survey.service.QuestionService;
+import com.cs_42_3.surveyplatformbackend.survey.service.QuestionUsageGuard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     private final QuestionRepository questionRepository;
     private final CurrentResearcherProvider currentResearcherProvider;
+    private final QuestionUsageGuard questionUsageGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -75,6 +77,7 @@ public class QuestionServiceImpl implements QuestionService {
     public QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request) {
         UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
         Question question = findOwnedQuestion(questionId, researcherId);
+        requireNotInUse(questionId);
         NormalizedQuestionData data = normalizeQuestionData(request);
 
         question.update(
@@ -96,12 +99,24 @@ public class QuestionServiceImpl implements QuestionService {
     public void deleteQuestion(UUID questionId) {
         UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
         Question question = findOwnedQuestion(questionId, researcherId);
+        requireNotInUse(questionId);
         questionRepository.delete(question);
     }
 
     private Question findOwnedQuestion(UUID questionId, UUID researcherId) {
         return questionRepository.findByIdAndResearcherId(questionId, researcherId)
                 .orElseThrow(() -> new QuestionNotFoundException(questionId));
+    }
+
+    // Protects NFR-14: a question enabled in any questionnaire is locked until the
+    // researcher removes it from every questionnaire (FR-37). This blocks all edits,
+    // not just option/type changes, because replaceOptions() always replaces every
+    // option row, which would otherwise silently orphan that questionnaire's branch
+    // rules (see questionnaire_branch_rules' FK to question_options).
+    private void requireNotInUse(UUID questionId) {
+        if (questionUsageGuard.isReferencedByAnyQuestionnaire(questionId)) {
+            throw new QuestionInUseException(questionId);
+        }
     }
 
     private NormalizedQuestionData normalizeQuestionData(CreateQuestionRequest request) {
@@ -268,27 +283,7 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     private QuestionResponse toQuestionResponse(Question question) {
-        List<QuestionOptionResponse> options = question.getOptions().stream()
-                .map(option -> new QuestionOptionResponse(
-                        option.getId(),
-                        option.getOptionText(),
-                        option.getOptionOrder()
-                ))
-                .toList();
-
-        return new QuestionResponse(
-                question.getId(),
-                question.getType(),
-                question.getQuestionText(),
-                question.isRequired(),
-                options,
-                question.getScaleMin(),
-                question.getScaleMax(),
-                question.getScaleMinLabel(),
-                question.getScaleMaxLabel(),
-                question.getCreatedAt(),
-                question.getUpdatedAt()
-        );
+        return QuestionResponse.from(question);
     }
 
     private record NormalizedQuestionData(

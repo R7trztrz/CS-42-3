@@ -1,7 +1,8 @@
-package com.cs_42_3.surveyplatformbackend.survey.exception;
+package com.cs_42_3.surveyplatformbackend.questionnaire.exception;
 
-import com.cs_42_3.surveyplatformbackend.survey.api.QuestionController;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorResponse;
+import com.cs_42_3.surveyplatformbackend.questionnaire.api.QuestionnaireController;
+import com.cs_42_3.surveyplatformbackend.questionnaire.api.dto.QuestionnaireErrorResponse;
+import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidResearcherIdentityException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.Ordered;
@@ -17,53 +18,35 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.time.Instant;
 
 /**
- * Converts exceptions from {@link QuestionController} into a stable survey error response.
+ * Converts exceptions from {@link QuestionnaireController} into a stable error response.
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(assignableTypes = QuestionController.class)
-public class SurveyExceptionHandler {
+@RestControllerAdvice(assignableTypes = QuestionnaireController.class)
+public class QuestionnaireExceptionHandler {
 
-    @ExceptionHandler(QuestionNotFoundException.class)
-    public ResponseEntity<SurveyErrorResponse> handleQuestionNotFound(
-            QuestionNotFoundException exception,
+    @ExceptionHandler(QuestionnaireStudyNotFoundException.class)
+    public ResponseEntity<QuestionnaireErrorResponse> handleStudyNotFound(
+            QuestionnaireStudyNotFoundException exception,
             HttpServletRequest request
     ) {
-        return buildResponse(
-                HttpStatus.NOT_FOUND,
-                "QUESTION_NOT_FOUND",
-                exception.getMessage(),
-                request
-        );
+        return buildResponse(HttpStatus.NOT_FOUND, "STUDY_NOT_FOUND", exception.getMessage(), request);
     }
 
-    @ExceptionHandler(InvalidQuestionDataException.class)
-    public ResponseEntity<SurveyErrorResponse> handleInvalidQuestionData(
-            InvalidQuestionDataException exception,
+    @ExceptionHandler(InvalidQuestionnaireDataException.class)
+    public ResponseEntity<QuestionnaireErrorResponse> handleInvalidQuestionnaireData(
+            InvalidQuestionnaireDataException exception,
             HttpServletRequest request
     ) {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
-                "QUESTION_VALIDATION_ERROR",
-                exception.getMessage(),
-                request
-        );
-    }
-
-    @ExceptionHandler(QuestionInUseException.class)
-    public ResponseEntity<SurveyErrorResponse> handleQuestionInUse(
-            QuestionInUseException exception,
-            HttpServletRequest request
-    ) {
-        return buildResponse(
-                HttpStatus.CONFLICT,
-                "QUESTION_IN_USE",
+                "QUESTIONNAIRE_VALIDATION_ERROR",
                 exception.getMessage(),
                 request
         );
     }
 
     @ExceptionHandler(InvalidResearcherIdentityException.class)
-    public ResponseEntity<SurveyErrorResponse> handleInvalidResearcherIdentity(
+    public ResponseEntity<QuestionnaireErrorResponse> handleInvalidResearcherIdentity(
             InvalidResearcherIdentityException exception,
             HttpServletRequest request
     ) {
@@ -76,7 +59,7 @@ public class SurveyExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<SurveyErrorResponse> handleMethodArgumentNotValid(
+    public ResponseEntity<QuestionnaireErrorResponse> handleMethodArgumentNotValid(
             MethodArgumentNotValidException exception,
             HttpServletRequest request
     ) {
@@ -88,7 +71,7 @@ public class SurveyExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<SurveyErrorResponse> handleHttpMessageNotReadable(
+    public ResponseEntity<QuestionnaireErrorResponse> handleHttpMessageNotReadable(
             HttpMessageNotReadableException exception,
             HttpServletRequest request
     ) {
@@ -101,7 +84,7 @@ public class SurveyExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<SurveyErrorResponse> handleMethodArgumentTypeMismatch(
+    public ResponseEntity<QuestionnaireErrorResponse> handleMethodArgumentTypeMismatch(
             MethodArgumentTypeMismatchException exception,
             HttpServletRequest request
     ) {
@@ -113,13 +96,13 @@ public class SurveyExceptionHandler {
         );
     }
 
-    private ResponseEntity<SurveyErrorResponse> buildResponse(
+    private ResponseEntity<QuestionnaireErrorResponse> buildResponse(
             HttpStatus status,
             String code,
             String message,
             HttpServletRequest request
     ) {
-        SurveyErrorResponse response = new SurveyErrorResponse(
+        QuestionnaireErrorResponse response = new QuestionnaireErrorResponse(
                 code,
                 message,
                 Instant.now(),

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,4 +48,16 @@ public interface QuestionRepository
      * @return the owned question, or an empty result
      */
     Optional<Question> findByIdAndResearcherId(UUID questionId, UUID researcherId);
+
+    /**
+     * Finds the subset of the given questions owned by one researcher.
+     * <p>
+     * Used by the questionnaire module to validate that every question a researcher
+     * wants to enable actually exists and belongs to them, in one round trip.
+     *
+     * @param ids candidate question identifiers
+     * @param researcherId expected owner
+     * @return the owned questions among the candidates, in no particular order
+     */
+    List<Question> findAllByIdInAndResearcherId(Collection<UUID> ids, UUID researcherId);
 }
