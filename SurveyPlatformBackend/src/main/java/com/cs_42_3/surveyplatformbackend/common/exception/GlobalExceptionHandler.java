@@ -9,6 +9,8 @@ import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationExc
 
 import jakarta.validation.ConstraintViolationException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,6 +28,20 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** Maps the study lifecycle rule without exposing persistence details. */
+    @ExceptionHandler(StudyNotEditableException.class)
+    public ResponseEntity<ErrorResponse> handleStudyNotEditable(StudyNotEditableException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.STUDY_NOT_EDITABLE.code(), exception.getMessage()));
+    }
+
+    /** Covers both stale client versions and races detected at flush time. */
+    @ExceptionHandler(StudyVersionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleStudyVersionConflict(StudyVersionConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.STUDY_VERSION_CONFLICT.code(), exception.getMessage()));
+    }
 
     /** Does not distinguish absent studies from studies belonging to another owner. */
     @ExceptionHandler(StudyNotFoundException.class)

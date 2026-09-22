@@ -15,7 +15,9 @@ package com.cs_42_3.surveyplatformbackend.common.exception;
  * @author Simon Tian
  */
 public enum ErrorCode {
-    STUDY_NOT_FOUND("STUDY_NOT_FOUND");
+    STUDY_NOT_FOUND("STUDY_NOT_FOUND"),
+    STUDY_NOT_EDITABLE("STUDY_NOT_EDITABLE"),
+    STUDY_VERSION_CONFLICT("STUDY_VERSION_CONFLICT");
 
     private final String code;
 

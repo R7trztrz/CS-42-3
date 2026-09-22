@@ -19,6 +19,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import com.cs_42_3.surveyplatformbackend.study.domain.StudyUpdate;
+import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import jakarta.persistence.OptimisticLockException;
+import java.util.Objects;
 
 /**
  * Implements study creation and owner-scoped queries within transactions.
@@ -31,6 +38,39 @@ public class StudyServiceImpl implements StudyService {
 
     private final StudyRepository studyRepository;
     private final Validator validator;
+
+    @Override
+    @Transactional
+    @PreAuthorize("hasRole('RESEARCHER')")
+    public Study updateStudy(UUID ownerId, UUID studyId, StudyUpdate update) {
+        Study study = studyRepository.findByIdAndOwnerId(studyId, ownerId)
+                .orElseThrow(StudyNotFoundException::new);
+
+        if (study.getStatus() != StudyStatus.DRAFT) {
+            throw new StudyNotEditableException();
+        }
+
+        if (!Objects.equals(study.getLockVersion(), update.version())) {
+            throw new StudyVersionConflictException();
+        }
+
+        study.applyUpdate(update);
+
+        Set<ConstraintViolation<Study>> violations = validator.validate(study);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+
+        try {
+            // Flush inside this transaction to obtain timestamps/version and translate races.
+            // JPA dirty checking updates the managed entity; never assign the client version.
+            studyRepository.flush();
+        } catch (OptimisticLockingFailureException | OptimisticLockException exception) {
+            throw new StudyVersionConflictException(exception);
+        }
+
+        return study;
+    }
 
     @Override
     @Transactional(readOnly = true)

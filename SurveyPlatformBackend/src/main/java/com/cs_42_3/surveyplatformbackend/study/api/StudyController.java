@@ -28,9 +28,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import io.swagger.v3.oas.annotations.Parameter;
+import com.cs_42_3.surveyplatformbackend.study.api.dto.UpdateStudyRequest;
+import org.springframework.web.bind.annotation.PatchMapping;
 
 /**
- * Exposes FR-11 creation and FR-12 owner-scoped study queries.
+ * Exposes FR-11 creation, FR-12 queries and FR-13 partial draft updates.
  * Delegates business authorization and creation to the study service.
  *
  * @author Simon Tian
@@ -43,6 +45,32 @@ public class StudyController {
 
     private final StudyService studyService;
     private final CurrentResearcher currentResearcher;
+
+    /** Updates only supplied fields of an owned draft, using the expected edit version. */
+    @PatchMapping(value = "/{studyId}", consumes = "application/json")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(operationId = "updateStudy", summary = "Update my draft study",
+            description = "FR-13: supply version and at least one of title, description, eyeTrackingEnabled, "
+                    + "questionnaireEnabled. Omitted fields remain unchanged; description:null clears it. "
+                    + "Other nulls and unknown fields are rejected. Only DRAFT is editable. "
+                    + "All changes are atomic. A no-op may retain its version and timestamp. "
+                    + "Published snapshots, participation and questionnaire execution are separate features.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Updated details including the current version.",
+                    content = @Content(schema = @Schema(implementation = StudyResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input. Framework error bodies are not yet standardized.", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Authentication required.", content = @Content),
+            @ApiResponse(responseCode = "403", description = "RESEARCHER role required.", content = @Content),
+            @ApiResponse(responseCode = "404", description = "STUDY_NOT_FOUND: missing or foreign-owned study.",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "STUDY_NOT_EDITABLE or STUDY_VERSION_CONFLICT.",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public StudyResponse updateStudy(@PathVariable UUID studyId,
+                                    @Valid @RequestBody UpdateStudyRequest request) {
+        return StudyResponse.from(studyService.updateStudy(
+                currentResearcher.getId(), studyId, request.toUpdate()));
+    }
 
     /** Lists studies owned by the authenticated researcher; an empty page is successful. */
     @GetMapping

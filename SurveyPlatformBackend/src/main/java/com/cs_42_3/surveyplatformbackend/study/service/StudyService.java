@@ -1,6 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.study.service;
 
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
+import com.cs_42_3.surveyplatformbackend.study.domain.StudyUpdate;
 
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,9 @@ import org.springframework.data.domain.Page;
  * @author Simon Tian
  */
 public interface StudyService {
+    /** Atomically applies a partial update to an owned draft using its expected version. */
+    Study updateStudy(UUID ownerId, UUID studyId, StudyUpdate update);
+
     /** Returns an owner's studies in stable creation order using bounded pagination. */
     Page<Study> listStudies(UUID ownerId, int page, int size);
 

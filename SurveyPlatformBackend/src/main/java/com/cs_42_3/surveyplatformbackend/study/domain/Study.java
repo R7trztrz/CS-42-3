@@ -20,6 +20,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.UUID;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
 
 /**
  * A researcher-owned study container mapped to the Flyway-managed studies table.
@@ -55,6 +56,12 @@ public class Study {
     @Column(name = "status", nullable = false, length = 20)
     private StudyStatus status = StudyStatus.DRAFT;
 
+    @Column(name = "eye_tracking_enabled", nullable = false)
+    private boolean eyeTrackingEnabled;
+
+    @Column(name = "questionnaire_enabled", nullable = false)
+    private boolean questionnaireEnabled;
+
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "timestamptz")
     private Instant createdAt;
 
@@ -77,6 +84,28 @@ public class Study {
         this.ownerId = ownerId;
         this.title = title;
         this.description = description;
+    }
+
+    /**
+     * Applies only supplied editable fields. A present null description clears it.
+     * Ownership, status, timestamps and the persistence version cannot be assigned here.
+     */
+    public void applyUpdate(StudyUpdate update) {
+        if (status != StudyStatus.DRAFT) {
+            throw new StudyNotEditableException();
+        }
+        if (update.title() != null) {
+            title = update.title();
+        }
+        if (update.descriptionPresent()) {
+            description = update.description();
+        }
+        if (update.eyeTrackingEnabled() != null) {
+            eyeTrackingEnabled = update.eyeTrackingEnabled();
+        }
+        if (update.questionnaireEnabled() != null) {
+            questionnaireEnabled = update.questionnaireEnabled();
+        }
     }
 
     // Initialize the creation and update timestamps before persistence.
