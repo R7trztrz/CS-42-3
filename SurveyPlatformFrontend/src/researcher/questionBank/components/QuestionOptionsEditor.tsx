@@ -25,7 +25,7 @@ export default function QuestionOptionsEditor({
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">选项</label>
+      <label className="block text-sm font-medium text-gray-700">Options</label>
 
       {options.map((option, index) => (
         <div key={index} className="flex items-center gap-2">
@@ -34,7 +34,7 @@ export default function QuestionOptionsEditor({
             type="text"
             value={option.optionText}
             onChange={(event) => updateOption(index, event.target.value)}
-            placeholder={`选项 ${index + 1}`}
+            placeholder={`Option ${index + 1}`}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
           />
           <button
@@ -43,7 +43,7 @@ export default function QuestionOptionsEditor({
             disabled={options.length <= 1}
             className="rounded-lg px-2 py-1 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            删除
+            Remove
           </button>
         </div>
       ))}
@@ -53,11 +53,11 @@ export default function QuestionOptionsEditor({
         onClick={addOption}
         className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600"
       >
-        + 添加选项
+        + Add option
       </button>
 
       {options.length < 2 && (
-        <p className="text-xs text-amber-600">至少需要两个选项。</p>
+        <p className="text-xs text-amber-600">At least two options are required.</p>
       )}
     </div>
   )

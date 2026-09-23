@@ -1,7 +1,8 @@
-// 真实接口对应 com.cs_42_3.surveyplatformbackend.survey.api.QuestionController
-// （/api/questions，FR-32~35）。等该 Controller 可用后，把
-// shared/api/mockConfig.ts 里的 USE_MOCK_API 改成 false 即可，
-// 下面这些函数的签名不需要改动。
+// Real endpoints match
+// com.cs_42_3.surveyplatformbackend.survey.api.QuestionController
+// (/api/questions, FR-32~35). Swap USE_MOCK_API to false in
+// shared/api/mockConfig.ts once that controller is reachable; the function
+// signatures below won't need to change.
 import api from '../../../services/api'
 import { USE_MOCK_API } from '../../../shared/api/mockConfig'
 import type {

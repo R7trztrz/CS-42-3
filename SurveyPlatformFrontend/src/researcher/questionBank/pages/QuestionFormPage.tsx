@@ -44,7 +44,7 @@ export default function QuestionFormPage() {
           scaleMaxLabel: question.scaleMaxLabel,
         }),
       )
-      .catch((err) => setError(err instanceof Error ? err.message : '加载题目失败。'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load question.'))
       .finally(() => setIsLoading(false))
   }, [questionId])
 
@@ -70,14 +70,14 @@ export default function QuestionFormPage() {
       }
       navigate('/researcher/questions')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存题目失败。')
+      setError(err instanceof Error ? err.message : 'Failed to save question.')
     } finally {
       setIsSubmitting(false)
     }
   }
 
   if (isLoading) {
-    return <p className="mx-auto max-w-2xl px-4 py-8 text-sm text-gray-500">加载中...</p>
+    return <p className="mx-auto max-w-2xl px-4 py-8 text-sm text-gray-500">Loading...</p>
   }
 
   const isChoiceType = form.type === 'SINGLE_CHOICE' || form.type === 'MULTI_CHOICE'
@@ -85,32 +85,32 @@ export default function QuestionFormPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold text-gray-900">
-        {isEditing ? '编辑题目' : '新建题目'}
+        {isEditing ? 'Edit question' : 'New question'}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">题目类型</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Question type</label>
           <select
             value={form.type}
             onChange={(event) => updateType(event.target.value as QuestionType)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2"
           >
-            <option value="SINGLE_CHOICE">单选题</option>
-            <option value="MULTI_CHOICE">多选题</option>
-            <option value="SCALE">打分题</option>
-            <option value="TEXT">文本题</option>
+            <option value="SINGLE_CHOICE">Single choice</option>
+            <option value="MULTI_CHOICE">Multiple choice</option>
+            <option value="SCALE">Scale</option>
+            <option value="TEXT">Text</option>
           </select>
           {isEditing && (
             <p className="mt-1 text-xs text-amber-600">
-              如果这道题目正被某个问卷启用，后端会拒绝修改题型（见
-              QuestionInUseException）。
+              Changing the type is blocked by the backend while this question is enabled in a
+              questionnaire (see QuestionInUseException).
             </p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">题目内容</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Question text</label>
           <textarea
             value={form.questionText}
             onChange={(event) => setForm({ ...form, questionText: event.target.value })}
@@ -126,7 +126,7 @@ export default function QuestionFormPage() {
             checked={form.required}
             onChange={(event) => setForm({ ...form, required: event.target.checked })}
           />
-          必答
+          Required
         </label>
 
         {isChoiceType && (
@@ -139,7 +139,7 @@ export default function QuestionFormPage() {
         {form.type === 'SCALE' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">最小值</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Minimum</label>
               <input
                 type="number"
                 value={form.scaleMin ?? ''}
@@ -152,12 +152,12 @@ export default function QuestionFormPage() {
                 type="text"
                 value={form.scaleMinLabel ?? ''}
                 onChange={(event) => setForm({ ...form, scaleMinLabel: event.target.value })}
-                placeholder="最小值标签（选填）"
+                placeholder="Minimum label (optional)"
                 className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">最大值</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Maximum</label>
               <input
                 type="number"
                 value={form.scaleMax ?? ''}
@@ -170,7 +170,7 @@ export default function QuestionFormPage() {
                 type="text"
                 value={form.scaleMaxLabel ?? ''}
                 onChange={(event) => setForm({ ...form, scaleMaxLabel: event.target.value })}
-                placeholder="最大值标签（选填）"
+                placeholder="Maximum label (optional)"
                 className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
@@ -189,14 +189,14 @@ export default function QuestionFormPage() {
             disabled={isSubmitting}
             className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? '保存中...' : '保存题目'}
+            {isSubmitting ? 'Saving...' : 'Save question'}
           </button>
           <button
             type="button"
             onClick={() => navigate('/researcher/questions')}
             className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
           >
-            取消
+            Cancel
           </button>
         </div>
       </form>

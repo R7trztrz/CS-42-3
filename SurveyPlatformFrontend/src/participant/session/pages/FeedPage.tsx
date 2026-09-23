@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../state/SessionContext'
 
-// UC-30：浏览模拟信息流，浏览完后触发进入问卷。信息流的*内容*来自 M3，
-// 目前还没做 —— 这里渲染的是通用占位帖子，方便预览流程本身，以及日后
-// 行为数据采集（比如点击/停留时长埋点）能挂在哪里。
+// UC-30: browse the simulated feed, then trigger the transition to the
+// questionnaire. Feed *content* comes from M3, which isn't built yet - this
+// renders generic placeholder posts so the flow and behavioural-data hooks
+// (e.g. where a click/dwell-time tracker would attach) can be previewed.
 export default function FeedPage() {
   const { feed, markFeedSeen } = useSession()
   const navigate = useNavigate()
@@ -15,9 +16,9 @@ export default function FeedPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
-      <h1 className="mb-1 text-2xl font-semibold text-gray-900">你的信息流</h1>
+      <h1 className="mb-1 text-2xl font-semibold text-gray-900">Your feed</h1>
       <p className="mb-6 text-sm text-gray-500">
-        向下浏览下面的信息流，准备好之后点击继续。
+        Scroll through the feed below, then continue when you're ready.
       </p>
 
       <div className="space-y-3">
@@ -36,7 +37,7 @@ export default function FeedPage() {
         onClick={handleContinue}
         className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
       >
-        继续进入问卷
+        Continue to questionnaire
       </button>
     </div>
   )

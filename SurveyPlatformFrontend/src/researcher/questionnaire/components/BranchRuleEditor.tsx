@@ -11,9 +11,9 @@ interface BranchRuleEditorProps {
   onChange: (branchRules: QuestionnaireEditorBranchRule[]) => void
 }
 
-// 只有单选题、打分题可以配置跳转规则（见 FR-38 设计文档：多选题一次可以
-// 选中多个选项，若每个选项各自指向不同目标，会导致跳转结果不唯一，
-// 破坏 NFR-15 的确定性要求）。
+// Only SINGLE_CHOICE/SCALE questions can carry branch rules (see FR-38
+// design doc: MULTI_CHOICE would let one answer select several options with
+// conflicting targets, which breaks NFR-15 determinism).
 export default function BranchRuleEditor({
   question,
   branchRules,
@@ -23,13 +23,14 @@ export default function BranchRuleEditor({
   if (question.type !== 'SINGLE_CHOICE' && question.type !== 'SCALE') {
     return (
       <p className="text-xs text-gray-400">
-        {QUESTION_TYPE_LABELS[question.type]}不支持配置跳转规则。
+        Branch rules aren't available for {QUESTION_TYPE_LABELS[question.type].toLowerCase()}{' '}
+        questions.
       </p>
     )
   }
 
   if (otherItems.length === 0) {
-    return <p className="text-xs text-gray-400">再添加一道题目才能配置跳转目标。</p>
+    return <p className="text-xs text-gray-400">Add another item to configure a jump target.</p>
   }
 
   const triggerOptions =
@@ -66,12 +67,12 @@ export default function BranchRuleEditor({
   return (
     <div className="space-y-2 rounded-lg bg-gray-50 p-3">
       <p className="text-xs font-medium text-gray-600">
-        跳转规则（默认：继续下一题）
+        Jump rules (default: continue to the next item)
       </p>
 
       {branchRules.map((rule, index) => (
         <div key={index} className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-gray-500">若答案是</span>
+          <span className="text-gray-500">If answer is</span>
           <select
             value={rule.sourceOptionId ?? String(rule.sourceScaleValue)}
             onChange={(event) =>
@@ -90,7 +91,7 @@ export default function BranchRuleEditor({
               </option>
             ))}
           </select>
-          <span className="text-gray-500">跳转到</span>
+          <span className="text-gray-500">jump to</span>
           <select
             value={rule.targetClientId}
             onChange={(event) => updateRule(index, { targetClientId: event.target.value })}
@@ -98,7 +99,7 @@ export default function BranchRuleEditor({
           >
             {otherItems.map((item, i) => (
               <option key={item.clientId} value={item.clientId}>
-                第{i + 1}题：{item.question.questionText.slice(0, 30)}
+                Q{i + 1}: {item.question.questionText.slice(0, 30)}
               </option>
             ))}
           </select>
@@ -107,7 +108,7 @@ export default function BranchRuleEditor({
             onClick={() => removeRule(index)}
             className="text-red-600 hover:underline"
           >
-            删除
+            Remove
           </button>
         </div>
       ))}
@@ -118,7 +119,7 @@ export default function BranchRuleEditor({
         disabled={availableTriggers.length === 0}
         className="rounded border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        + 添加跳转规则
+        + Add jump rule
       </button>
     </div>
   )

@@ -1,6 +1,7 @@
-// M5（FR-41~46）的*建议*契约 —— 目前还没有真实后端接口，所以每个函数暂时
-// 只有 mock 实现。等真正的参与端会话 Controller 出现后，照着
-// researcher/*/api 的做法在这里加上 axios 分支，用 USE_MOCK_API 控制切换。
+// PROPOSED contract for M5 (FR-41~46) - no backend endpoint exists yet, so
+// every function only has a mock implementation for now. Once a real
+// participant-session controller exists, add the axios branch here the
+// same way researcher/*/api does, gated by USE_MOCK_API.
 import { USE_MOCK_API } from '../../../shared/api/mockConfig'
 import type { QuestionnaireResponse } from '../../../shared/types/questionnaire'
 import type { AnswerSubmission, FeedPost, ParticipantSession } from '../types'
@@ -15,21 +16,21 @@ import {
 
 export async function createSession(studyId: string): Promise<ParticipantSession> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockCreateSession(studyId)
 }
 
 export async function giveConsent(sessionId: string): Promise<ParticipantSession> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockGiveConsent(sessionId)
 }
 
 export async function getFeed(): Promise<FeedPost[]> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockGetFeed()
 }
@@ -38,21 +39,21 @@ export async function getQuestionnaireForSession(
   studyId: string,
 ): Promise<QuestionnaireResponse> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockGetQuestionnaireForSession(studyId)
 }
 
 export async function submitAnswer(sessionId: string, answer: AnswerSubmission): Promise<void> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockSubmitAnswer(sessionId, answer)
 }
 
 export async function completeSession(sessionId: string): Promise<ParticipantSession> {
   if (!USE_MOCK_API) {
-    throw new Error('真实的参与端会话接口尚未实现。')
+    throw new Error('Real participant-session API is not implemented yet.')
   }
   return mockCompleteSession(sessionId)
 }

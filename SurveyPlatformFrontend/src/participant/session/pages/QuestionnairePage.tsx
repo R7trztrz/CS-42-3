@@ -4,9 +4,10 @@ import { useSession } from '../state/SessionContext'
 import type { QuestionnaireItemResponse } from '../../../shared/types/questionnaire'
 import type { AnswerSubmission } from '../types'
 
-// UC-31：展示当前题目，提交后把答案交给 SessionContext —— 它会通过
-// resolveNextItem（FR-38 跳转表查找）解析出下一题并前进；如果没有下一题
-// 了，就把会话标记为完成。
+// UC-31: renders the current item and, on submit, hands the answer to
+// SessionContext, which resolves the next item via resolveNextItem (the
+// FR-38 jump-table lookup) and advances - or, if there's no next item,
+// marks the session complete.
 export default function QuestionnairePage() {
   const { questionnaire, currentItem, isComplete, submitCurrentAnswer } = useSession()
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ export default function QuestionnairePage() {
   if (!questionnaire || questionnaire.items.length === 0) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-gray-500">
-        这个研究还没有配置问卷。
+        This study doesn't have a questionnaire configured yet.
       </div>
     )
   }
@@ -34,11 +35,12 @@ export default function QuestionnairePage() {
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
       <p className="mb-2 text-xs font-medium text-gray-400">
-        第 {answeredCount + 1} 题，共 {questionnaire.items.length} 题
+        Question {answeredCount + 1} of {questionnaire.items.length}
       </p>
 
-      {/* 以题目 id 作为 key，切换题目（包括跳转产生的切换）时会重新挂载，
-          每个答案输入组件都是全新状态，不需要额外用 effect 去重置。 */}
+      {/* Keyed by item id so switching questions (including a branch jump)
+          starts each answer input fresh, instead of an effect resetting
+          state after the fact. */}
       <QuestionAnswerForm
         key={currentItem.id}
         item={currentItem}
@@ -169,7 +171,7 @@ function QuestionAnswerForm({ item, onSubmit }: QuestionAnswerFormProps) {
         disabled={!canSubmit || isSubmitting}
         className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isSubmitting ? '提交中...' : '下一题'}
+        {isSubmitting ? 'Submitting...' : 'Next'}
       </button>
     </div>
   )

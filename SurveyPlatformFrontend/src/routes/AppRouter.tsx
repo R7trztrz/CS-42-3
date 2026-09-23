@@ -59,9 +59,10 @@ const router = createBrowserRouter([
         element: <TruthSocial />,
       },
 
-      // M4 研究者端 UI：题库管理（FR-32~35）和问卷编排器（FR-36~39）。
-      // 还没有研究列表页，所以 /researcher/questions 和问卷编排器的
-      // studyId 会兜底到一个示例 id —— 见 QuestionnaireEditorPage。
+      // M4 researcher UI: question bank (FR-32~35) and questionnaire
+      // editor (FR-36~39). No study-list UI exists yet, so
+      // /researcher/questions and the questionnaire editor's studyId
+      // fall back to a demo id - see QuestionnaireEditorPage.
       {
         path: 'researcher/questions',
         element: <QuestionBankListPage />,
@@ -81,8 +82,8 @@ const router = createBrowserRouter([
     ],
   },
 
-  // M5 参与者端 UI：独立于 MainLayout 的整体界面外壳，
-  // 因为参与者不应该看到研究者的导航栏。
+  // M5 participant UI: a self-contained flow outside MainLayout's chrome,
+  // since participants shouldn't see the researcher nav.
   {
     path: 'participate/:studyId',
     element: <ParticipantSessionLayout />,

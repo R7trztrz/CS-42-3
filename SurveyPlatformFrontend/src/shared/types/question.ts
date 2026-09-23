@@ -1,5 +1,6 @@
-// 对齐后端 com.cs_42_3.surveyplatformbackend.survey.api.dto 里的 DTO（FR-32~35）。
-// 接入真实接口时要注意和后端保持同步。
+// Mirrors the backend DTOs in
+// com.cs_42_3.surveyplatformbackend.survey.api.dto (FR-32~35).
+// Keep these in sync with the backend when the real API is wired in.
 
 export type QuestionType = 'SINGLE_CHOICE' | 'MULTI_CHOICE' | 'SCALE' | 'TEXT'
 
@@ -45,10 +46,11 @@ export interface QuestionFormValues {
   scaleMaxLabel: string | null
 }
 
-// 集中维护题型的中文展示名，避免各页面各自定义导致不一致。
+// Centralizes the display label per question type so pages don't each
+// define their own copy and drift out of sync.
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-  SINGLE_CHOICE: '单选题',
-  MULTI_CHOICE: '多选题',
-  SCALE: '打分题',
-  TEXT: '文本题',
+  SINGLE_CHOICE: 'Single choice',
+  MULTI_CHOICE: 'Multiple choice',
+  SCALE: 'Scale',
+  TEXT: 'Text',
 }

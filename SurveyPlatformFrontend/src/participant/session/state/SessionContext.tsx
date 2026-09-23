@@ -16,9 +16,10 @@ function progressKey(studyId: string) {
   return `survey-session-progress:${studyId}`
 }
 
-// UC-32（进度保存与续传）需要一个目前还不存在的服务端接口；localStorage
-// 只是客户端临时顶替的方案，方便先把 UI 完整预览一遍，等 FR-45 真正实现后，
-// loadProgress/saveProgress 应该换成真实的接口调用。见 sessionApi.ts 顶部注释。
+// UC-32 (progress save & resume) needs a server-side endpoint that doesn't
+// exist yet; localStorage is a client-only stand-in so the UI can be
+// previewed end-to-end, and a real API call should replace loadProgress/
+// saveProgress once FR-45 is implemented. See sessionApi.ts's header.
 function loadProgress(studyId: string): SessionProgress | null {
   try {
     const raw = window.localStorage.getItem(progressKey(studyId))
@@ -32,7 +33,7 @@ function saveProgress(progress: SessionProgress) {
   try {
     window.localStorage.setItem(progressKey(progress.studyId), JSON.stringify(progress))
   } catch {
-    // 尽力而为即可；localStorage 被禁用或写满时不应该导致会话崩溃。
+    // Best-effort only; a blocked/full localStorage shouldn't crash the session.
   }
 }
 
@@ -90,7 +91,7 @@ export function SessionProvider({ studyId, children }: { studyId: string; childr
         saveProgress(resumed)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : '会话初始化失败。')
+          setError(err instanceof Error ? err.message : 'Failed to start session.')
         }
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -174,7 +175,7 @@ export function SessionProvider({ studyId, children }: { studyId: string; childr
 export function useSession(): SessionContextValue {
   const context = useContext(SessionContext)
   if (!context) {
-    throw new Error('useSession 必须在 SessionProvider 内部使用。')
+    throw new Error('useSession must be used within a SessionProvider.')
   }
   return context
 }

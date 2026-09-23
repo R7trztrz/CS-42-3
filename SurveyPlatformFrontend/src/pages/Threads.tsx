@@ -1,5 +1,5 @@
 function Threads() {
-  return <h1>Threads 页面</h1>
+  return <h1>Threads Page</h1>
 }
 
 export default Threads

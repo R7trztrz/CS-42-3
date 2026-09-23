@@ -1,16 +1,16 @@
 import { Outlet, useParams } from 'react-router-dom'
 import { SessionProvider, useSession } from '../state/SessionContext'
 
-// UC-28：通过参与链接进入研究即创建会话。真实的链接/token 处理
-// （FR-41、NFR-09 令牌安全）留给负责搭建 M5 后端的同学，
-// 这里只是简单地从路由里取 studyId。
+// UC-28: entering via a study's participation link creates the session.
+// Real link/token handling (FR-41, NFR-09 token security) belongs to
+// whoever builds the M5 backend; this just takes studyId from the route.
 function SessionGate({ children }: { children: React.ReactNode }) {
   const { isLoading, error } = useSession()
 
   if (isLoading) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-gray-500">
-        正在准备你的会话...
+        Setting up your session...
       </div>
     )
   }
@@ -30,7 +30,7 @@ export default function ParticipantSessionLayout() {
   if (!studyId) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-red-600">
-        缺少研究标识。
+        Missing study identifier.
       </div>
     )
   }
