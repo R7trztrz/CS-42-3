@@ -4,10 +4,10 @@ function MainLayout() {
   return (
     <div>
       <header>
-        <h2>CS-42 Survey Platform</h2>
+        <h2>CS-42 问卷平台</h2>
 
         <nav>
-          <Link to="/">Home</Link>{' | '}
+          <Link to="/">首页</Link>{' | '}
           <Link to="/facebook">Facebook</Link>{' | '}
           <Link to="/instagram">Instagram</Link>{' | '}
           <Link to="/tiktok">TikTok</Link>{' | '}
