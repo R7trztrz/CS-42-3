@@ -1,16 +1,18 @@
-// 对齐 SurveyPlatformBackend/docs/questionnaire-module.md 第 5 节里给 M5
-// 描述的运行时算法（客户端版本）：
+// Client-side mirror of the runtime algorithm described for M5 in
+// SurveyPlatformBackend/docs/questionnaire-module.md section 5:
 //
-//   1. 按（当前题目，选中的答案）去查 questionnaire_branch_rules
-//   2. 命中一条规则 -> 跳到该规则的目标题目
-//   3. 没命中 -> 走默认顺序，即下一道展示顺序上的题目
-//   4. 没有下一题了 -> 问卷结束
+//   1. Look up questionnaire_branch_rules by (current item, selected answer)
+//   2. Match -> jump to that rule's target item
+//   3. No match -> continue to the next item in display order
+//   4. No next item -> the questionnaire is done
 //
-// 这段逻辑存在的意义是让参与者端 UI 能在真正的 M5 后端接口上线前，
-// 把分支跳转完整地预览一遍。等真实接口落地后，这个解析过程应该移到
-// 服务端（后端才是"哪条规则生效"的权威来源，而且它可以基于发布时冻结的
-// 快照而不是这里读到的活的草稿）——到那时这个函数最多只应该作为
-// 客户端预览/乐观更新的辅助手段保留，甚至可以直接删掉。
+// This exists so the participant UI can preview branching end-to-end while
+// the real M5 backend endpoint doesn't exist yet. Once that endpoint lands,
+// this resolution should move server-side (the backend is the source of
+// truth for which rules apply, and it can act on a frozen publish snapshot
+// instead of the live draft this mock reads from) - this function should
+// then only be used as a client-side preview/optimistic-UI helper, if kept
+// at all.
 import type { QuestionnaireItemResponse } from '../../../shared/types/questionnaire'
 import type { AnswerSubmission } from '../types'
 

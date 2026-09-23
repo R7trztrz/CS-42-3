@@ -1,6 +1,7 @@
-// M5 的后端还没有实现（见 SurveyPlatformBackend/docs，FR-41~46 尚未落地），
-// 所以这只是一份*建议*契约，不是已经确认的接口。可以作为和后续负责搭建
-// 参与端会话后端的同学对齐的起点，不要直接当成既定接口去死磕。
+// M5's backend doesn't exist yet (see SurveyPlatformBackend/docs, FR-41~46
+// are unimplemented), so this is a *proposed* contract, not a confirmed
+// one. Treat it as a starting point to reconcile with whoever builds the
+// participant-session backend, not as something to build against blindly.
 
 export type SessionStatus = 'ACTIVE' | 'COMPLETED' | 'ABANDONED'
 
@@ -12,8 +13,9 @@ export interface ParticipantSession {
   createdAt: string
 }
 
-// UC-30（浏览模拟信息流）的占位内容结构。M3（信息流编辑模块）还没做，
-// 这里只是通用的填充数据，不是要对齐的正式信息流格式。
+// Placeholder content shape for UC-30 (browse simulated feed). M3 (the
+// feed/content editor) isn't built yet, so this is generic filler, not a
+// contract to match against the real feed authoring format.
 export interface FeedPost {
   id: string
   platform: string
@@ -29,8 +31,9 @@ export interface AnswerSubmission {
   textAnswer?: string
 }
 
-// 参与端本地持久化的进度信息，用于页面刷新后能恢复到之前的进度
-// （在真正的 FR-45 服务端续传接口出现之前，先用客户端方案顶替）。
+// What the participant client persists locally so a page refresh resumes
+// mid-session (a client-side stand-in for FR-45's server-side resume until
+// that endpoint exists).
 export interface SessionProgress {
   sessionId: string
   studyId: string

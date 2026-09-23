@@ -20,7 +20,7 @@ export default function QuestionBankListPage() {
     try {
       setQuestions(await listQuestions(typeFilter, keyword))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载题目失败。')
+      setError(err instanceof Error ? err.message : 'Failed to load questions.')
     } finally {
       setIsLoading(false)
     }
@@ -32,28 +32,29 @@ export default function QuestionBankListPage() {
   }, [typeFilter])
 
   async function handleDelete(id: string) {
-    if (!window.confirm('确认删除这道题目？此操作不可撤销。')) {
+    if (!window.confirm('Delete this question? This cannot be undone.')) {
       return
     }
     try {
       await deleteQuestion(id)
       await refresh()
     } catch (err) {
-      // 当题目仍被某个问卷引用时，后端会返回 409 QUESTION_IN_USE
-      // （见 QuestionInUseException），这里直接原样展示后端的错误信息。
-      setError(err instanceof Error ? err.message : '删除题目失败。')
+      // Backend returns 409 QUESTION_IN_USE when a questionnaire still
+      // references this question (see QuestionInUseException) - surface
+      // that message as-is rather than a generic failure.
+      setError(err instanceof Error ? err.message : 'Failed to delete question.')
     }
   }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">题库管理</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">Question bank</h1>
         <Link
           to="/researcher/questions/new"
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
-          + 新建题目
+          + New question
         </Link>
       </div>
 
@@ -63,7 +64,7 @@ export default function QuestionBankListPage() {
           onChange={(event) => setTypeFilter(event.target.value as QuestionType | '')}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
         >
-          <option value="">全部类型</option>
+          <option value="">All types</option>
           {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
@@ -82,14 +83,14 @@ export default function QuestionBankListPage() {
             type="text"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索题目内容..."
+            placeholder="Search question text..."
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           <button
             type="submit"
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
           >
-            搜索
+            Search
           </button>
         </form>
       </div>
@@ -101,9 +102,9 @@ export default function QuestionBankListPage() {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-500">加载中...</p>
+        <p className="text-sm text-gray-500">Loading...</p>
       ) : questions.length === 0 ? (
-        <p className="text-sm text-gray-500">暂无题目。</p>
+        <p className="text-sm text-gray-500">No questions yet.</p>
       ) : (
         <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
           {questions.map((question) => (
@@ -117,14 +118,14 @@ export default function QuestionBankListPage() {
                   to={`/researcher/questions/${question.id}/edit`}
                   className="text-blue-600 hover:underline"
                 >
-                  编辑
+                  Edit
                 </Link>
                 <button
                   type="button"
                   onClick={() => handleDelete(question.id)}
                   className="text-red-600 hover:underline"
                 >
-                  删除
+                  Delete
                 </button>
               </div>
             </li>

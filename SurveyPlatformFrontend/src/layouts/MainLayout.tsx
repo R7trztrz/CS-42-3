@@ -29,13 +29,13 @@ function MainLayout() {
           </button>
         </nav>
 
-        {/* M4 研究者入口；还没有研究列表页，问卷编排器暂时链接到
-            兜底的示例 study id。 */}
+        {/* M4 researcher entry points; no study-list UI exists yet so the
+            questionnaire editor links to a fallback demo study id. */}
         <nav>
-          <Link to="/researcher/questions">题库管理</Link>{' | '}
-          <Link to="/researcher/studies/demo-study/questionnaire">问卷编排器</Link>
+          <Link to="/researcher/questions">Question bank</Link>{' | '}
+          <Link to="/researcher/studies/demo-study/questionnaire">Questionnaire editor</Link>
           {' | '}
-          <Link to="/participate/demo-study">预览参与者流程（M5）</Link>
+          <Link to="/participate/demo-study">Preview participant flow (M5)</Link>
         </nav>
       </header>
 

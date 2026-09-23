@@ -1,5 +1,6 @@
-// 对齐后端 com.cs_42_3.surveyplatformbackend.questionnaire.api.dto 里的
-// DTO（FR-36~39）。设计说明见 SurveyPlatformBackend/docs/questionnaire-module.md。
+// Mirrors the backend DTOs in
+// com.cs_42_3.surveyplatformbackend.questionnaire.api.dto (FR-36~39).
+// See SurveyPlatformBackend/docs/questionnaire-module.md for the design.
 
 import type { QuestionResponse } from './question'
 
@@ -41,9 +42,10 @@ export interface QuestionnaireResponse {
   updatedAt: string | null
 }
 
-// 编辑器本地使用的工作副本。请求/响应里跳转规则的目标是用数组下标表示的，
-// 研究者一旦重新排序题目下标就会失效；编辑器改为给每一行保留稳定的
-// clientId，只在真正调用 saveQuestionnaire 前才解析成目标下标。
+// Editor-local working copy. The request/response shapes reference a branch
+// rule's target by array position, which breaks the moment the researcher
+// reorders items; the editor instead keeps a stable per-row clientId and
+// only resolves target positions right before calling saveQuestionnaire.
 export interface QuestionnaireEditorBranchRule {
   sourceOptionId: string | null
   sourceScaleValue: number | null

@@ -6,8 +6,8 @@ import type {
   SaveQuestionnaireRequest,
 } from '../../../shared/types/questionnaire'
 
-// mock 模式下全局只维护一份内存草稿（studyId 只是为了和真实接口签名保持一致
-// 而接收，暂时没有实际按 study 区分）。
+// One in-memory draft per mock session (studyId is accepted for API-shape
+// parity but ignored, since study scoping isn't wired up in mock mode).
 let draft: QuestionnaireItemResponse[] = []
 let nextItemSeq = 1
 let nextRuleSeq = 1
@@ -32,17 +32,17 @@ export async function mockSaveQuestionnaire(
   const bank = mockQuestionBankSnapshot()
   const seenQuestionIds = new Set<string>()
 
-  // 第一遍：解析每个 item 对应的活的题库内容，并分配稳定 id，
-  // 对应后端 Questionnaire#replaceItems 的两遍构建方式。
+  // Pass 1: resolve each item's live bank content and assign a stable id,
+  // mirroring the backend's two-pass build in Questionnaire#replaceItems.
   const items: QuestionnaireItemResponse[] = request.items.map((itemRequest, position) => {
     if (seenQuestionIds.has(itemRequest.questionId)) {
-      throw new Error(`题目 ${itemRequest.questionId} 被重复启用了。`)
+      throw new Error(`Question ${itemRequest.questionId} is enabled more than once.`)
     }
     seenQuestionIds.add(itemRequest.questionId)
 
     const question = bank.find((q) => q.id === itemRequest.questionId)
     if (!question) {
-      throw new Error(`题库中找不到这道题目：${itemRequest.questionId}`)
+      throw new Error(`Question not found in your question bank: ${itemRequest.questionId}`)
     }
 
     return {
@@ -53,8 +53,9 @@ export async function mockSaveQuestionnaire(
     }
   })
 
-  // 第二遍：所有 item 都有了稳定 id 之后再挂跳转规则，校验逻辑和后端
-  // QuestionnaireServiceImpl 保持一致。
+  // Pass 2: attach branch rules now that every item has a resolved id,
+  // applying the same eligibility/trigger/target rules as
+  // QuestionnaireServiceImpl on the backend.
   request.items.forEach((itemRequest, position) => {
     const sourceItem = items[position]
     const question = sourceItem.question
@@ -64,7 +65,7 @@ export async function mockSaveQuestionnaire(
     }
     if (question.type !== 'SINGLE_CHOICE' && question.type !== 'SCALE') {
       throw new Error(
-        `只有单选题和打分题支持配置跳转规则：${question.id}`,
+        `Branch rules are only supported for SINGLE_CHOICE and SCALE questions: ${question.id}`,
       )
     }
 
@@ -73,31 +74,31 @@ export async function mockSaveQuestionnaire(
       const hasOption = rule.sourceOptionId !== null
       const hasScale = rule.sourceScaleValue !== null
       if (hasOption === hasScale) {
-        throw new Error('sourceOptionId 和 sourceScaleValue 必须恰好设置一个。')
+        throw new Error('Exactly one of sourceOptionId or sourceScaleValue is required.')
       }
 
       const triggerKey = hasOption ? `opt:${rule.sourceOptionId}` : `scale:${rule.sourceScaleValue}`
       if (seenTriggers.has(triggerKey)) {
-        throw new Error(`题目 ${question.id} 存在重复的跳转触发条件。`)
+        throw new Error(`Duplicate branch rule trigger on question ${question.id}.`)
       }
       seenTriggers.add(triggerKey)
 
       if (hasOption && !question.options.some((o) => o.id === rule.sourceOptionId)) {
-        throw new Error(`该选项不属于题目 ${question.id}。`)
+        throw new Error(`Option does not belong to question ${question.id}.`)
       }
       if (
         hasScale &&
         (rule.sourceScaleValue! < (question.scaleMin ?? -Infinity) ||
           rule.sourceScaleValue! > (question.scaleMax ?? Infinity))
       ) {
-        throw new Error(`刻度值超出题目 ${question.id} 配置的范围。`)
+        throw new Error(`Scale value is outside the configured range for question ${question.id}.`)
       }
 
       if (rule.targetPosition < 0 || rule.targetPosition >= items.length) {
-        throw new Error(`跳转目标位置 ${rule.targetPosition} 越界。`)
+        throw new Error(`Branch target position ${rule.targetPosition} is out of range.`)
       }
       if (rule.targetPosition === position) {
-        throw new Error('跳转规则不能指向自己所在的题目。')
+        throw new Error('A branch rule cannot target its own item.')
       }
 
       sourceItem.branchRules.push({
