@@ -15,6 +15,7 @@ import X from '../pages/prototypes/X'
 import Threads from '../pages/prototypes/Threads'
 import Bluesky from '../pages/prototypes/Bluesky'
 import TruthSocial from '../pages/prototypes/TruthSocial'
+import NewInterface from '../pages/prototypes/NewInterface'
 import ResearcherDashboard from '../pages/researcher/ResearcherDashboard'
 import ResearcherEdit from '../pages/researcher/ResearcherEdit'
 import StudyList from '../pages/researcher/StudyList'
@@ -42,6 +43,10 @@ const router = createBrowserRouter([
       {
         path: '/studies',
         element: <StudyList />,
+      },
+      {
+        path: '/new-interface',
+        element: <NewInterface />,
       },
       {
         path: '/',

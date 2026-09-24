@@ -1,6 +1,8 @@
 import { useEditor } from '@craftjs/core'
 import type { PlatformStyle } from '../widgets/types'
 
+const propertyControlClass = 'w-full rounded-sm border border-[#cbd6e2] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+
 function PropertiesPanel() {
   const {
     selectedNodeId,
@@ -111,23 +113,22 @@ function PropertiesPanel() {
   }
 
   return (
-    <aside className="w-72 rounded border border-gray-300 bg-white p-4">
-      <h2 className="mb-4 text-lg font-semibold">
-        Properties
-      </h2>
+    <div className="w-full p-4">
+      <p className="text-xs font-semibold uppercase text-sky-700">Selection</p>
+      <h2 className="mt-1 text-lg font-semibold text-[#172033]">Properties</h2>
 
       {!selectedNodeId ? (
-        <p className="text-sm text-gray-500">
+        <p className="mt-4 text-sm leading-6 text-[#52667d]">
           Select a widget to edit its properties.
         </p>
       ) : (
-        <div className="space-y-4">
-          <div>
+        <div className="mt-5 space-y-4">
+          <div className="rounded-sm border border-sky-200 bg-sky-50 px-3 py-3">
             <p className="text-sm text-gray-500">
               Selected widget
             </p>
 
-            <p className="font-medium text-gray-900">
+            <p className="font-semibold text-sky-950">
               {selectedNodeName}
             </p>
           </div>
@@ -144,7 +145,7 @@ function PropertiesPanel() {
               id="style-property"
               value={selectedNodeProps?.styleId ?? 'facebook'}
               onChange={handleStyleChange}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              className={propertyControlClass}
             >
               <option value="facebook">Facebook</option>
               <option value="instagram">Instagram</option>
@@ -170,7 +171,7 @@ function PropertiesPanel() {
                 type="text"
                 value={selectedNodeProps?.text ?? ''}
                 onChange={handleTextChange}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                className={propertyControlClass}
               />
             </div>
           )}
@@ -192,7 +193,7 @@ function PropertiesPanel() {
                   max="200"
                   value={selectedNodeProps?.size ?? 40}
                   onChange={handleAvatarSizeChange}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className={propertyControlClass}
                 />
               </div>
 
@@ -210,7 +211,7 @@ function PropertiesPanel() {
                   value={selectedNodeProps?.src ?? ''}
                   onChange={handleAvatarSrcChange}
                   placeholder="https://example.com/avatar.jpg"
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className={propertyControlClass}
                 />
               </div>
             </div>
@@ -231,7 +232,7 @@ function PropertiesPanel() {
                 value={selectedNodeProps?.src ?? ''}
                 onChange={handleImageSrcChange}
                 placeholder="https://example.com/image.jpg"
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                className={propertyControlClass}
               />
             </div>
           )}
@@ -252,7 +253,7 @@ function PropertiesPanel() {
                   min="0"
                   value={selectedNodeProps?.likes ?? 0}
                   onChange={handleLikesChange}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className={propertyControlClass}
                 />
               </div>
 
@@ -270,7 +271,7 @@ function PropertiesPanel() {
                   min="0"
                   value={selectedNodeProps?.comments ?? 0}
                   onChange={handleCommentsChange}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className={propertyControlClass}
                 />
               </div>
 
@@ -288,14 +289,14 @@ function PropertiesPanel() {
                   min="0"
                   value={selectedNodeProps?.shares ?? 0}
                   onChange={handleSharesChange}
-                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                  className={propertyControlClass}
                 />
               </div>
             </div>
           )}
         </div>
       )}
-    </aside>
+    </div>
   )
 }
 

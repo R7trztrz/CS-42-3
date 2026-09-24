@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Editor, Element, Frame, useEditor, useNode } from '@craftjs/core'
-import { Link, useBlocker, useParams, useSearchParams } from 'react-router-dom'
+import { useBlocker, useParams, useSearchParams } from 'react-router-dom'
 import Toolbox from '../../components/editor/Toolbox'
 import PropertiesPanel from '../../components/editor/PropertiesPanel'
+import ResearcherHeader from '../../components/researcher/ResearcherHeader'
 import UnsavedChangesDialogTemplate from '../../components/studies/UnsavedChangesDialogTemplate'
 import {
   ActionBarWidget,
@@ -15,8 +16,6 @@ import {
   loadStudyInterfaceTemplate,
   saveStudyInterfaceTemplate,
 } from '../../services/studyInterfaceStorageTemplate'
-
-const navigationItems = ['Dashboard', 'Interface List', 'Study List']
 
 type EditorTemplate = PlatformStyle | 'blank'
 
@@ -56,7 +55,7 @@ function ResearcherEditCanvas({ children }: { children?: React.ReactNode }) {
       ref={(ref) => {
         if (ref) connect(ref)
       }}
-      className="min-h-[32rem] border border-dashed border-gray-300 bg-gray-50 p-6"
+      className="min-h-[32rem] rounded-md border border-dashed border-[#b8c6d4] bg-[#f8fafc] p-6"
     >
       {children}
     </div>
@@ -183,56 +182,8 @@ function ResearcherEdit() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-100 text-gray-900">
-      <header className="text-white">
-        <div className="flex items-center justify-between gap-6 bg-gray-950 px-6 py-5 md:px-10">
-          <div>
-            <p className="text-sm font-medium text-emerald-400">
-              Researcher workspace
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold">Hello Researcher!</h1>
-          </div>
-
-          <div className="flex items-center gap-4 text-sm">
-            <button type="button" className="text-gray-300 hover:text-white">
-              Account
-            </button>
-            <button
-              type="button"
-              className="border border-gray-600 px-3 py-2 font-medium text-gray-200 hover:border-gray-400 hover:text-white"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <nav
-          aria-label="Researcher pages"
-          className="flex flex-wrap gap-7 border-y border-gray-700 bg-gray-800 px-6 pt-3 md:px-10"
-        >
-          {navigationItems.map((item) => {
-            const className = 'border-b-2 border-transparent pb-3 text-sm font-medium text-gray-300'
-
-            if (item === 'Dashboard' || item === 'Study List') {
-              return (
-                <Link
-                  key={item}
-                  to={item === 'Dashboard' ? '/researcher-dashboard' : '/studies'}
-                  className={`${className} hover:text-white`}
-                >
-                  {item}
-                </Link>
-              )
-            }
-
-            return (
-              <span key={item} className={className}>
-                {item}
-              </span>
-            )
-          })}
-        </nav>
-      </header>
+    <div className="flex min-h-screen flex-col bg-[#f3f6f8] text-gray-950">
+      <ResearcherHeader />
 
       <Editor
         onNodesChange={(query) => handleNodesChange(query.serialize())}
@@ -248,52 +199,52 @@ function ResearcherEdit() {
           studyId={studyId}
           onReady={handleEditorReady}
         />
-        <section className="border-b border-gray-300 bg-white px-6 py-5 md:px-10">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <section className="border-b border-gray-300 bg-white px-6 py-6 md:px-10">
+          <div className="mx-auto flex w-full max-w-[96rem] flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="text-xs font-semibold uppercase text-gray-500">
+              <p className="text-xs font-semibold uppercase text-emerald-700">
                 Interface Editor
               </p>
-              <h2 className="mt-1 text-xl font-semibold text-gray-950">
+              <h2 className="mt-1 text-2xl font-semibold text-[#172033]">
                 Edit study interface
               </h2>
-              {studyId && <p className="mt-1 text-xs text-gray-500">Study ID: {studyId}</p>}
+              {studyId && <p className="mt-2 font-mono text-xs text-gray-400">Study ID: {studyId}</p>}
             </div>
 
-            <div className="border border-emerald-200 bg-emerald-50 px-4 py-2">
+            <div className="rounded-md border border-sky-200 bg-sky-50 px-4 py-2.5">
               <p className="text-xs font-medium text-emerald-700">Current template</p>
-              <p className="mt-0.5 text-sm font-semibold text-emerald-950">
+              <p className="mt-0.5 text-sm font-semibold text-sky-950">
                 {templateNames[template]}
               </p>
             </div>
           </div>
         </section>
 
-        <div className="grid flex-1 grid-cols-1 md:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[14rem_minmax(0,1fr)_18rem]">
-          <aside className="border-b border-gray-300 bg-gray-50 md:border-b-0 md:border-r">
+        <div className="grid flex-1 grid-cols-1 md:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_19rem]">
+          <aside className="border-b border-[#cbd6e2] bg-[#edf3f8] md:border-b-0 md:border-r">
             <Toolbox />
           </aside>
 
-          <main className="min-h-96 border-b border-gray-300 bg-white p-6 md:border-b-0 xl:border-r xl:p-8">
-            <div className="mb-5 flex items-center justify-between gap-4">
+          <main className="min-h-96 border-b border-[#cbd6e2] bg-white p-6 md:border-b-0 xl:border-r xl:p-8">
+            <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <p className="text-xs font-semibold uppercase text-gray-500">Canvas</p>
-                <h3 className="mt-1 text-lg font-semibold">{templateNames[template]} interface</h3>
+                <p className="text-xs font-semibold uppercase text-[#52667d]">Canvas</p>
+                <h3 className="mt-1 text-lg font-semibold text-[#172033]">{templateNames[template]} interface</h3>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className={`border px-3 py-2 text-xs font-medium ${saveStatusDetails[saveStatus].className}`}
+                  className={`rounded-sm border px-3 py-2 text-xs font-medium ${saveStatusDetails[saveStatus].className}`}
                 >
                   {saveStatusDetails[saveStatus].label}
                 </span>
-                <span className="border border-gray-300 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600">
+                <span className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
                   Draft
                 </span>
                 <button
                   type="button"
                   onClick={() => void saveCurrentInterface()}
                   disabled={saveStatus === 'saving' || saveStatus === 'loading'}
-                  className="bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saveStatus === 'saving' ? 'Saving...' : 'Save'}
                 </button>
@@ -316,7 +267,7 @@ function ResearcherEdit() {
             )}
           </main>
 
-          <aside className="border-t border-gray-300 bg-gray-50 md:col-start-2 xl:col-start-auto xl:border-t-0">
+          <aside className="border-t border-[#cbd6e2] bg-[#f8fafc] md:col-start-2 xl:col-start-auto xl:border-t-0">
             <PropertiesPanel />
           </aside>
         </div>
