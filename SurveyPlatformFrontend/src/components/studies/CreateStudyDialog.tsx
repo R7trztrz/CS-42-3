@@ -152,17 +152,17 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101b2b]/70 px-4 py-6">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-study-heading"
-        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl"
+        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-md border border-[#cbd6e2] bg-white shadow-2xl"
       >
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+        <div className="flex items-start justify-between border-b border-[#d9e2ec] bg-[#edf3f8] px-6 py-5">
           <div>
             <p className="text-xs font-semibold uppercase text-emerald-700">Step {step} of 2</p>
-            <h2 id="create-study-heading" className="mt-1 text-xl font-semibold text-gray-950">
+            <h2 id="create-study-heading" className="mt-1 text-xl font-semibold text-[#172033]">
               {step === 1 ? 'Study information' : 'Choose a template'}
             </h2>
           </div>
@@ -172,7 +172,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
             title="Close"
             onClick={requestClose}
             disabled={isSubmitting}
-            className="h-9 w-9 border border-gray-300 text-lg text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+            className="h-9 w-9 rounded-sm border border-[#b8c6d4] bg-white text-lg text-[#52667d] hover:border-emerald-500 hover:bg-emerald-50 disabled:opacity-50"
           >
             X
           </button>
@@ -201,7 +201,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
                     onChange={(event) => setTitle(event.target.value)}
                     maxLength={255}
                     autoComplete="off"
-                    className="w-full border border-gray-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                    className="w-full rounded-sm border border-[#cbd6e2] px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     placeholder="e.g. Social media browsing study"
                   />
                   <p className="mt-1 text-right text-xs text-gray-500">{title.length}/255</p>
@@ -216,7 +216,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     rows={5}
-                    className="w-full resize-y border border-gray-300 px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                    className="w-full resize-y rounded-sm border border-[#cbd6e2] px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                     placeholder="Describe the purpose of this study."
                   />
                 </div>
@@ -239,7 +239,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
                           setSelectedTemplate(template.id)
                           setValidationError('')
                         }}
-                        className={`flex min-h-28 items-start gap-4 border p-4 text-left transition-colors ${
+                        className={`flex min-h-28 items-start gap-4 rounded-md border p-4 text-left transition-colors ${
                           isSelected
                             ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600'
                             : 'border-gray-200 hover:border-gray-400 hover:bg-gray-50'
@@ -260,18 +260,18 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
             )}
 
             {(validationError || submitError) && (
-              <div role="alert" className="mt-5 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="mt-5 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {validationError || submitError}
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#d9e2ec] bg-[#f8fafc] px-6 py-4">
             <button
               type="button"
               onClick={() => setStep(1)}
               disabled={step === 1 || isSubmitting}
-              className="border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:invisible"
+              className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:invisible"
             >
               Back
             </button>
@@ -281,14 +281,14 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
                 type="button"
                 onClick={requestClose}
                 disabled={isSubmitting}
-                className="border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {step === 1 ? 'Next' : isSubmitting ? 'Creating...' : 'Create and continue'}
               </button>

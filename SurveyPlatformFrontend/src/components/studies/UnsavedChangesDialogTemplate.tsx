@@ -14,17 +14,17 @@ function UnsavedChangesDialogTemplate({
   onSaveAndLeave,
 }: UnsavedChangesDialogTemplateProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#101b2b]/70 px-4 py-6">
       <section
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="unsaved-changes-heading"
         aria-describedby="unsaved-changes-description"
-        className="w-full max-w-lg bg-white shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-md border border-[#cbd6e2] bg-white shadow-2xl"
       >
-        <div className="border-b border-gray-200 px-6 py-5">
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-5">
           <p className="text-xs font-semibold uppercase text-amber-700">Unsaved work</p>
-          <h2 id="unsaved-changes-heading" className="mt-1 text-xl font-semibold text-gray-950">
+          <h2 id="unsaved-changes-heading" className="mt-1 text-xl font-semibold text-[#172033]">
             Leave this editor?
           </h2>
         </div>
@@ -36,12 +36,12 @@ function UnsavedChangesDialogTemplate({
           </p>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 border-t border-[#d9e2ec] bg-[#f8fafc] px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onLeave}
             disabled={isSaving}
-            className="border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded-sm border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Leave without saving
           </button>
@@ -49,7 +49,7 @@ function UnsavedChangesDialogTemplate({
             type="button"
             onClick={onStay}
             disabled={isSaving}
-            className="border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
           >
             Stay
           </button>
@@ -57,7 +57,7 @@ function UnsavedChangesDialogTemplate({
             type="button"
             onClick={onSaveAndLeave}
             disabled={isSaving}
-            className="bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? 'Saving...' : 'Save and leave'}
           </button>
