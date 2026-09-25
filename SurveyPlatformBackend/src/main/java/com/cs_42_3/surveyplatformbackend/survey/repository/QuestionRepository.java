@@ -7,6 +7,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.util.Collection;
 import java.util.List;
@@ -54,5 +58,30 @@ public interface QuestionRepository
     List<Question> findAllByResearcherIdAndIdIn(
             UUID researcherId,
             Collection<UUID> questionIds
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select q
+            from Question q
+            where q.researcherId = :researcherId
+              and q.id in :questionIds
+            order by q.id
+            """)
+    List<Question> lockAllOwnedByIdsForUpdate(
+            @Param("researcherId") UUID researcherId,
+            @Param("questionIds") Collection<UUID> questionIds
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select q
+            from Question q
+            where q.id = :questionId
+              and q.researcherId = :researcherId
+            """)
+    Optional<Question> findOwnedByIdForUpdate(
+            @Param("questionId") UUID questionId,
+            @Param("researcherId") UUID researcherId
     );
 }

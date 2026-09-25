@@ -1,18 +1,25 @@
 package com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.implementation;
 
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
-import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorDetail;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
+import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionOption;
+import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleRequest;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleResponse;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireItemReferenceStatus;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireItemResponse;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireResponse;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireSaveResult;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireValidationIssue;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireItemRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.domain.Questionnaire;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.domain.QuestionnaireBranchRule;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.domain.QuestionnaireItem;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.InvalidQuestionReferenceException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.InvalidQuestionnaireItemReferenceException;
@@ -22,6 +29,7 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.Question
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireVersionConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.StudyNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireFlowValidator;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireService;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,7 +50,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Implements owner-scoped, versioned, whole-draft questionnaire saves. */
+/** Implements owner-scoped, versioned, whole-draft questionnaire saves including FR38. */
 @Service
 @RequiredArgsConstructor
 public class QuestionnaireServiceImpl implements QuestionnaireService {
@@ -51,6 +60,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
     private final QuestionRepository questionRepository;
     private final CurrentResearcher currentResearcher;
     private final QuestionResponseMapper questionResponseMapper;
+    private final QuestionnaireFlowValidator flowValidator;
 
     @Override
     @Transactional(readOnly = true)
@@ -66,7 +76,8 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                 questionnaire.getItems().stream()
                         .map(QuestionnaireItem::getQuestionId)
                         .filter(Objects::nonNull)
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                false
         );
         return toResponse(questionnaire, questionsById);
     }
@@ -86,25 +97,45 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             throw new QuestionnaireLockedException(studyId);
         }
 
-        Questionnaire questionnaire = questionnaireRepository.findByStudyId(studyId).orElse(null);
+        Questionnaire questionnaire = questionnaireRepository.findByStudyIdForUpdate(studyId)
+                .orElse(null);
+        if (questionnaire != null) {
+            // Load the full managed graph only after locking the questionnaire root row.
+            questionnaireRepository.findByStudyId(studyId);
+        }
         validateEarlyVersionState(questionnaire, request.expectedVersion());
 
-        Set<UUID> requestedQuestionIds = request.items().stream()
+        Set<UUID> questionIdsToLock = request.items().stream()
                 .map(SaveQuestionnaireItemRequest::questionId)
-                .collect(Collectors.toSet());
-        Map<UUID, Question> questionsById = loadOwnedQuestions(
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(HashSet::new));
+        if (questionnaire != null) {
+            questionnaire.getItems().stream()
+                    .map(QuestionnaireItem::getQuestionId)
+                    .filter(Objects::nonNull)
+                    .forEach(questionIdsToLock::add);
+        }
+        Map<UUID, Question> lockedQuestions = loadOwnedQuestions(
                 researcherId,
-                requestedQuestionIds
+                questionIdsToLock,
+                true
         );
-        validateQuestionReferences(request.items(), questionsById.keySet());
+        validateQuestionReferences(request.items(), lockedQuestions.keySet());
+        validateItemReferences(questionnaire, request.items());
+
+        List<Questionnaire.ItemPlacement> itemPlacements = questionnaire == null
+                ? request.items().stream()
+                        .map(item -> new Questionnaire.ItemPlacement(null, item.questionId()))
+                        .toList()
+                : resolvePlacements(questionnaire, request.items());
+        List<List<Questionnaire.BranchRulePlacement>> rulesByPosition = buildRulePlans(
+                request.items(),
+                lockedQuestions
+        );
+        validateFlow(request.items(), itemPlacements, rulesByPosition, lockedQuestions);
 
         if (questionnaire != null) {
-            validateItemReferences(questionnaire, request.items());
-            List<Questionnaire.ItemPlacement> placements = resolvePlacements(
-                    questionnaire,
-                    request.items()
-            );
-            boolean sameContent = hasSameContent(questionnaire, placements);
+            boolean sameContent = hasSameContent(questionnaire, itemPlacements, rulesByPosition);
             validateRemainingVersionState(
                     questionnaire.getLockVersion(),
                     request.expectedVersion(),
@@ -112,35 +143,27 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             );
             if (sameContent) {
                 return new QuestionnaireSaveResult(
-                        toResponse(questionnaire, questionsById),
+                        toResponse(questionnaire, lockedQuestions),
                         false
                 );
             }
 
-            boolean changed = questionnaire.synchronizeItems(placements);
-            if (changed) {
-                questionnaire.markModified();
-                questionnaire = questionnaireRepository.saveAndFlush(questionnaire);
+            if (questionnaire.clearBranchRules()) {
+                questionnaireRepository.flush();
             }
-            return new QuestionnaireSaveResult(
-                    toResponse(questionnaire, questionsById),
-                    false
-            );
+            questionnaire.synchronizeItems(itemPlacements);
+            questionnaire.replaceBranchRules(rulesByPosition);
+            questionnaire.markModified();
+            Questionnaire saved = questionnaireRepository.saveAndFlush(questionnaire);
+            return new QuestionnaireSaveResult(toResponse(saved, lockedQuestions), false);
         }
 
-        validateItemReferences(null, request.items());
-        Questionnaire newQuestionnaire = Questionnaire.create(studyId);
-        List<Questionnaire.ItemPlacement> placements = request.items().stream()
-                .map(item -> new Questionnaire.ItemPlacement(null, item.questionId()))
-                .toList();
-        if (newQuestionnaire.synchronizeItems(placements)) {
-            newQuestionnaire.markModified();
-        }
-        newQuestionnaire = questionnaireRepository.saveAndFlush(newQuestionnaire);
-        return new QuestionnaireSaveResult(
-                toResponse(newQuestionnaire, questionsById),
-                true
-        );
+        Questionnaire created = Questionnaire.create(studyId);
+        created.synchronizeItems(itemPlacements);
+        created.replaceBranchRules(rulesByPosition);
+        created.markModified();
+        created = questionnaireRepository.saveAndFlush(created);
+        return new QuestionnaireSaveResult(toResponse(created, lockedQuestions), true);
     }
 
     private void validateRequestStructure(SaveQuestionnaireRequest request) {
@@ -164,26 +187,39 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         "items[" + index + "]",
                         index,
                         null,
+                        null,
                         "ITEM_REQUIRED",
                         "Questionnaire item is required"
                 ));
                 continue;
             }
             if (item.itemId() != null) {
-                itemIdIndexes.computeIfAbsent(item.itemId(), ignored -> new ArrayList<>())
-                        .add(index);
+                itemIdIndexes.computeIfAbsent(item.itemId(), ignored -> new ArrayList<>()).add(index);
             }
             if (item.questionId() == null) {
                 details.add(detail(
                         "items[" + index + "].questionId",
                         index,
                         item.itemId(),
+                        null,
                         "QUESTION_ID_REQUIRED",
                         "Question ID is required"
                 ));
             } else {
                 questionIdIndexes.computeIfAbsent(item.questionId(), ignored -> new ArrayList<>())
                         .add(index);
+            }
+            for (int ruleIndex = 0; ruleIndex < item.branchRules().size(); ruleIndex++) {
+                if (item.branchRules().get(ruleIndex) == null) {
+                    details.add(detail(
+                            "items[" + index + "].branchRules[" + ruleIndex + "]",
+                            index,
+                            item.itemId(),
+                            ruleIndex,
+                            "BRANCH_RULE_REQUIRED",
+                            "Branch rule is required"
+                    ));
+                }
             }
         }
 
@@ -226,6 +262,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         "items[" + index + "]." + fieldName,
                         index,
                         items.get(index).itemId(),
+                        null,
                         code,
                         message
                 )));
@@ -268,11 +305,18 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
 
     private Map<UUID, Question> loadOwnedQuestions(
             UUID researcherId,
-            Set<UUID> questionIds
+            Set<UUID> questionIds,
+            boolean forUpdate
     ) {
-        List<Question> questions = questionIds.isEmpty()
-                ? List.of()
-                : questionRepository.findAllByResearcherIdAndIdIn(researcherId, questionIds);
+        List<Question> questions;
+        if (questionIds.isEmpty()) {
+            questions = List.of();
+        } else if (forUpdate) {
+            questionRepository.lockAllOwnedByIdsForUpdate(researcherId, questionIds);
+            questions = questionRepository.findAllByResearcherIdAndIdIn(researcherId, questionIds);
+        } else {
+            questions = questionRepository.findAllByResearcherIdAndIdIn(researcherId, questionIds);
+        }
         return questions.stream().collect(Collectors.toMap(
                 Question::getId,
                 Function.identity(),
@@ -293,6 +337,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         "items[" + index + "].questionId",
                         index,
                         item.itemId(),
+                        null,
                         "INVALID_QUESTION_REFERENCE",
                         "Question does not exist or is not owned by the current researcher"
                 ));
@@ -320,6 +365,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         "items[" + index + "].itemId",
                         index,
                         itemId,
+                        null,
                         "INVALID_ITEM_REFERENCE",
                         "Item does not belong to this questionnaire"
                 ));
@@ -344,10 +390,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                 itemId = existingItems.stream()
                         .filter(item -> item.getId() != null)
                         .filter(item -> !usedItemIds.contains(item.getId()))
-                        .filter(item -> Objects.equals(
-                                item.getQuestionId(),
-                                requestedItem.questionId()
-                        ))
+                        .filter(item -> Objects.equals(item.getQuestionId(), requestedItem.questionId()))
                         .map(QuestionnaireItem::getId)
                         .findFirst()
                         .orElse(null);
@@ -360,20 +403,196 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
         return List.copyOf(placements);
     }
 
+    private List<List<Questionnaire.BranchRulePlacement>> buildRulePlans(
+            List<SaveQuestionnaireItemRequest> requestedItems,
+            Map<UUID, Question> questionsById
+    ) {
+        List<List<Questionnaire.BranchRulePlacement>> result = new ArrayList<>();
+        for (int sourcePosition = 0; sourcePosition < requestedItems.size(); sourcePosition++) {
+            SaveQuestionnaireItemRequest item = requestedItems.get(sourcePosition);
+            Question question = questionsById.get(item.questionId());
+            List<QuestionnaireBranchRuleRequest> rules = item.branchRules();
+            if (!rules.isEmpty()
+                    && question.getType() != QuestionType.SINGLE_CHOICE
+                    && question.getType() != QuestionType.SCALE) {
+                throw invalidRule(
+                        item,
+                        sourcePosition,
+                        0,
+                        "BRANCH_TYPE_UNSUPPORTED",
+                        "Branch rules are only supported for SINGLE_CHOICE and SCALE questions"
+                );
+            }
+
+            Set<UUID> validOptionIds = question.getOptions().stream()
+                    .map(QuestionOption::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Set<Object> triggers = new HashSet<>();
+            List<Questionnaire.BranchRulePlacement> plans = new ArrayList<>();
+            for (int ruleIndex = 0; ruleIndex < rules.size(); ruleIndex++) {
+                QuestionnaireBranchRuleRequest rule = rules.get(ruleIndex);
+                boolean hasOption = rule.sourceOptionId() != null;
+                boolean hasScale = rule.sourceScaleValue() != null;
+                if (hasOption == hasScale) {
+                    throw invalidRule(
+                            item,
+                            sourcePosition,
+                            ruleIndex,
+                            "BRANCH_TRIGGER_REQUIRED",
+                            "Exactly one of sourceOptionId or sourceScaleValue is required"
+                    );
+                }
+
+                Object trigger;
+                if (question.getType() == QuestionType.SINGLE_CHOICE) {
+                    if (!hasOption) {
+                        throw invalidRule(
+                                item,
+                                sourcePosition,
+                                ruleIndex,
+                                "OPTION_TRIGGER_REQUIRED",
+                                "SINGLE_CHOICE branch rules require sourceOptionId"
+                        );
+                    }
+                    if (!validOptionIds.contains(rule.sourceOptionId())) {
+                        throw invalidRule(
+                                item,
+                                sourcePosition,
+                                ruleIndex,
+                                "INVALID_OPTION_TRIGGER",
+                                "Branch option does not belong to the source question"
+                        );
+                    }
+                    trigger = rule.sourceOptionId();
+                } else {
+                    if (!hasScale) {
+                        throw invalidRule(
+                                item,
+                                sourcePosition,
+                                ruleIndex,
+                                "SCALE_TRIGGER_REQUIRED",
+                                "SCALE branch rules require sourceScaleValue"
+                        );
+                    }
+                    int scaleValue = rule.sourceScaleValue();
+                    if (scaleValue < question.getScaleMin() || scaleValue > question.getScaleMax()) {
+                        throw invalidRule(
+                                item,
+                                sourcePosition,
+                                ruleIndex,
+                                "SCALE_TRIGGER_OUT_OF_RANGE",
+                                "Branch scale value is outside the source question range"
+                        );
+                    }
+                    trigger = scaleValue;
+                }
+
+                if (!triggers.add(trigger)) {
+                    throw invalidRule(
+                            item,
+                            sourcePosition,
+                            ruleIndex,
+                            "DUPLICATE_BRANCH_TRIGGER",
+                            "A source answer can have only one branch target"
+                    );
+                }
+                Integer targetPosition = rule.targetPosition();
+                if (targetPosition == null
+                        || targetPosition < 0
+                        || targetPosition >= requestedItems.size()) {
+                    throw invalidRule(
+                            item,
+                            sourcePosition,
+                            ruleIndex,
+                            "BRANCH_TARGET_OUT_OF_RANGE",
+                            "Branch targetPosition is outside the final items array"
+                    );
+                }
+                if (targetPosition == sourcePosition) {
+                    throw invalidRule(
+                            item,
+                            sourcePosition,
+                            ruleIndex,
+                            "BRANCH_SELF_LOOP",
+                            "A branch rule cannot target its own item"
+                    );
+                }
+                plans.add(new Questionnaire.BranchRulePlacement(
+                        rule.sourceOptionId(),
+                        rule.sourceScaleValue(),
+                        targetPosition
+                ));
+            }
+            result.add(List.copyOf(plans));
+        }
+        return List.copyOf(result);
+    }
+
+    private void validateFlow(
+            List<SaveQuestionnaireItemRequest> requestedItems,
+            List<Questionnaire.ItemPlacement> itemPlacements,
+            List<List<Questionnaire.BranchRulePlacement>> rulesByPosition,
+            Map<UUID, Question> questionsById
+    ) {
+        List<QuestionnaireFlowValidator.FlowItem> flowItems = new ArrayList<>();
+        for (int position = 0; position < requestedItems.size(); position++) {
+            List<QuestionnaireFlowValidator.FlowRule> flowRules = new ArrayList<>();
+            List<Questionnaire.BranchRulePlacement> plans = rulesByPosition.get(position);
+            for (int ruleIndex = 0; ruleIndex < plans.size(); ruleIndex++) {
+                Questionnaire.BranchRulePlacement plan = plans.get(ruleIndex);
+                flowRules.add(new QuestionnaireFlowValidator.FlowRule(
+                        plan.sourceOptionId(),
+                        plan.sourceScaleValue(),
+                        plan.targetPosition(),
+                        ruleIndex
+                ));
+            }
+            flowItems.add(new QuestionnaireFlowValidator.FlowItem(
+                    itemPlacements.get(position).itemId(),
+                    questionsById.get(requestedItems.get(position).questionId()),
+                    flowRules
+            ));
+        }
+        flowValidator.validate(flowItems);
+    }
+
     private boolean hasSameContent(
             Questionnaire questionnaire,
-            List<Questionnaire.ItemPlacement> placements
+            List<Questionnaire.ItemPlacement> placements,
+            List<List<Questionnaire.BranchRulePlacement>> rulesByPosition
     ) {
         List<QuestionnaireItem> currentItems = questionnaire.getItems();
         if (currentItems.size() != placements.size()) {
             return false;
         }
-        for (int index = 0; index < placements.size(); index++) {
-            QuestionnaireItem current = currentItems.get(index);
-            Questionnaire.ItemPlacement requested = placements.get(index);
+        Map<QuestionnaireItem, Integer> positionByItem = new HashMap<>();
+        for (QuestionnaireItem item : currentItems) {
+            positionByItem.put(item, item.getPosition());
+        }
+        for (int position = 0; position < placements.size(); position++) {
+            QuestionnaireItem current = currentItems.get(position);
+            Questionnaire.ItemPlacement requested = placements.get(position);
             if (!Objects.equals(current.getId(), requested.itemId())
                     || !Objects.equals(current.getQuestionId(), requested.questionId())
-                    || current.getPosition() != index) {
+                    || current.getPosition() != position) {
+                return false;
+            }
+            Set<RuleContent> currentRules = current.getBranchRules().stream()
+                    .map(rule -> new RuleContent(
+                            rule.getSourceOptionId(),
+                            rule.getSourceScaleValue(),
+                            positionByItem.get(rule.getTargetItem())
+                    ))
+                    .collect(Collectors.toSet());
+            Set<RuleContent> requestedRules = rulesByPosition.get(position).stream()
+                    .map(rule -> new RuleContent(
+                            rule.sourceOptionId(),
+                            rule.sourceScaleValue(),
+                            rule.targetPosition()
+                    ))
+                    .collect(Collectors.toSet());
+            if (!currentRules.equals(requestedRules)) {
                 return false;
             }
         }
@@ -384,25 +603,113 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             Questionnaire questionnaire,
             Map<UUID, Question> questionsById
     ) {
-        List<QuestionnaireItemResponse> itemResponses = questionnaire.getItems().stream()
-                .map(item -> {
-                    Question question = item.getQuestionId() == null
-                            ? null
-                            : questionsById.get(item.getQuestionId());
-                    return new QuestionnaireItemResponse(
-                            item.getId(),
+        List<QuestionnaireItem> items = questionnaire.getItems();
+        Map<QuestionnaireItem, Integer> positionByItem = new HashMap<>();
+        for (QuestionnaireItem item : items) {
+            positionByItem.put(item, item.getPosition());
+        }
+
+        List<QuestionnaireValidationIssue> issues = new ArrayList<>();
+        List<QuestionnaireItemResponse> itemResponses = new ArrayList<>();
+        for (QuestionnaireItem item : items) {
+            Question question = item.getQuestionId() == null
+                    ? null
+                    : questionsById.get(item.getQuestionId());
+            boolean missing = question == null;
+            if (missing) {
+                issues.add(new QuestionnaireValidationIssue(
+                        "MISSING_QUESTION",
+                        item.getPosition(),
+                        item.getId(),
+                        null,
+                        "Questionnaire item no longer resolves to a question-bank entry"
+                ));
+            }
+
+            List<QuestionnaireBranchRule> sortedRules = item.getBranchRules().stream()
+                    .sorted(Comparator.comparing(this::branchRuleSortKey))
+                    .toList();
+            List<QuestionnaireBranchRuleResponse> branchRules = new ArrayList<>();
+            for (int ruleIndex = 0; ruleIndex < sortedRules.size(); ruleIndex++) {
+                QuestionnaireBranchRule rule = sortedRules.get(ruleIndex);
+                QuestionnaireItem target = rule.getTargetItem();
+                Integer targetPosition = positionByItem.get(target);
+                if (targetPosition == null) {
+                    issues.add(new QuestionnaireValidationIssue(
+                            "BRANCH_TARGET_OUTSIDE_QUESTIONNAIRE",
                             item.getPosition(),
-                            question == null,
-                            question == null ? null : questionResponseMapper.toResponse(question)
-                    );
-                })
-                .toList();
+                            item.getId(),
+                            ruleIndex,
+                            "Branch target does not belong to this questionnaire"
+                    ));
+                } else {
+                    Question targetQuestion = target.getQuestionId() == null
+                            ? null
+                            : questionsById.get(target.getQuestionId());
+                    if (targetQuestion == null) {
+                        issues.add(new QuestionnaireValidationIssue(
+                                "BRANCH_TARGET_MISSING_QUESTION",
+                                item.getPosition(),
+                                item.getId(),
+                                ruleIndex,
+                                "Branch target item no longer resolves to a question-bank entry"
+                        ));
+                    }
+                }
+                branchRules.add(new QuestionnaireBranchRuleResponse(
+                        rule.getId(),
+                        rule.getSourceOptionId(),
+                        rule.getSourceScaleValue(),
+                        target.getId(),
+                        targetPosition
+                ));
+            }
+
+            itemResponses.add(new QuestionnaireItemResponse(
+                    item.getId(),
+                    item.getPosition(),
+                    missing,
+                    question == null ? null : questionResponseMapper.toResponse(question),
+                    missing
+                            ? QuestionnaireItemReferenceStatus.MISSING_QUESTION
+                            : QuestionnaireItemReferenceStatus.VALID,
+                    branchRules
+            ));
+        }
         return new QuestionnaireResponse(
                 questionnaire.getId(),
                 questionnaire.getStudyId(),
                 itemResponses,
                 questionnaire.getLockVersion(),
-                questionnaire.getUpdatedAt()
+                questionnaire.getUpdatedAt(),
+                issues.isEmpty(),
+                issues
+        );
+    }
+
+    private String branchRuleSortKey(QuestionnaireBranchRule rule) {
+        return rule.getSourceOptionId() == null
+                ? "S:" + rule.getSourceScaleValue()
+                : "O:" + rule.getSourceOptionId();
+    }
+
+    private QuestionnaireValidationException invalidRule(
+            SaveQuestionnaireItemRequest item,
+            int itemIndex,
+            int ruleIndex,
+            String code,
+            String message
+    ) {
+        return new QuestionnaireValidationException(
+                message,
+                List.of(detail(
+                        "items[" + itemIndex + "].branchRules[" + ruleIndex + "]",
+                        itemIndex,
+                        item.itemId(),
+                        ruleIndex,
+                        code,
+                        message
+                ))
         );
     }
 
@@ -410,9 +717,12 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             String field,
             int index,
             UUID itemId,
+            Integer ruleIndex,
             String code,
             String message
     ) {
-        return new SurveyErrorDetail(field, index, itemId, code, message);
+        return new SurveyErrorDetail(field, index, itemId, ruleIndex, code, message);
     }
+
+    private record RuleContent(UUID optionId, Integer scaleValue, Integer targetPosition) {}
 }

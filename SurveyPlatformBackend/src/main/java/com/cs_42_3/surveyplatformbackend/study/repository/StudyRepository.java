@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,5 +39,16 @@ public interface StudyRepository extends JpaRepository<Study, UUID> {
     Optional<Study> findOwnedStudyForQuestionnaireUpdate(
             @Param("studyId") UUID studyId,
             @Param("ownerId") UUID ownerId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select s
+            from Study s
+            where s.id in :studyIds
+            order by s.id
+            """)
+    List<Study> lockAllByIdsForQuestionReferenceChange(
+            @Param("studyIds") Collection<UUID> studyIds
     );
 }

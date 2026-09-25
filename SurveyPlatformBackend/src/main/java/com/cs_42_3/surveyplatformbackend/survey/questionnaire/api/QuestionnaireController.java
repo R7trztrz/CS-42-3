@@ -66,7 +66,7 @@ public class QuestionnaireController {
     @Operation(
             operationId = "saveQuestionnaire",
             summary = "Replaces a questionnaire draft",
-            description = "The item array defines the complete zero-based order. A first save uses a null expectedVersion; later changes use the returned version. Exact retries are idempotent and do not advance the version. Only DRAFT studies are editable. Branch rules are not supported in this version."
+            description = "The item array defines the complete zero-based order. A first save uses a null expectedVersion; later changes use the returned version. Exact retries are idempotent and do not advance the version. Only DRAFT studies are editable. SINGLE_CHOICE rules use sourceOptionId, SCALE rules use sourceScaleValue, and targetPosition addresses the final item array."
     )
     @ApiResponses({
             @ApiResponse(

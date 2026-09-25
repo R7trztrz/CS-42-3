@@ -49,6 +49,9 @@ public class SurveyExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SurveyExceptionHandler.class);
     private static final Pattern ITEM_FIELD = Pattern.compile("items\\[(\\d+)](?:\\.(.+))?");
+    private static final Pattern BRANCH_RULE_FIELD = Pattern.compile(
+            "branchRules\\[(\\d+)](?:\\.(.+))?"
+    );
 
     @ExceptionHandler(QuestionNotFoundException.class)
     public ResponseEntity<SurveyErrorResponse> handleQuestionNotFound(
@@ -64,6 +67,19 @@ public class SurveyExceptionHandler {
             HttpServletRequest request
     ) {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getCode(), exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(QuestionReferenceConflictException.class)
+    public ResponseEntity<SurveyErrorResponse> handleQuestionReferenceConflict(
+            QuestionReferenceConflictException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                exception.getCode(),
+                exception.getMessage(),
+                request
+        );
     }
 
     @ExceptionHandler(StudyNotFoundException.class)
@@ -257,6 +273,16 @@ public class SurveyExceptionHandler {
                     request
             );
         }
+        if ("fk_branch_rules_source_option".equalsIgnoreCase(constraintName)
+                || "fk_branch_rules_source_item".equalsIgnoreCase(constraintName)
+                || "fk_branch_rules_target_item".equalsIgnoreCase(constraintName)) {
+            return buildResponse(
+                    HttpStatus.CONFLICT,
+                    "QUESTION_REFERENCE_CHANGED",
+                    "A questionnaire branch reference changed concurrently; reload and retry",
+                    request
+            );
+        }
 
         LOGGER.error("Unrecognized questionnaire persistence failure (constraint: {})", constraintName, exception);
         return buildResponse(
@@ -288,8 +314,43 @@ public class SurveyExceptionHandler {
             SaveQuestionnaireItemRequest item = target.items().get(index);
             itemId = item == null ? null : item.itemId();
         }
-        String code = nestedField == null ? "ITEM_REQUIRED" : "QUESTION_ID_REQUIRED";
-        return new SurveyErrorDetail(error.getField(), index, itemId, code, error.getDefaultMessage());
+        if (nestedField == null) {
+            return new SurveyErrorDetail(
+                    error.getField(),
+                    index,
+                    itemId,
+                    null,
+                    "ITEM_REQUIRED",
+                    error.getDefaultMessage()
+            );
+        }
+        Matcher ruleMatcher = BRANCH_RULE_FIELD.matcher(nestedField);
+        if (ruleMatcher.matches()) {
+            int ruleIndex = Integer.parseInt(ruleMatcher.group(1));
+            String ruleField = ruleMatcher.group(2);
+            String code = ruleField == null
+                    ? "BRANCH_RULE_REQUIRED"
+                    : "BRANCH_RULE_FIELD_INVALID";
+            return new SurveyErrorDetail(
+                    error.getField(),
+                    index,
+                    itemId,
+                    ruleIndex,
+                    code,
+                    error.getDefaultMessage()
+            );
+        }
+        String code = "questionId".equals(nestedField)
+                ? "QUESTION_ID_REQUIRED"
+                : "FIELD_INVALID";
+        return new SurveyErrorDetail(
+                error.getField(),
+                index,
+                itemId,
+                null,
+                code,
+                error.getDefaultMessage()
+        );
     }
 
     private String findConstraintName(Throwable throwable) {

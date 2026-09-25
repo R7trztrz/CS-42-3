@@ -5,6 +5,7 @@ import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 
@@ -22,6 +23,10 @@ public record UpdateQuestionRequest(
         Integer scaleMax,
         String scaleMinLabel,
         String scaleMaxLabel,
+        @Schema(
+                description = "Explicitly permits replacing every existing option identity when no existing optionId is retained",
+                defaultValue = "false"
+        )
         Boolean replaceAllOptions
 ) {
     public UpdateQuestionRequest {

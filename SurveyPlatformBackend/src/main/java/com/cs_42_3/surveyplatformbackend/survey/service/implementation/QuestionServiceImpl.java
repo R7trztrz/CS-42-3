@@ -14,6 +14,7 @@ import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundExcept
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.service.QuestionService;
+import com.cs_42_3.surveyplatformbackend.survey.service.QuestionnaireQuestionReferencePort;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +37,7 @@ public class QuestionServiceImpl implements QuestionService {
     private final QuestionRepository questionRepository;
     private final CurrentResearcher currentResearcher;
     private final QuestionResponseMapper questionResponseMapper;
+    private final QuestionnaireQuestionReferencePort questionnaireReferencePort;
 
     @Override
     @Transactional(readOnly = true)
@@ -80,9 +82,18 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional
     public QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request) {
         UUID researcherId = currentResearcher.getId();
-        Question question = findOwnedQuestion(questionId, researcherId);
+        findOwnedQuestion(questionId, researcherId);
         NormalizedQuestionData data = normalizeQuestionData(request);
+        QuestionnaireQuestionReferencePort.ReferenceLock referenceLock =
+                questionnaireReferencePort.lockReferences(questionId);
+        Question question = questionRepository.findOwnedByIdForUpdate(questionId, researcherId)
+                .orElseThrow(() -> new QuestionNotFoundException(questionId));
         validateOptionIdentities(question, data.options(), request.replaceAllOptions());
+        questionnaireReferencePort.validateUpdate(
+                question,
+                toProposedDefinition(data),
+                referenceLock
+        );
 
         question.update(
                 data.type(),
@@ -104,8 +115,30 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional
     public void deleteQuestion(UUID questionId) {
         UUID researcherId = currentResearcher.getId();
-        Question question = findOwnedQuestion(questionId, researcherId);
+        findOwnedQuestion(questionId, researcherId);
+        QuestionnaireQuestionReferencePort.ReferenceLock referenceLock =
+                questionnaireReferencePort.lockReferences(questionId);
+        Question question = questionRepository.findOwnedByIdForUpdate(questionId, researcherId)
+                .orElseThrow(() -> new QuestionNotFoundException(questionId));
+        questionnaireReferencePort.prepareDelete(question, referenceLock);
         questionRepository.delete(question);
+    }
+
+    private QuestionnaireQuestionReferencePort.ProposedQuestionDefinition toProposedDefinition(
+            NormalizedQuestionData data
+    ) {
+        Set<UUID> retainedOptionIds = data.options().stream()
+                .map(NormalizedOptionData::optionId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        return new QuestionnaireQuestionReferencePort.ProposedQuestionDefinition(
+                data.type(),
+                data.required(),
+                retainedOptionIds,
+                data.options().size(),
+                data.scaleMin(),
+                data.scaleMax()
+        );
     }
 
     private Question findOwnedQuestion(UUID questionId, UUID researcherId) {

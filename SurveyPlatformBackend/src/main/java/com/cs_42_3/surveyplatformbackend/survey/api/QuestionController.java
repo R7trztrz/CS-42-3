@@ -138,7 +138,8 @@ public class QuestionController {
     @PutMapping("/{questionId}")
     @Operation(
             operationId = "updateQuestion",
-            summary = "Replaces an owned reusable question"
+            summary = "Replaces an owned reusable question",
+            description = "Retain optionId values for unchanged options. Answer-domain changes are rejected with 409 when they would invalidate a questionnaire branch flow."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Question updated"),
@@ -152,6 +153,11 @@ public class QuestionController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Owned question not found",
+                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "The change would invalidate an existing questionnaire reference",
                     content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
             )
     })
@@ -180,6 +186,11 @@ public class QuestionController {
             @ApiResponse(
                     responseCode = "404",
                     description = "Owned question not found",
+                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "The question is referenced by a non-draft study",
                     content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
             )
     })
