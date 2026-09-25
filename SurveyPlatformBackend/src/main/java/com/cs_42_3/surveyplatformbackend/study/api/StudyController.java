@@ -76,7 +76,8 @@ public class StudyController {
     @GetMapping
     @SecurityRequirement(name = "bearerAuth")
     @Operation(operationId = "listStudies", summary = "List my studies",
-            description = "Implements FR-12. Ordered by creation time descending, then ID ascending.")
+            description = "Implements FR-12. Ordered by study update time descending, then ID ascending, before pagination. "
+                    + "Feed and questionnaire edits do not affect the study update time.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Owned studies, possibly empty.",
                     content = @Content(schema = @Schema(implementation = StudyPageResponse.class))),
