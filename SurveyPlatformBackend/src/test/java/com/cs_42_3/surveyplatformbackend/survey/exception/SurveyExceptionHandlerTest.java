@@ -42,6 +42,17 @@ class SurveyExceptionHandlerTest {
     }
 
     @Test
+    void branchOptionForeignKeyMapsToChangedReferenceConflict() {
+        var response = handler.handlePersistenceFailure(
+                violation("fk_branch_rules_source_option"),
+                request
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().code()).isEqualTo("QUESTION_REFERENCE_CHANGED");
+    }
+
+    @Test
     void unknownIntegrityConstraintIsNotMisreportedAsConcurrentCreation() {
         var response = handler.handlePersistenceFailure(
                 violation("unexpected_constraint"),

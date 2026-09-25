@@ -9,8 +9,10 @@ import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
+import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionReferenceConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
+import com.cs_42_3.surveyplatformbackend.survey.service.QuestionnaireQuestionReferencePort;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -49,6 +52,9 @@ class QuestionServiceImplTest {
     @Mock
     private CurrentResearcher currentResearcher;
 
+    @Mock
+    private QuestionnaireQuestionReferencePort questionnaireReferencePort;
+
     private QuestionServiceImpl questionService;
 
     @BeforeEach
@@ -56,9 +62,16 @@ class QuestionServiceImplTest {
         questionService = new QuestionServiceImpl(
                 questionRepository,
                 currentResearcher,
-                new QuestionResponseMapper()
+                new QuestionResponseMapper(),
+                questionnaireReferencePort
         );
         lenient().when(currentResearcher.getId()).thenReturn(RESEARCHER_ID);
+        lenient().when(questionnaireReferencePort.lockReferences(any(UUID.class)))
+                .thenReturn(new QuestionnaireQuestionReferencePort.ReferenceLock(
+                        java.util.Set.of(),
+                        java.util.Set.of(),
+                        false
+                ));
         lenient().when(questionRepository.saveAndFlush(any(Question.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -300,8 +313,7 @@ class QuestionServiceImplTest {
     @Test
     void updateQuestionReplacesOwnedQuestionFieldsAndOptions() {
         Question question = textQuestion("Old text");
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
         UpdateQuestionRequest request = new UpdateQuestionRequest(
                 QuestionType.SINGLE_CHOICE,
                 "New text",
@@ -354,8 +366,7 @@ class QuestionServiceImplTest {
         UUID firstOptionId = UUID.fromString("ae4e3353-1756-44e3-9ec5-a93f3e47633e");
         UUID secondOptionId = UUID.fromString("67166959-d033-4a75-aebb-20cff7acb337");
         Question question = choiceQuestion(firstOptionId, secondOptionId);
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
 
         UpdateQuestionRequest request = new UpdateQuestionRequest(
                 QuestionType.SINGLE_CHOICE,
@@ -385,8 +396,7 @@ class QuestionServiceImplTest {
     @Test
     void updateQuestionRequiresExplicitWholeOptionReplacement() {
         Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
         UpdateQuestionRequest request = new UpdateQuestionRequest(
                 QuestionType.SINGLE_CHOICE,
                 "Updated choice",
@@ -411,8 +421,7 @@ class QuestionServiceImplTest {
     @Test
     void updateQuestionAllowsExplicitWholeOptionReplacement() {
         Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
         UpdateQuestionRequest request = new UpdateQuestionRequest(
                 QuestionType.SINGLE_CHOICE,
                 "Updated choice",
@@ -438,8 +447,7 @@ class QuestionServiceImplTest {
     @Test
     void updateQuestionRejectsOptionIdFromAnotherQuestion() {
         Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
         UpdateQuestionRequest request = new UpdateQuestionRequest(
                 QuestionType.SINGLE_CHOICE,
                 "Updated choice",
@@ -461,10 +469,36 @@ class QuestionServiceImplTest {
     }
 
     @Test
+    void updateQuestionDoesNotMutateOrSaveWhenQuestionnaireReferencesRejectIt() {
+        Question question = textQuestion("Original text");
+        stubOwnedQuestionForWrite(question);
+        doThrow(new QuestionReferenceConflictException(
+                "QUESTION_UPDATE_INVALIDATES_FLOW",
+                "Flow would become invalid"
+        )).when(questionnaireReferencePort).validateUpdate(any(), any(), any());
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.TEXT,
+                "Changed text",
+                false,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                false
+        );
+
+        assertThatThrownBy(() -> questionService.updateQuestion(QUESTION_ID, request))
+                .isInstanceOf(QuestionReferenceConflictException.class);
+
+        assertThat(question.getQuestionText()).isEqualTo("Original text");
+        verify(questionRepository, never()).saveAndFlush(any(Question.class));
+    }
+
+    @Test
     void deleteQuestionDeletesOnlyOwnedQuestion() {
         Question question = textQuestion("Delete me");
-        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
-                .thenReturn(Optional.of(question));
+        stubOwnedQuestionForWrite(question);
 
         questionService.deleteQuestion(QUESTION_ID);
 
@@ -519,5 +553,13 @@ class QuestionServiceImplTest {
         ReflectionTestUtils.setField(question.getOptions().get(0), "id", firstOptionId);
         ReflectionTestUtils.setField(question.getOptions().get(1), "id", secondOptionId);
         return question;
+    }
+
+    private void stubOwnedQuestionForWrite(Question question) {
+        ReflectionTestUtils.setField(question, "id", QUESTION_ID);
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        when(questionRepository.findOwnedByIdForUpdate(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
     }
 }

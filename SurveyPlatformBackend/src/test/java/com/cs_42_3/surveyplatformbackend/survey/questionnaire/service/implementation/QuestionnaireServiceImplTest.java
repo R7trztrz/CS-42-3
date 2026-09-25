@@ -7,6 +7,7 @@ import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireItemRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.domain.Questionnaire;
@@ -16,6 +17,7 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.Question
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireValidationException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireVersionConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireFlowValidator;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,7 +74,8 @@ class QuestionnaireServiceImplTest {
                 studyRepository,
                 questionRepository,
                 currentResearcher,
-                new QuestionResponseMapper()
+                new QuestionResponseMapper(),
+                new QuestionnaireFlowValidator()
         );
         draftStudy = new Study(RESEARCHER_ID, "Owned study", null);
         questionBank.put(QUESTION_ONE_ID, question(QUESTION_ONE_ID, "First"));
@@ -81,6 +84,17 @@ class QuestionnaireServiceImplTest {
         lenient().when(currentResearcher.getId()).thenReturn(RESEARCHER_ID);
         lenient().when(studyRepository.findOwnedStudyForQuestionnaireUpdate(STUDY_ID, RESEARCHER_ID))
                 .thenReturn(Optional.of(draftStudy));
+        lenient().when(questionRepository.lockAllOwnedByIdsForUpdate(
+                        eq(RESEARCHER_ID),
+                        anyCollection()
+                ))
+                .thenAnswer(invocation -> {
+                    Collection<UUID> ids = invocation.getArgument(1);
+                    return ids.stream()
+                            .filter(questionBank::containsKey)
+                            .map(questionBank::get)
+                            .toList();
+                });
         lenient().when(questionRepository.findAllByResearcherIdAndIdIn(
                         eq(RESEARCHER_ID),
                         anyCollection()
@@ -98,7 +112,7 @@ class QuestionnaireServiceImplTest {
 
     @Test
     void createsQuestionnaireAndAllowsSeveralNewItemsWithNullItemIds() {
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.empty());
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
         SaveQuestionnaireRequest request = request(
                 null,
                 item(null, QUESTION_ONE_ID),
@@ -143,32 +157,32 @@ class QuestionnaireServiceImplTest {
 
     @Test
     void rejectsExpectedVersionForMissingQuestionnaireBeforeQuestionLookup() {
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.empty());
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.saveQuestionnaire(
                 STUDY_ID,
                 request(0L, item(null, QUESTION_ONE_ID))
         )).isInstanceOf(QuestionnaireVersionConflictException.class);
-        verify(questionRepository, never()).findAllByResearcherIdAndIdIn(any(), anyCollection());
+        verify(questionRepository, never()).lockAllOwnedByIdsForUpdate(any(), anyCollection());
     }
 
     @Test
     void rejectsFutureVersionBeforeQuestionLookup() {
         Questionnaire questionnaire = existingQuestionnaire(2L, QUESTION_ONE_ID);
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         assertThatThrownBy(() -> service.saveQuestionnaire(
                 STUDY_ID,
                 request(3L, item(questionnaire.getItems().get(0).getId(), QUESTION_ONE_ID))
         )).isInstanceOf(QuestionnaireVersionConflictException.class);
-        verify(questionRepository, never()).findAllByResearcherIdAndIdIn(any(), anyCollection());
+        verify(questionRepository, never()).lockAllOwnedByIdsForUpdate(any(), anyCollection());
     }
 
     @Test
     void sameCurrentVersionUpdatesChangedContentAndPreservesExistingItemId() {
         Questionnaire questionnaire = existingQuestionnaire(2L, QUESTION_ONE_ID);
         UUID existingItemId = questionnaire.getItems().get(0).getId();
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var result = service.saveQuestionnaire(
                 STUDY_ID,
@@ -191,7 +205,7 @@ class QuestionnaireServiceImplTest {
         );
         UUID removedItemId = questionnaire.getItems().get(0).getId();
         UUID retainedItemId = questionnaire.getItems().get(1).getId();
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var result = service.saveQuestionnaire(
                 STUDY_ID,
@@ -208,7 +222,7 @@ class QuestionnaireServiceImplTest {
     void identicalCurrentVersionRequestDoesNotWriteOrAdvanceVersion() {
         Questionnaire questionnaire = existingQuestionnaire(2L, QUESTION_ONE_ID);
         Instant previousUpdatedAt = questionnaire.getUpdatedAt();
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var result = service.saveQuestionnaire(
                 STUDY_ID,
@@ -224,7 +238,7 @@ class QuestionnaireServiceImplTest {
     void olderVersionIsAcceptedOnlyForIdenticalSafeRetry() {
         Questionnaire questionnaire = existingQuestionnaire(2L, QUESTION_ONE_ID);
         UUID itemId = questionnaire.getItems().get(0).getId();
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var retry = service.saveQuestionnaire(
                 STUDY_ID,
@@ -242,7 +256,7 @@ class QuestionnaireServiceImplTest {
     @Test
     void nullVersionReplaysInitialCreationOnlyWhenContentMatches() {
         Questionnaire questionnaire = existingQuestionnaire(0L, QUESTION_ONE_ID);
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var retry = service.saveQuestionnaire(
                 STUDY_ID,
@@ -261,7 +275,7 @@ class QuestionnaireServiceImplTest {
     @Test
     void invalidQuestionIsReportedWithoutLeakingWhetherItExistsElsewhere() {
         UUID unavailableQuestionId = UUID.randomUUID();
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.empty());
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.saveQuestionnaire(
                 STUDY_ID,
@@ -276,7 +290,7 @@ class QuestionnaireServiceImplTest {
     @Test
     void itemFromAnotherQuestionnaireIsRejected() {
         Questionnaire questionnaire = existingQuestionnaire(0L, QUESTION_ONE_ID);
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         assertThatThrownBy(() -> service.saveQuestionnaire(
                 STUDY_ID,
@@ -292,8 +306,8 @@ class QuestionnaireServiceImplTest {
                 STUDY_ID,
                 request(null, item(null, QUESTION_ONE_ID))
         )).isInstanceOf(QuestionnaireLockedException.class);
-        verify(questionnaireRepository, never()).findByStudyId(any());
-        verify(questionRepository, never()).findAllByResearcherIdAndIdIn(any(), anyCollection());
+        verify(questionnaireRepository, never()).findByStudyIdForUpdate(any());
+        verify(questionRepository, never()).lockAllOwnedByIdsForUpdate(any(), anyCollection());
     }
 
     @Test
@@ -312,11 +326,45 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
+    void getKeepsIncomingRuleAndReportsMissingTargetWithRuleIndex() {
+        Questionnaire questionnaire = existingQuestionnaire(
+                4L,
+                QUESTION_ONE_ID,
+                QUESTION_TWO_ID
+        );
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(UUID.randomUUID(), null, 1)),
+                List.of()
+        ));
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+        ReflectionTestUtils.setField(questionnaire.getItems().get(1), "questionId", null);
+        when(studyRepository.findByIdAndOwnerId(STUDY_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(draftStudy));
+        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+
+        var response = service.getQuestionnaire(STUDY_ID);
+
+        assertThat(response.valid()).isFalse();
+        assertThat(response.items().get(0).branchRules()).singleElement()
+                .satisfies(rule -> {
+                    assertThat(rule.targetItemId()).isEqualTo(targetItemId);
+                    assertThat(rule.targetPosition()).isEqualTo(1);
+                });
+        assertThat(response.validationIssues())
+                .filteredOn(issue -> issue.code().equals("BRANCH_TARGET_MISSING_QUESTION"))
+                .singleElement()
+                .satisfies(issue -> {
+                    assertThat(issue.itemIndex()).isZero();
+                    assertThat(issue.ruleIndex()).isZero();
+                });
+    }
+
+    @Test
     void missingItemCanBeReplacedOrRemovedUsingItsStableItemId() {
         Questionnaire questionnaire = existingQuestionnaire(4L, QUESTION_ONE_ID);
         UUID missingItemId = questionnaire.getItems().get(0).getId();
         ReflectionTestUtils.setField(questionnaire.getItems().get(0), "questionId", null);
-        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.of(questionnaire));
 
         var replaced = service.saveQuestionnaire(
                 STUDY_ID,
@@ -330,6 +378,324 @@ class QuestionnaireServiceImplTest {
                 request(5L)
         );
         assertThat(removed.response().items()).isEmpty();
+    }
+
+    @Test
+    void savesChoiceBranchAndReturnsItsStableTargetItemIdentity() {
+        UUID choiceId = UUID.randomUUID();
+        UUID firstOptionId = UUID.randomUUID();
+        questionBank.put(
+                choiceId,
+                singleChoiceQuestion(choiceId, false, firstOptionId, UUID.randomUUID())
+        );
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        var result = service.saveQuestionnaire(
+                STUDY_ID,
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(firstOptionId, null, 2)
+                        ),
+                        item(null, QUESTION_ONE_ID),
+                        item(null, QUESTION_TWO_ID)
+                )
+        );
+
+        assertThat(result.response().valid()).isTrue();
+        assertThat(result.response().validationIssues()).isEmpty();
+        assertThat(result.response().items().get(0).branchRules()).singleElement()
+                .satisfies(rule -> {
+                    assertThat(rule.sourceOptionId()).isEqualTo(firstOptionId);
+                    assertThat(rule.sourceScaleValue()).isNull();
+                    assertThat(rule.targetPosition()).isEqualTo(2);
+                    assertThat(rule.targetItemId())
+                            .isEqualTo(result.response().items().get(2).itemId());
+                });
+    }
+
+    @Test
+    void identicalBranchRulesAreASafeRetryEvenWithAnOlderVersion() {
+        UUID choiceId = UUID.randomUUID();
+        UUID optionId = UUID.randomUUID();
+        questionBank.put(choiceId, singleChoiceQuestion(choiceId, false, optionId, UUID.randomUUID()));
+        Questionnaire questionnaire = existingQuestionnaire(
+                2L,
+                choiceId,
+                QUESTION_ONE_ID
+        );
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(optionId, null, 1)),
+                List.of()
+        ));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID))
+                .thenReturn(Optional.of(questionnaire));
+
+        var result = service.saveQuestionnaire(
+                STUDY_ID,
+                request(
+                        1L,
+                        item(
+                                questionnaire.getItems().get(0).getId(),
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, null, 1)
+                        ),
+                        item(questionnaire.getItems().get(1).getId(), QUESTION_ONE_ID)
+                )
+        );
+
+        assertThat(result.response().version()).isEqualTo(2L);
+        verify(questionnaireRepository, never()).saveAndFlush(any());
+        verify(questionnaireRepository, never()).flush();
+    }
+
+    @Test
+    void changedRulesReplaceTheWholeManagedRuleSet() {
+        UUID choiceId = UUID.randomUUID();
+        UUID oldOptionId = UUID.randomUUID();
+        UUID newOptionId = UUID.randomUUID();
+        questionBank.put(
+                choiceId,
+                singleChoiceQuestion(choiceId, false, oldOptionId, newOptionId)
+        );
+        Questionnaire questionnaire = existingQuestionnaire(
+                2L,
+                choiceId,
+                QUESTION_ONE_ID,
+                QUESTION_TWO_ID
+        );
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(oldOptionId, null, 2)),
+                List.of(),
+                List.of()
+        ));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID))
+                .thenReturn(Optional.of(questionnaire));
+
+        service.saveQuestionnaire(
+                STUDY_ID,
+                request(
+                        2L,
+                        item(
+                                questionnaire.getItems().get(0).getId(),
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(newOptionId, null, 2)
+                        ),
+                        item(questionnaire.getItems().get(1).getId(), QUESTION_ONE_ID),
+                        item(questionnaire.getItems().get(2).getId(), QUESTION_TWO_ID)
+                )
+        );
+
+        assertThat(questionnaire.getItems().get(0).getBranchRules()).singleElement()
+                .satisfies(rule -> assertThat(rule.getSourceOptionId()).isEqualTo(newOptionId));
+        verify(questionnaireRepository).flush();
+        verify(questionnaireRepository).saveAndFlush(questionnaire);
+    }
+
+    @Test
+    void invalidReplacementLeavesExistingRulesUntouched() {
+        UUID choiceId = UUID.randomUUID();
+        UUID optionId = UUID.randomUUID();
+        questionBank.put(choiceId, singleChoiceQuestion(choiceId, false, optionId, UUID.randomUUID()));
+        Questionnaire questionnaire = existingQuestionnaire(
+                2L,
+                choiceId,
+                QUESTION_ONE_ID
+        );
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(optionId, null, 1)),
+                List.of()
+        ));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID))
+                .thenReturn(Optional.of(questionnaire));
+
+        assertRuleError(
+                request(
+                        2L,
+                        item(
+                                questionnaire.getItems().get(0).getId(),
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, null, 9)
+                        ),
+                        item(questionnaire.getItems().get(1).getId(), QUESTION_ONE_ID)
+                ),
+                "BRANCH_TARGET_OUT_OF_RANGE",
+                0
+        );
+
+        assertThat(questionnaire.getItems().get(0).getBranchRules()).singleElement()
+                .satisfies(rule -> assertThat(rule.getSourceOptionId()).isEqualTo(optionId));
+        verify(questionnaireRepository, never()).flush();
+        verify(questionnaireRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void savesScaleBranchRules() {
+        UUID scaleId = UUID.randomUUID();
+        questionBank.put(scaleId, scaleQuestion(scaleId, false, 1, 5));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        var result = service.saveQuestionnaire(
+                STUDY_ID,
+                request(
+                        null,
+                        item(
+                                null,
+                                scaleId,
+                                new QuestionnaireBranchRuleRequest(null, 5, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                )
+        );
+
+        assertThat(result.response().items().get(0).branchRules()).singleElement()
+                .satisfies(rule -> {
+                    assertThat(rule.sourceOptionId()).isNull();
+                    assertThat(rule.sourceScaleValue()).isEqualTo(5);
+                    assertThat(rule.targetPosition()).isEqualTo(1);
+                });
+    }
+
+    @Test
+    void rejectsBranchRulesForUnsupportedQuestionTypes() {
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                QUESTION_ONE_ID,
+                                new QuestionnaireBranchRuleRequest(null, 1, 1)
+                        ),
+                        item(null, QUESTION_TWO_ID)
+                ),
+                "BRANCH_TYPE_UNSUPPORTED",
+                0
+        );
+    }
+
+    @Test
+    void requiresExactlyOneTriggerPerBranchRule() {
+        UUID choiceId = UUID.randomUUID();
+        UUID optionId = UUID.randomUUID();
+        questionBank.put(choiceId, singleChoiceQuestion(choiceId, false, optionId));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, 1, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "BRANCH_TRIGGER_REQUIRED",
+                0
+        );
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(null, null, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "BRANCH_TRIGGER_REQUIRED",
+                0
+        );
+    }
+
+    @Test
+    void validatesChoiceOptionOwnershipAndScaleBounds() {
+        UUID choiceId = UUID.randomUUID();
+        UUID optionId = UUID.randomUUID();
+        UUID scaleId = UUID.randomUUID();
+        questionBank.put(choiceId, singleChoiceQuestion(choiceId, false, optionId));
+        questionBank.put(scaleId, scaleQuestion(scaleId, false, 1, 5));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(UUID.randomUUID(), null, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "INVALID_OPTION_TRIGGER",
+                0
+        );
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                scaleId,
+                                new QuestionnaireBranchRuleRequest(null, 6, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "SCALE_TRIGGER_OUT_OF_RANGE",
+                0
+        );
+    }
+
+    @Test
+    void rejectsDuplicateTriggersInvalidTargetsAndSelfLoops() {
+        UUID choiceId = UUID.randomUUID();
+        UUID optionId = UUID.randomUUID();
+        questionBank.put(choiceId, singleChoiceQuestion(choiceId, false, optionId));
+        when(questionnaireRepository.findByStudyIdForUpdate(STUDY_ID)).thenReturn(Optional.empty());
+
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, null, 1),
+                                new QuestionnaireBranchRuleRequest(optionId, null, 1)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "DUPLICATE_BRANCH_TRIGGER",
+                1
+        );
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, null, 2)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "BRANCH_TARGET_OUT_OF_RANGE",
+                0
+        );
+        assertRuleError(
+                request(
+                        null,
+                        item(
+                                null,
+                                choiceId,
+                                new QuestionnaireBranchRuleRequest(optionId, null, 0)
+                        ),
+                        item(null, QUESTION_ONE_ID)
+                ),
+                "BRANCH_SELF_LOOP",
+                0
+        );
     }
 
     private Questionnaire simulateFlush(Questionnaire questionnaire) {
@@ -383,6 +749,51 @@ class QuestionnaireServiceImplTest {
         return question;
     }
 
+    private Question singleChoiceQuestion(
+            UUID id,
+            boolean required,
+            UUID... optionIds
+    ) {
+        Question question = Question.create(
+                RESEARCHER_ID,
+                QuestionType.SINGLE_CHOICE,
+                "Choose",
+                required,
+                null,
+                null,
+                null,
+                null
+        );
+        question.replaceOptions(java.util.stream.IntStream.range(0, optionIds.length)
+                .mapToObj(index -> "Option " + index)
+                .toList());
+        ReflectionTestUtils.setField(question, "id", id);
+        for (int index = 0; index < optionIds.length; index++) {
+            ReflectionTestUtils.setField(question.getOptions().get(index), "id", optionIds[index]);
+        }
+        return question;
+    }
+
+    private Question scaleQuestion(
+            UUID id,
+            boolean required,
+            int minimum,
+            int maximum
+    ) {
+        Question question = Question.create(
+                RESEARCHER_ID,
+                QuestionType.SCALE,
+                "Rate",
+                required,
+                minimum,
+                maximum,
+                null,
+                null
+        );
+        ReflectionTestUtils.setField(question, "id", id);
+        return question;
+    }
+
     private SaveQuestionnaireRequest request(
             Long version,
             SaveQuestionnaireItemRequest... items
@@ -392,5 +803,30 @@ class QuestionnaireServiceImplTest {
 
     private SaveQuestionnaireItemRequest item(UUID itemId, UUID questionId) {
         return new SaveQuestionnaireItemRequest(itemId, questionId);
+    }
+
+    private SaveQuestionnaireItemRequest item(
+            UUID itemId,
+            UUID questionId,
+            QuestionnaireBranchRuleRequest... branchRules
+    ) {
+        return new SaveQuestionnaireItemRequest(itemId, questionId, List.of(branchRules));
+    }
+
+    private void assertRuleError(
+            SaveQuestionnaireRequest request,
+            String expectedCode,
+            int expectedRuleIndex
+    ) {
+        assertThatThrownBy(() -> service.saveQuestionnaire(STUDY_ID, request))
+                .isInstanceOf(QuestionnaireValidationException.class)
+                .satisfies(exception -> assertThat(
+                        ((QuestionnaireValidationException) exception).getDetails()
+                ).singleElement().satisfies(detail -> {
+                    assertThat(detail.code()).isEqualTo(expectedCode);
+                    assertThat(detail.index()).isZero();
+                    assertThat(detail.ruleIndex()).isEqualTo(expectedRuleIndex);
+                    assertThat(detail.field()).startsWith("items[0].branchRules");
+                }));
     }
 }

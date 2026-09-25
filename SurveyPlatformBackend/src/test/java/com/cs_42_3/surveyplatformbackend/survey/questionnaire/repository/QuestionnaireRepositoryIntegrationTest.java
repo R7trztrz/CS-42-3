@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -25,8 +26,9 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V4 constraints and questionnaire mappings. */
+/** PostgreSQL integration coverage for V7/V8 constraints and questionnaire mappings. */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"
@@ -65,13 +67,163 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v4CreatesUuidColumnsAndDeferredUniquenessConstraints() {
+    void v7CreatesUuidColumnsAndDeferredUniquenessConstraints() {
         assertThat(columnType("questionnaires", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaires", "study_id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_items", "question_id")).isEqualTo("uuid");
 
         assertThat(isDeferrable("uq_questionnaire_items_position")).isTrue();
         assertThat(isDeferrable("uq_questionnaire_items_question")).isTrue();
+    }
+
+    @Test
+    void v8CreatesBranchColumnsChecksAndRestrictiveReferences() {
+        assertThat(columnType("questionnaire_branch_rules", "source_option_id"))
+                .isEqualTo("uuid");
+        assertThat(columnType("questionnaire_branch_rules", "source_scale_value"))
+                .isEqualTo("integer");
+        assertThat(deleteAction("fk_branch_rules_source_item")).isEqualTo("CASCADE");
+        assertThat(deleteAction("fk_branch_rules_target_item")).isEqualTo("RESTRICT");
+        assertThat(deleteAction("fk_branch_rules_source_option")).isEqualTo("RESTRICT");
+    }
+
+    @Test
+    void branchRuleRoundTripRetainsOptionTriggerAndStableTargetItem() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+        UUID optionId = questionnaire.getItems().get(0).getBranchRules().stream()
+                .findFirst()
+                .orElseThrow()
+                .getSourceOptionId();
+        entityManager.clear();
+
+        Questionnaire reloaded = questionnaireRepository.findByStudyId(study.getId())
+                .orElseThrow();
+        var reloadedRule = reloaded.getItems().get(0).getBranchRules().stream()
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(reloaded.getItems().get(0).getId()).isEqualTo(sourceItemId);
+        assertThat(reloadedRule.getSourceOptionId()).isEqualTo(optionId);
+        assertThat(reloadedRule.getSourceScaleValue()).isNull();
+        assertThat(reloadedRule.getTargetItem().getId()).isEqualTo(targetItemId);
+    }
+
+    @Test
+    void v8RejectsRulesWithoutExactlyOneTrigger() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                        INSERT INTO questionnaire_branch_rules (
+                            id, source_item_id, source_option_id, source_scale_value, target_item_id
+                        ) VALUES (?, ?, NULL, NULL, ?)
+                        """,
+                UUID.randomUUID(),
+                sourceItemId,
+                targetItemId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void v8RejectsSelfLoops() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+        Question source = questionRepository.findById(
+                questionnaire.getItems().get(0).getQuestionId()
+        ).orElseThrow();
+        UUID unusedOptionId = source.getOptions().get(1).getId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                        INSERT INTO questionnaire_branch_rules (
+                            id, source_item_id, source_option_id, source_scale_value, target_item_id
+                        ) VALUES (?, ?, ?, NULL, ?)
+                        """,
+                UUID.randomUUID(),
+                sourceItemId,
+                unusedOptionId,
+                sourceItemId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void v8RejectsDuplicateOptionTriggers() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+        UUID optionId = questionnaire.getItems().get(0).getBranchRules().stream()
+                .findFirst()
+                .orElseThrow()
+                .getSourceOptionId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                        INSERT INTO questionnaire_branch_rules (
+                            id, source_item_id, source_option_id, source_scale_value, target_item_id
+                        ) VALUES (?, ?, ?, NULL, ?)
+                        """,
+                UUID.randomUUID(),
+                sourceItemId,
+                optionId,
+                targetItemId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void v8RejectsDuplicateScaleTriggers() {
+        Questionnaire questionnaire = saveScaleBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                        INSERT INTO questionnaire_branch_rules (
+                            id, source_item_id, source_option_id, source_scale_value, target_item_id
+                        ) VALUES (?, ?, NULL, 3, ?)
+                        """,
+                UUID.randomUUID(),
+                sourceItemId,
+                targetItemId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingBranchTargetIsRestricted() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID targetItemId = questionnaire.getItems().get(1).getId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "DELETE FROM questionnaire_items WHERE id = ?",
+                targetItemId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingBranchOptionIsRestricted() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID optionId = questionnaire.getItems().get(0).getBranchRules().stream()
+                .findFirst()
+                .orElseThrow()
+                .getSourceOptionId();
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "DELETE FROM question_options WHERE id = ?",
+                optionId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deletingBranchSourceCascadesItsRules() {
+        Questionnaire questionnaire = saveBranchedQuestionnaire();
+        UUID sourceItemId = questionnaire.getItems().get(0).getId();
+
+        jdbcTemplate.update("DELETE FROM questionnaire_items WHERE id = ?", sourceItemId);
+
+        assertThat(count("questionnaire_branch_rules", "source_item_id", sourceItemId)).isZero();
     }
 
     @Test
@@ -187,6 +339,52 @@ class QuestionnaireRepositoryIntegrationTest {
         return questionnaireRepository.saveAndFlush(questionnaire);
     }
 
+    private Questionnaire saveBranchedQuestionnaire() {
+        Question source = choiceQuestion("Branch source");
+        source = questionRepository.saveAndFlush(source);
+        Question target = saveTextQuestion("Branch target");
+        Questionnaire questionnaire = Questionnaire.create(study.getId());
+        questionnaire.synchronizeItems(List.of(
+                new Questionnaire.ItemPlacement(null, source.getId()),
+                new Questionnaire.ItemPlacement(null, target.getId())
+        ));
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(
+                        source.getOptions().get(0).getId(),
+                        null,
+                        1
+                )),
+                List.of()
+        ));
+        questionnaire.markModified();
+        return questionnaireRepository.saveAndFlush(questionnaire);
+    }
+
+    private Questionnaire saveScaleBranchedQuestionnaire() {
+        Question source = questionRepository.saveAndFlush(Question.create(
+                researcherId,
+                QuestionType.SCALE,
+                "Scale branch source",
+                false,
+                1,
+                5,
+                null,
+                null
+        ));
+        Question target = saveTextQuestion("Scale branch target");
+        Questionnaire questionnaire = Questionnaire.create(study.getId());
+        questionnaire.synchronizeItems(List.of(
+                new Questionnaire.ItemPlacement(null, source.getId()),
+                new Questionnaire.ItemPlacement(null, target.getId())
+        ));
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(null, 3, 1)),
+                List.of()
+        ));
+        questionnaire.markModified();
+        return questionnaireRepository.saveAndFlush(questionnaire);
+    }
+
     private Question saveTextQuestion(String text) {
         return questionRepository.saveAndFlush(Question.create(
                 researcherId,
@@ -241,6 +439,19 @@ class QuestionnaireRepositoryIntegrationTest {
                 constraintName
         );
         return Boolean.TRUE.equals(value);
+    }
+
+    private String deleteAction(String constraintName) {
+        return jdbcTemplate.queryForObject(
+                """
+                        SELECT rc.delete_rule
+                        FROM information_schema.referential_constraints rc
+                        WHERE rc.constraint_schema = current_schema()
+                          AND rc.constraint_name = ?
+                        """,
+                String.class,
+                constraintName
+        );
     }
 
     private long count(String table, String column, UUID id) {

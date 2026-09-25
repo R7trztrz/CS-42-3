@@ -5,6 +5,10 @@ import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorDetail;
 import com.cs_42_3.surveyplatformbackend.survey.exception.SurveyExceptionHandler;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireResponse;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireSaveResult;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleResponse;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireItemReferenceStatus;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireItemResponse;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireValidationIssue;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireLockedException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireValidationException;
@@ -49,6 +53,9 @@ class QuestionnaireControllerTest {
     private static final UUID QUESTIONNAIRE_ID = UUID.fromString("35514c7f-8328-4921-bf75-0c2d81068122");
     private static final UUID ITEM_ID = UUID.fromString("ea28f333-d766-426f-a20c-b0974ba655a4");
     private static final UUID QUESTION_ID = UUID.fromString("d1c3e81f-5d90-4742-8524-dee739e197e0");
+    private static final UUID RULE_ID = UUID.fromString("64a5f939-d52b-444f-8647-819d13c10d9f");
+    private static final UUID OPTION_ID = UUID.fromString("8fb94791-260b-48e0-8414-f576f00b9b18");
+    private static final UUID TARGET_ITEM_ID = UUID.fromString("bc93a069-6012-4874-8d85-29cf147f8d47");
 
     @Autowired
     private MockMvc mockMvc;
@@ -162,6 +169,106 @@ class QuestionnaireControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].itemId").value(ITEM_ID.toString()))
                 .andExpect(jsonPath("$.details[0].code").value("INVALID_QUESTION_REFERENCE"));
+    }
+
+    @Test
+    void branchRuleBeanValidationReturnsItemAndRuleIndexes() throws Exception {
+        mockMvc.perform(put("/api/studies/{studyId}/questionnaire", STUDY_ID)
+                        .with(researcherJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedVersion": 0,
+                                  "items": [{
+                                    "itemId": "%s",
+                                    "questionId": "%s",
+                                    "branchRules": [{
+                                      "sourceOptionId": "%s",
+                                      "sourceScaleValue": null,
+                                      "targetPosition": -1
+                                    }]
+                                  }]
+                                }
+                                """.formatted(ITEM_ID, QUESTION_ID, OPTION_ID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("QUESTIONNAIRE_VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details[0].field")
+                        .value("items[0].branchRules[0].targetPosition"))
+                .andExpect(jsonPath("$.details[0].index").value(0))
+                .andExpect(jsonPath("$.details[0].itemId").value(ITEM_ID.toString()))
+                .andExpect(jsonPath("$.details[0].ruleIndex").value(0))
+                .andExpect(jsonPath("$.details[0].code").value("BRANCH_RULE_FIELD_INVALID"));
+        verifyNoInteractions(questionnaireService);
+    }
+
+    @Test
+    void nullBranchRuleReturnsStableRuleLocation() throws Exception {
+        mockMvc.perform(put("/api/studies/{studyId}/questionnaire", STUDY_ID)
+                        .with(researcherJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedVersion": 0,
+                                  "items": [{
+                                    "itemId": "%s",
+                                    "questionId": "%s",
+                                    "branchRules": [null]
+                                  }]
+                                }
+                                """.formatted(ITEM_ID, QUESTION_ID)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].ruleIndex").value(0))
+                .andExpect(jsonPath("$.details[0].code").value("BRANCH_RULE_REQUIRED"));
+        verifyNoInteractions(questionnaireService);
+    }
+
+    @Test
+    void getSerializesBranchTargetsAndMissingReferenceIssues() throws Exception {
+        QuestionnaireBranchRuleResponse rule = new QuestionnaireBranchRuleResponse(
+                RULE_ID,
+                OPTION_ID,
+                null,
+                TARGET_ITEM_ID,
+                1
+        );
+        QuestionnaireItemResponse item = new QuestionnaireItemResponse(
+                ITEM_ID,
+                0,
+                true,
+                null,
+                QuestionnaireItemReferenceStatus.MISSING_QUESTION,
+                List.of(rule)
+        );
+        QuestionnaireValidationIssue issue = new QuestionnaireValidationIssue(
+                "BRANCH_TARGET_MISSING_QUESTION",
+                0,
+                ITEM_ID,
+                0,
+                "Branch target is missing"
+        );
+        when(questionnaireService.getQuestionnaire(STUDY_ID)).thenReturn(
+                new QuestionnaireResponse(
+                        QUESTIONNAIRE_ID,
+                        STUDY_ID,
+                        List.of(item),
+                        4L,
+                        Instant.parse("2026-09-21T10:00:00Z"),
+                        false,
+                        List.of(issue)
+                )
+        );
+
+        mockMvc.perform(get("/api/studies/{studyId}/questionnaire", STUDY_ID)
+                        .with(researcherJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(false))
+                .andExpect(jsonPath("$.items[0].referenceStatus").value("MISSING_QUESTION"))
+                .andExpect(jsonPath("$.items[0].branchRules[0].id").value(RULE_ID.toString()))
+                .andExpect(jsonPath("$.items[0].branchRules[0].targetItemId")
+                        .value(TARGET_ITEM_ID.toString()))
+                .andExpect(jsonPath("$.items[0].branchRules[0].targetPosition").value(1))
+                .andExpect(jsonPath("$.validationIssues[0].code")
+                        .value("BRANCH_TARGET_MISSING_QUESTION"));
     }
 
     @Test

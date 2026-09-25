@@ -7,6 +7,7 @@ import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
+import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionReferenceConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.SurveyExceptionHandler;
 import com.cs_42_3.surveyplatformbackend.survey.service.QuestionService;
 
@@ -137,6 +138,33 @@ class QuestionControllerTest {
     }
 
     @Test
+    void destructiveQuestionEditReturnsStableReferenceConflict() throws Exception {
+        when(questionService.updateQuestion(any(UUID.class), any()))
+                .thenThrow(new QuestionReferenceConflictException(
+                        "OPTION_IN_USE_BY_BRANCH_RULE",
+                        "An option used by a branch rule cannot be removed"
+                ));
+
+        mockMvc.perform(put("/api/questions/{questionId}", QUESTION_ID)
+                        .with(researcherJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "SINGLE_CHOICE",
+                                  "questionText": "Choose one",
+                                  "required": true,
+                                  "options": [
+                                    {"optionText": "Replacement A"},
+                                    {"optionText": "Replacement B"}
+                                  ],
+                                  "replaceAllOptions": true
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("OPTION_IN_USE_BY_BRANCH_RULE"));
+    }
+
+    @Test
     void updateQuestionReturnsUpdatedResponse() throws Exception {
         when(questionService.updateQuestion(any(UUID.class), any())).thenReturn(questionResponse());
 
@@ -151,7 +179,8 @@ class QuestionControllerTest {
                                   "options": [
                                     {"optionText": "Yes"},
                                     {"optionText": "No"}
-                                  ]
+                                  ],
+                                  "replaceAllOptions": true
                                 }
                                 """))
                 .andExpect(status().isOk())
