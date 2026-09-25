@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.implement
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorDetail;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
@@ -23,7 +24,6 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.StudyNot
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireService;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
-import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,13 +49,13 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
     private final QuestionnaireRepository questionnaireRepository;
     private final StudyRepository studyRepository;
     private final QuestionRepository questionRepository;
-    private final CurrentResearcherProvider currentResearcherProvider;
+    private final CurrentResearcher currentResearcher;
     private final QuestionResponseMapper questionResponseMapper;
 
     @Override
     @Transactional(readOnly = true)
     public QuestionnaireResponse getQuestionnaire(UUID studyId) {
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         studyRepository.findByIdAndOwnerId(studyId, researcherId)
                 .orElseThrow(() -> new StudyNotFoundException(studyId));
 
@@ -79,7 +79,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
     ) {
         validateRequestStructure(request);
 
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         Study study = studyRepository.findOwnedStudyForQuestionnaireUpdate(studyId, researcherId)
                 .orElseThrow(() -> new StudyNotFoundException(studyId));
         if (study.getStatus() != StudyStatus.DRAFT) {

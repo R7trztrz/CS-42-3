@@ -9,7 +9,7 @@ import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
-import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +45,7 @@ class QuestionServiceImplTest {
     private QuestionRepository questionRepository;
 
     @Mock
-    private CurrentResearcherProvider currentResearcherProvider;
+    private CurrentResearcher currentResearcher;
 
     private QuestionServiceImpl questionService;
 
@@ -53,10 +53,10 @@ class QuestionServiceImplTest {
     void setUp() {
         questionService = new QuestionServiceImpl(
                 questionRepository,
-                currentResearcherProvider,
+                currentResearcher,
                 new QuestionResponseMapper()
         );
-        lenient().when(currentResearcherProvider.getCurrentResearcherId()).thenReturn(RESEARCHER_ID);
+        lenient().when(currentResearcher.getId()).thenReturn(RESEARCHER_ID);
         lenient().when(questionRepository.saveAndFlush(any(Question.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }

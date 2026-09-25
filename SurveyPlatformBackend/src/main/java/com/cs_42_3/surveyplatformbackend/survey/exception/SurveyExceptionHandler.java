@@ -66,19 +66,6 @@ public class SurveyExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "QUESTION_VALIDATION_ERROR", exception.getMessage(), request);
     }
 
-    @ExceptionHandler(InvalidResearcherIdentityException.class)
-    public ResponseEntity<SurveyErrorResponse> handleInvalidResearcherIdentity(
-            InvalidResearcherIdentityException exception,
-            HttpServletRequest request
-    ) {
-        return buildResponse(
-                HttpStatus.UNAUTHORIZED,
-                "INVALID_RESEARCHER_IDENTITY",
-                exception.getMessage(),
-                request
-        );
-    }
-
     @ExceptionHandler(StudyNotFoundException.class)
     public ResponseEntity<SurveyErrorResponse> handleStudyNotFound(
             StudyNotFoundException exception,

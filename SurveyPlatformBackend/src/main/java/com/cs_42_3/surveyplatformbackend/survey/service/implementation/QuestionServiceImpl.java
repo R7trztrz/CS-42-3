@@ -11,7 +11,7 @@ import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
-import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.service.QuestionService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,13 +31,13 @@ import java.util.UUID;
 public class QuestionServiceImpl implements QuestionService {
 
     private final QuestionRepository questionRepository;
-    private final CurrentResearcherProvider currentResearcherProvider;
+    private final CurrentResearcher currentResearcher;
     private final QuestionResponseMapper questionResponseMapper;
 
     @Override
     @Transactional(readOnly = true)
     public List<QuestionSummaryResponse> listQuestions(QuestionType type, String keyword) {
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         return questionRepository.searchQuestions(researcherId, type, normalizeKeyword(keyword)).stream()
                 .map(this::toQuestionSummaryResponse)
                 .toList();
@@ -46,7 +46,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(UUID questionId) {
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         return questionResponseMapper.toResponse(findOwnedQuestion(questionId, researcherId));
     }
 
@@ -54,7 +54,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional
     public QuestionResponse createQuestion(CreateQuestionRequest request) {
         NormalizedQuestionData data = normalizeQuestionData(request);
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
 
         Question question = Question.create(
                 researcherId,
@@ -74,7 +74,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     @Transactional
     public QuestionResponse updateQuestion(UUID questionId, UpdateQuestionRequest request) {
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         Question question = findOwnedQuestion(questionId, researcherId);
         NormalizedQuestionData data = normalizeQuestionData(request);
 
@@ -95,7 +95,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     @Transactional
     public void deleteQuestion(UUID questionId) {
-        UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
+        UUID researcherId = currentResearcher.getId();
         Question question = findOwnedQuestion(questionId, researcherId);
         questionRepository.delete(question);
     }

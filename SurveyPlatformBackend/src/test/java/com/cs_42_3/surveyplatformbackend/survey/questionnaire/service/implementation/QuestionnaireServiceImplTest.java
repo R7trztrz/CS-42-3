@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.implement
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
@@ -16,7 +17,6 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.Question
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireVersionConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
-import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,7 +59,7 @@ class QuestionnaireServiceImplTest {
     @Mock
     private QuestionRepository questionRepository;
     @Mock
-    private CurrentResearcherProvider currentResearcherProvider;
+    private CurrentResearcher currentResearcher;
 
     private final Map<UUID, Question> questionBank = new LinkedHashMap<>();
     private QuestionnaireServiceImpl service;
@@ -71,14 +71,14 @@ class QuestionnaireServiceImplTest {
                 questionnaireRepository,
                 studyRepository,
                 questionRepository,
-                currentResearcherProvider,
+                currentResearcher,
                 new QuestionResponseMapper()
         );
         draftStudy = new Study(RESEARCHER_ID, "Owned study", null);
         questionBank.put(QUESTION_ONE_ID, question(QUESTION_ONE_ID, "First"));
         questionBank.put(QUESTION_TWO_ID, question(QUESTION_TWO_ID, "Second"));
 
-        lenient().when(currentResearcherProvider.getCurrentResearcherId()).thenReturn(RESEARCHER_ID);
+        lenient().when(currentResearcher.getId()).thenReturn(RESEARCHER_ID);
         lenient().when(studyRepository.findOwnedStudyForQuestionnaireUpdate(STUDY_ID, RESEARCHER_ID))
                 .thenReturn(Optional.of(draftStudy));
         lenient().when(questionRepository.findAllByResearcherIdAndIdIn(

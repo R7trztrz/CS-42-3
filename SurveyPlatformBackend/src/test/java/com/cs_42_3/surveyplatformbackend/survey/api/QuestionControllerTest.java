@@ -6,7 +6,6 @@ import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
-import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidResearcherIdentityException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.QuestionNotFoundException;
 import com.cs_42_3.surveyplatformbackend.survey.exception.SurveyExceptionHandler;
 import com.cs_42_3.surveyplatformbackend.survey.service.QuestionService;
@@ -268,20 +267,6 @@ class QuestionControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("QUESTION_VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("At least two options are required"))
-                .andExpect(jsonPath("$.path").value("/api/questions"));
-    }
-
-    @Test
-    void invalidResearcherIdentityReturnsUnifiedUnauthorized() throws Exception {
-        when(questionService.listQuestions(null, null))
-                .thenThrow(new InvalidResearcherIdentityException(
-                        "Authenticated researcher subject is not a UUID"
-                ));
-
-        mockMvc.perform(get("/api/questions")
-                        .with(researcherJwt()))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("INVALID_RESEARCHER_IDENTITY"))
                 .andExpect(jsonPath("$.path").value("/api/questions"));
     }
 

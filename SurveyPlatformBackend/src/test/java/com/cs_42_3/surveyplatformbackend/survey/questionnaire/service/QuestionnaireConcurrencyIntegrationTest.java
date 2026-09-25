@@ -1,6 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.survey.questionnaire.service;
 
 import com.cs_42_3.surveyplatformbackend.TestcontainersConfiguration;
+import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
@@ -10,7 +11,6 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuesti
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireVersionConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
-import com.cs_42_3.surveyplatformbackend.survey.security.CurrentResearcherProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +49,7 @@ class QuestionnaireConcurrencyIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @MockitoBean
-    private CurrentResearcherProvider currentResearcherProvider;
+    private CurrentResearcher currentResearcher;
 
     private UUID researcherId;
     private UUID studyId;
@@ -72,7 +72,7 @@ class QuestionnaireConcurrencyIntegrationTest {
         ).getId();
         firstQuestionId = saveQuestion("First concurrent question").getId();
         secondQuestionId = saveQuestion("Second concurrent question").getId();
-        when(currentResearcherProvider.getCurrentResearcherId()).thenReturn(researcherId);
+        when(currentResearcher.getId()).thenReturn(researcherId);
     }
 
     @Test
