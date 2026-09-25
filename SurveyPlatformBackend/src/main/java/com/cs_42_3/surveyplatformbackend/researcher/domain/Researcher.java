@@ -86,6 +86,16 @@ public class Researcher {
         this.passwordHash = passwordHash;
     }
 
+    /**
+     * Updates the researcher's password hash.
+     * The supplied value must already be encoded.
+     *
+     * @param passwordHash the encoded new password hash
+     */
+    public void changePasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     // Initialize creation and update timestamps before first persistence.
     @PrePersist
     protected void initializeTimestamps() {

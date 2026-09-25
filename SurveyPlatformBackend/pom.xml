@@ -152,6 +152,18 @@
             <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- H2: runs isolated JPA transaction and optimistic-locking tests without a remote database. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Bucket4j: provides in-memory rate limiting for authentication endpoints. -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>8.20.0</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -1,9 +1,11 @@
 package com.cs_42_3.surveyplatformbackend.researcher.service;
 
+import com.cs_42_3.surveyplatformbackend.researcher.api.dto.ChangePasswordRequest;
 import com.cs_42_3.surveyplatformbackend.researcher.api.dto.LoginRequest;
 import com.cs_42_3.surveyplatformbackend.researcher.api.dto.RegisterRequest;
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
 import com.cs_42_3.surveyplatformbackend.researcher.repository.ResearcherRepository;
+import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -76,5 +78,40 @@ public class ResearcherService {
         }
 
         return researcher;
+    }
+
+    /**
+     * Changes the password of the authenticated researcher.
+     *
+     * @param researcherId authenticated researcher's identifier
+     * @param request password change request
+     */
+    public void changePassword(
+            UUID researcherId,
+            ChangePasswordRequest request
+    ) {
+        Researcher researcher = researcherRepository
+                .findById(researcherId)
+                .orElseThrow(() ->
+                        new InvalidCredentialsException("Invalid researcher account")
+                );
+
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                researcher.getPasswordHash()
+        )) {
+            throw new CurrentPasswordIncorrectException();
+        }
+
+        if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
+            throw new PasswordMismatchException("New passwords do not match");
+        }
+
+        String newPasswordHash =
+                passwordEncoder.encode(request.getNewPassword());
+
+        researcher.changePasswordHash(newPasswordHash);
+
+        researcherRepository.save(researcher);
     }
 }

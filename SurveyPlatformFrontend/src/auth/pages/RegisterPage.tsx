@@ -1,10 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { useRef, useState, type FormEvent } from 'react'
+import { Turnstile } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 import { registerResearcher } from '../api/authApi'
 
 export default function RegisterPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    const [captchaToken, setCaptchaToken] = useState('')
+
+    const turnstileRef = useRef<TurnstileInstance | null>(null)
 
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
@@ -33,6 +39,11 @@ export default function RegisterPage() {
             return
         }
 
+        if (!captchaToken) {
+            setError('Please complete the human verification.')
+            return
+        }
+
         try {
             setIsSubmitting(true)
 
@@ -40,6 +51,7 @@ export default function RegisterPage() {
                 email,
                 password,
                 confirmPassword,
+                captchaToken,
             })
 
             setSuccess('Registration successful. You can now log in.')
@@ -54,6 +66,8 @@ export default function RegisterPage() {
                 setError('Registration failed.')
             }
         } finally {
+            setCaptchaToken('')
+            turnstileRef.current?.reset()
             setIsSubmitting(false)
         }
     }
@@ -135,6 +149,21 @@ export default function RegisterPage() {
                         />
                     </div>
 
+                    <Turnstile
+                        ref={turnstileRef}
+                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => {
+                            setCaptchaToken(token)
+                        }}
+                        onExpire={() => {
+                            setCaptchaToken('')
+                        }}
+                        onError={() => {
+                            setCaptchaToken('')
+                            setError('Human verification failed. Please try again.')
+                        }}
+                    />
+
                     {error && (
                         <div
                             role="alert"
@@ -160,6 +189,18 @@ export default function RegisterPage() {
                     >
                         {isSubmitting ? 'Creating account...' : 'Create account'}
                     </button>
+                    <div className="text-center">
+                        <p className="mb-2 text-sm text-gray-600">
+                            Already have an account?
+                        </p>
+
+                        <Link
+                            to="/login"
+                            className="block w-full rounded-lg border border-blue-600 px-4 py-2 font-medium text-blue-600 hover:bg-blue-50"
+                        >
+                            Log in
+                        </Link>
+                    </div>
                 </form>
             </div>
         </main>

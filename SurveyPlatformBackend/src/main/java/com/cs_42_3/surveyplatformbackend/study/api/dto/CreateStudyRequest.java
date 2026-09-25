@@ -13,12 +13,19 @@ import jakarta.validation.constraints.Size;
 public record CreateStudyRequest(
         @Schema(description = "Study title; must contain non-whitespace characters.",
                 example = "Social media browsing study", maxLength = 255, requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank
-        @Size(max = 255)
+        @NotBlank(message = "Title is required")
+        @Size(max = 255, message = "Title must not exceed 255 characters")
         String title,
 
         @Schema(description = "Optional description of the study.",
                 example = "Investigate browsing behaviour in a simulated social media feed.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        String description
+        String description,
+
+        @Schema(description = "Required system template code. Template content may be unconfigured.",
+                example = "blank", allowableValues = {"blank", "facebook", "instagram", "tiktok",
+                "x", "threads", "bluesky", "truth-social"}, requiredMode = Schema.RequiredMode.REQUIRED)
+        @NotBlank(message = "Template code is required")
+        @Size(max = 32, message = "Template code must not exceed 32 characters")
+        String templateCode
 ) {
 }
