@@ -220,7 +220,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V4, and runs repository and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V7, and runs repository and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test

@@ -1,4 +1,4 @@
--- Create researcher-owned questionnaire drafts for FR36, FR37, and the linear FR39 scope.
+-- Create researcher-owned questionnaire drafts for FR36, FR37, and the linear FR39 scope after V6.
 CREATE TABLE questionnaires (
     id UUID NOT NULL,
     study_id UUID NOT NULL,
