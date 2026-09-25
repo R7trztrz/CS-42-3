@@ -2,10 +2,10 @@ package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionRequest;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
@@ -32,6 +32,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     private final QuestionRepository questionRepository;
     private final CurrentResearcherProvider currentResearcherProvider;
+    private final QuestionResponseMapper questionResponseMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -46,7 +47,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Transactional(readOnly = true)
     public QuestionResponse getQuestion(UUID questionId) {
         UUID researcherId = currentResearcherProvider.getCurrentResearcherId();
-        return toQuestionResponse(findOwnedQuestion(questionId, researcherId));
+        return questionResponseMapper.toResponse(findOwnedQuestion(questionId, researcherId));
     }
 
     @Override
@@ -67,7 +68,7 @@ public class QuestionServiceImpl implements QuestionService {
         );
         question.replaceOptions(data.optionTexts());
 
-        return toQuestionResponse(questionRepository.saveAndFlush(question));
+        return questionResponseMapper.toResponse(questionRepository.saveAndFlush(question));
     }
 
     @Override
@@ -88,7 +89,7 @@ public class QuestionServiceImpl implements QuestionService {
         );
         question.replaceOptions(data.optionTexts());
 
-        return toQuestionResponse(questionRepository.saveAndFlush(question));
+        return questionResponseMapper.toResponse(questionRepository.saveAndFlush(question));
     }
 
     @Override
@@ -263,30 +264,6 @@ public class QuestionServiceImpl implements QuestionService {
                 question.getId(),
                 question.getType(),
                 question.getQuestionText(),
-                question.getUpdatedAt()
-        );
-    }
-
-    private QuestionResponse toQuestionResponse(Question question) {
-        List<QuestionOptionResponse> options = question.getOptions().stream()
-                .map(option -> new QuestionOptionResponse(
-                        option.getId(),
-                        option.getOptionText(),
-                        option.getOptionOrder()
-                ))
-                .toList();
-
-        return new QuestionResponse(
-                question.getId(),
-                question.getType(),
-                question.getQuestionText(),
-                question.isRequired(),
-                options,
-                question.getScaleMin(),
-                question.getScaleMax(),
-                question.getScaleMinLabel(),
-                question.getScaleMaxLabel(),
-                question.getCreatedAt(),
                 question.getUpdatedAt()
         );
     }

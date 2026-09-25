@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.survey.repository;
 
+import com.cs_42_3.surveyplatformbackend.TestcontainersConfiguration;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 
@@ -8,14 +9,16 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -29,17 +32,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * PostgreSQL integration tests for the Flyway V3 schema and question repository.
  * <p>
- * Runs only when a local PostgreSQL JDBC URL is supplied through the normal project environment.
+ * Uses the shared Testcontainers PostgreSQL instance so Flyway and JPA run on the production engine.
  */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@EnabledIfEnvironmentVariable(
-        named = "SPRING_DATASOURCE_URL",
-        matches = "jdbc:postgresql:.+"
-)
+@Import(TestcontainersConfiguration.class)
+@Testcontainers(disabledWithoutDocker = true)
 class QuestionRepositoryIntegrationTest {
 
     private static final Logger LOGGER =
@@ -267,6 +268,7 @@ class QuestionRepositoryIntegrationTest {
     }
 
     @Test
+    @EnabledIfSystemProperty(named = "survey.performance.tests", matches = "true")
     void listAndSearchOneThousandQuestionsStayWithinTentativeBudget() {
         List<Object[]> batchArguments = IntStream.range(0, QUESTION_BANK_SIZE)
                 .mapToObj(index -> new Object[]{

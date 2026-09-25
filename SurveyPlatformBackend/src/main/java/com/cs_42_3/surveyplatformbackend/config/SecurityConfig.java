@@ -65,7 +65,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",
-                                "/error"
+                                "/error",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/actuator/health").hasRole("RESEARCHER")
                         .anyRequest().authenticated()

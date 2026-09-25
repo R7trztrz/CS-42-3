@@ -4,9 +4,11 @@ import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,4 +49,10 @@ public interface QuestionRepository
      * @return the owned question, or an empty result
      */
     Optional<Question> findByIdAndResearcherId(UUID questionId, UUID researcherId);
+
+    @EntityGraph(attributePaths = "options")
+    List<Question> findAllByResearcherIdAndIdIn(
+            UUID researcherId,
+            Collection<UUID> questionIds
+    );
 }

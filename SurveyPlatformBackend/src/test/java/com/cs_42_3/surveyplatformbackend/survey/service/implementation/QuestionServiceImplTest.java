@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.exception.InvalidQuestionDataException;
@@ -50,7 +51,11 @@ class QuestionServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        questionService = new QuestionServiceImpl(questionRepository, currentResearcherProvider);
+        questionService = new QuestionServiceImpl(
+                questionRepository,
+                currentResearcherProvider,
+                new QuestionResponseMapper()
+        );
         lenient().when(currentResearcherProvider.getCurrentResearcherId()).thenReturn(RESEARCHER_ID);
         lenient().when(questionRepository.saveAndFlush(any(Question.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
