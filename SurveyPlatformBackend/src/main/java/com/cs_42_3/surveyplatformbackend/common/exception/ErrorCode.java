@@ -15,6 +15,8 @@ package com.cs_42_3.surveyplatformbackend.common.exception;
  * @author Simon Tian
  */
 public enum ErrorCode {
+    FEED_NOT_FOUND("FEED_NOT_FOUND"),
+    FEED_VERSION_CONFLICT("FEED_VERSION_CONFLICT"),
     FEED_TEMPLATE_NOT_FOUND("FEED_TEMPLATE_NOT_FOUND"),
     STUDY_NOT_FOUND("STUDY_NOT_FOUND"),
     STUDY_NOT_EDITABLE("STUDY_NOT_EDITABLE"),

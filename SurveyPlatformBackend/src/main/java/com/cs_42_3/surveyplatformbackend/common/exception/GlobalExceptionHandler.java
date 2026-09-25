@@ -30,6 +30,22 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** Reports missing feed rows, including legacy studies without an initialized feed. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.feed.exception.FeedNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedNotFound(
+            com.cs_42_3.surveyplatformbackend.feed.exception.FeedNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ErrorCode.FEED_NOT_FOUND.code(), exception.getMessage()));
+    }
+
+    /** Asks the client to reload rather than overwrite a newer feed document. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.feed.exception.FeedVersionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleFeedVersionConflict(
+            com.cs_42_3.surveyplatformbackend.feed.exception.FeedVersionConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.FEED_VERSION_CONFLICT.code(), exception.getMessage()));
+    }
+
     /** Rejects an invalid template selection before creating any study records. */
     @ExceptionHandler(FeedTemplateNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleFeedTemplateNotFound(
