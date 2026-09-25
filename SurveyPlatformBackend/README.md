@@ -2,7 +2,7 @@
 
 Backend service for SurveyPlatform, a University of Sydney COMP5703 project. Built with Java, Spring Boot, and PostgreSQL, it provides the foundation for developing the survey platform.
 
-The backend currently includes researcher authentication and authorization, Study and feed-template APIs, the reusable question bank, and versioned questionnaire-draft APIs.
+The backend currently includes researcher authentication and authorization, Study and feed-template APIs, the reusable question bank, and versioned questionnaire-draft APIs with FR38 single-choice and scale branching.
 
 Implemented functionality includes researcher registration and login, BCrypt password hashing, JWT issuance and validation, stateless request authentication, RESEARCHER role-based authorization, authenticated researcher identity handling, password change, Cloudflare Turnstile verification for registration, and rate limiting for authentication endpoints.
 
@@ -68,6 +68,13 @@ SurveyPlatformBackend/
 ```
 
 The project uses Flyway for database schema management. Migration scripts are stored under `src/main/resources/db/migration/`.
+
+The current migration sequence is:
+
+- V1-V5: Study, researcher, runtime-setting, and feed-template foundations
+- V6: reusable question bank and stable question-option identities
+- V7: versioned questionnaire drafts and stable ordered item identities
+- V8: deterministic questionnaire branch rules
 
 The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables. Add future migrations using the next immutable version number.
 
@@ -220,11 +227,75 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V7, and runs repository and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V8, and runs repository and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test
 ```
+
+## Question bank and questionnaire drafts
+
+M4 is contained under the top-level `survey` package. Question-bank APIs are under
+`/api/questions`; questionnaire composition remains a `survey.questionnaire`
+subdomain and exposes only:
+
+```text
+GET /api/studies/{studyId}/questionnaire
+PUT /api/studies/{studyId}/questionnaire
+```
+
+`PUT` submits the complete desired item order. Existing `itemId` values must be
+retained when reordering or replacing items. A first save uses a null
+`expectedVersion`; subsequent changes submit the version returned by `GET`.
+Identical retries are idempotent and do not advance the questionnaire version.
+
+FR38 rules are supplied on each source item. `SINGLE_CHOICE` uses
+`sourceOptionId`; `SCALE` uses `sourceScaleValue`; exactly one trigger must be
+present. `targetPosition` is a zero-based index into the final submitted item
+array:
+
+```json
+{
+  "expectedVersion": 3,
+  "items": [
+    {
+      "itemId": "11111111-1111-1111-1111-111111111111",
+      "questionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "branchRules": [
+        {
+          "sourceOptionId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "sourceScaleValue": null,
+          "targetPosition": 1
+        }
+      ]
+    },
+    {
+      "itemId": "22222222-2222-2222-2222-222222222222",
+      "questionId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "branchRules": []
+    }
+  ]
+}
+```
+
+When no explicit rule matches, the flow continues to the next item; the last
+default transition reaches END. Optional branching questions always retain the
+no-answer default path. Saves reject duplicate triggers, invalid option or scale
+values, invalid targets, cycles, unreachable items, and non-terminating items.
+Only DRAFT studies are editable.
+
+Question updates retain explicitly submitted option IDs. Removing an option used
+by a branch rule, changing a rule-bearing question to an incompatible type, or
+excluding a scale trigger returns HTTP 409. Answer-domain changes revalidate every
+affected draft questionnaire. Deleting a question clears its outgoing rules,
+retains incoming references to the now-missing item, and makes that draft visibly
+invalid until repaired. `GET` returns stable item and target IDs, per-item
+reference status, `valid`, and structured `validationIssues`.
+
+This module currently covers authoring-time draft consistency. Participant
+runtime execution, publishing snapshots, and a visual questionnaire editor are
+separate follow-up work; no publish transition should be enabled without the
+snapshot boundary.
 
 ## Creating a study with a feed template
 
