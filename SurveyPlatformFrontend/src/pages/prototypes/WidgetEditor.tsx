@@ -20,9 +20,13 @@ const templateNames = {
   'blank-canvas': 'Blank Canvas',
 } as const
 
-function CanvasContainer({ children }: { children?: React.ReactNode }) {
+function CanvasContainer({
+  children,
+}: {
+  children?: React.ReactNode
+}) {
   return (
-    <div className="min-h-96 rounded border-2 border-dashed border-gray-400 p-6">
+    <div className="min-h-[560px] w-full rounded border-2 border-dashed border-gray-400 p-6">
       {children}
     </div>
   )
@@ -35,15 +39,18 @@ CanvasContainer.craft = {
 function WidgetEditor() {
   const [searchParams] = useSearchParams()
   const templateId = searchParams.get('template')
+
   const currentTemplate =
-    templateNames[templateId as keyof typeof templateNames] ??
-    templateNames['blank-canvas']
+    templateNames[
+      templateId as keyof typeof templateNames
+    ] ?? templateNames['blank-canvas']
 
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold">
         Widget Editor
       </h1>
+
       <p className="mb-6 mt-2 text-sm font-medium text-gray-600">
         Current template: {currentTemplate}
       </p>
@@ -57,10 +64,12 @@ function WidgetEditor() {
           CanvasContainer,
         }}
       >
-        <div className="flex gap-6">
-          <Toolbox />
+        <div className="grid grid-cols-[260px_minmax(0,1fr)_320px] items-start gap-6">
+          <div className="min-w-0">
+            <Toolbox />
+          </div>
 
-          <div className="flex-1">
+          <div className="min-w-0">
             <Frame>
               <Element is={CanvasContainer} canvas>
                 <TextWidget text="Existing text widget" />
@@ -68,7 +77,9 @@ function WidgetEditor() {
             </Frame>
           </div>
 
-          <PropertiesPanel />
+          <div className="min-w-0">
+            <PropertiesPanel />
+          </div>
         </div>
       </Editor>
     </div>
