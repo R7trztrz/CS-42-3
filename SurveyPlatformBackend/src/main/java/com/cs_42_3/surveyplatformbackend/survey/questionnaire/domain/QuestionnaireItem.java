@@ -8,10 +8,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -36,6 +41,9 @@ public class QuestionnaireItem {
 
     @Column(name = "position", nullable = false)
     private int position;
+
+    @OneToMany(mappedBy = "sourceItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<QuestionnaireBranchRule> branchRules = new LinkedHashSet<>();
 
     protected QuestionnaireItem() {}
 
@@ -74,5 +82,41 @@ public class QuestionnaireItem {
         }
         position = newPosition;
         return true;
+    }
+
+    public Set<QuestionnaireBranchRule> getBranchRules() {
+        return Set.copyOf(branchRules);
+    }
+
+    boolean clearBranchRules() {
+        if (branchRules.isEmpty()) {
+            return false;
+        }
+        branchRules.clear();
+        return true;
+    }
+
+    boolean replaceBranchRules(List<BranchRulePlacement> placements) {
+        boolean changed = clearBranchRules();
+        for (BranchRulePlacement placement : placements) {
+            branchRules.add(QuestionnaireBranchRule.create(
+                    this,
+                    placement.sourceOptionId(),
+                    placement.sourceScaleValue(),
+                    placement.targetItem()
+            ));
+            changed = true;
+        }
+        return changed;
+    }
+
+    public record BranchRulePlacement(
+            UUID sourceOptionId,
+            Integer sourceScaleValue,
+            QuestionnaireItem targetItem
+    ) {
+        public BranchRulePlacement {
+            Objects.requireNonNull(targetItem, "Target item is required");
+        }
     }
 }

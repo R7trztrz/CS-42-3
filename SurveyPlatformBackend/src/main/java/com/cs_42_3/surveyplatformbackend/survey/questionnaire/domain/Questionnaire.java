@@ -157,6 +157,47 @@ public class Questionnaire {
         return changed;
     }
 
+    public boolean clearBranchRules() {
+        boolean changed = false;
+        for (QuestionnaireItem item : items) {
+            changed |= item.clearBranchRules();
+        }
+        return changed;
+    }
+
+    /** Removes outgoing rules from every item that references the supplied question. */
+    public boolean clearOutgoingBranchRules(UUID questionId) {
+        Objects.requireNonNull(questionId, "Question ID is required");
+        boolean changed = false;
+        for (QuestionnaireItem item : items) {
+            if (Objects.equals(item.getQuestionId(), questionId)) {
+                changed |= item.clearBranchRules();
+            }
+        }
+        return changed;
+    }
+
+    /** Replaces all rules after items have been synchronized into their final order. */
+    public boolean replaceBranchRules(List<List<BranchRulePlacement>> rulesBySourcePosition) {
+        Objects.requireNonNull(rulesBySourcePosition, "Branch-rule plans are required");
+        if (rulesBySourcePosition.size() != items.size()) {
+            throw new IllegalArgumentException("Branch-rule plans must match questionnaire items");
+        }
+        boolean changed = false;
+        for (int sourcePosition = 0; sourcePosition < items.size(); sourcePosition++) {
+            List<QuestionnaireItem.BranchRulePlacement> placements = rulesBySourcePosition
+                    .get(sourcePosition).stream()
+                    .map(plan -> new QuestionnaireItem.BranchRulePlacement(
+                            plan.sourceOptionId(),
+                            plan.sourceScaleValue(),
+                            items.get(plan.targetPosition())
+                    ))
+                    .toList();
+            changed |= items.get(sourcePosition).replaceBranchRules(placements);
+        }
+        return changed;
+    }
+
     public void markModified() {
         updatedAt = Instant.now();
     }
@@ -185,4 +226,11 @@ public class Questionnaire {
             Objects.requireNonNull(questionId, "Question ID is required");
         }
     }
+
+
+    public record BranchRulePlacement(
+            UUID sourceOptionId,
+            Integer sourceScaleValue,
+            int targetPosition
+    ) {}
 }

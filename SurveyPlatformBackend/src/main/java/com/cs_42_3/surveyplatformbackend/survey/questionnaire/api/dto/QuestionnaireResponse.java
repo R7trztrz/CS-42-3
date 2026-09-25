@@ -13,9 +13,22 @@ public record QuestionnaireResponse(
         List<QuestionnaireItemResponse> items,
         @Schema(description = "Optimistic content version to submit as expectedVersion on the next change")
         Long version,
-        Instant updatedAt
+        Instant updatedAt,
+        boolean valid,
+        List<QuestionnaireValidationIssue> validationIssues
 ) {
     public QuestionnaireResponse {
         items = items == null ? List.of() : List.copyOf(items);
+        validationIssues = validationIssues == null ? List.of() : List.copyOf(validationIssues);
+    }
+
+    public QuestionnaireResponse(
+            UUID id,
+            UUID studyId,
+            List<QuestionnaireItemResponse> items,
+            Long version,
+            Instant updatedAt
+    ) {
+        this(id, studyId, items, version, updatedAt, true, List.of());
     }
 }

@@ -11,7 +11,19 @@ public record SurveyErrorDetail(
         Integer index,
         @Schema(description = "Submitted item UUID when available", nullable = true)
         UUID itemId,
+        @Schema(description = "Zero-based branch-rule index when applicable", nullable = true)
+        Integer ruleIndex,
         @Schema(example = "INVALID_QUESTION_REFERENCE")
         String code,
         String message
-) {}
+) {
+    public SurveyErrorDetail(
+            String field,
+            Integer index,
+            UUID itemId,
+            String code,
+            String message
+    ) {
+        this(field, index, itemId, null, code, message);
+    }
+}
