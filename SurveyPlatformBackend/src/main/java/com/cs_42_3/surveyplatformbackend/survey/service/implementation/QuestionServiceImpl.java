@@ -1,10 +1,11 @@
 package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -66,7 +69,9 @@ public class QuestionServiceImpl implements QuestionService {
                 data.scaleMinLabel(),
                 data.scaleMaxLabel()
         );
-        question.replaceOptions(data.optionTexts());
+        question.replaceOptions(data.options().stream()
+                .map(NormalizedOptionData::optionText)
+                .toList());
 
         return questionResponseMapper.toResponse(questionRepository.saveAndFlush(question));
     }
@@ -77,6 +82,7 @@ public class QuestionServiceImpl implements QuestionService {
         UUID researcherId = currentResearcher.getId();
         Question question = findOwnedQuestion(questionId, researcherId);
         NormalizedQuestionData data = normalizeQuestionData(request);
+        validateOptionIdentities(question, data.options(), request.replaceAllOptions());
 
         question.update(
                 data.type(),
@@ -87,7 +93,9 @@ public class QuestionServiceImpl implements QuestionService {
                 data.scaleMinLabel(),
                 data.scaleMaxLabel()
         );
-        question.replaceOptions(data.optionTexts());
+        question.synchronizeOptions(data.options().stream()
+                .map(option -> new Question.OptionPlacement(option.optionId(), option.optionText()))
+                .toList());
 
         return questionResponseMapper.toResponse(questionRepository.saveAndFlush(question));
     }
@@ -109,11 +117,12 @@ public class QuestionServiceImpl implements QuestionService {
         if (request == null) {
             throw new InvalidQuestionDataException("Question data is required");
         }
+        List<NormalizedOptionData> options = normalizeCreateOptions(request.options());
         return normalizeQuestionData(
                 request.type(),
                 request.questionText(),
                 request.required(),
-                request.options(),
+                options,
                 request.scaleMin(),
                 request.scaleMax(),
                 request.scaleMinLabel(),
@@ -125,11 +134,12 @@ public class QuestionServiceImpl implements QuestionService {
         if (request == null) {
             throw new InvalidQuestionDataException("Question data is required");
         }
+        List<NormalizedOptionData> options = normalizeUpdateOptions(request.options());
         return normalizeQuestionData(
                 request.type(),
                 request.questionText(),
                 request.required(),
-                request.options(),
+                options,
                 request.scaleMin(),
                 request.scaleMax(),
                 request.scaleMinLabel(),
@@ -137,11 +147,85 @@ public class QuestionServiceImpl implements QuestionService {
         );
     }
 
+    private List<NormalizedOptionData> normalizeCreateOptions(
+            List<CreateQuestionOptionRequest> options
+    ) {
+        if (options == null) {
+            return List.of();
+        }
+        return options.stream()
+                .map(option -> {
+                    if (option == null) {
+                        return (NormalizedOptionData) null;
+                    }
+                    if (option.optionId() != null) {
+                        throw new InvalidQuestionDataException(
+                                "CREATE_OPTION_ID_NOT_ALLOWED",
+                                "Option ID must be omitted when creating a question"
+                        );
+                    }
+                    return new NormalizedOptionData(null, option.optionText());
+                })
+                .toList();
+    }
+
+    private List<NormalizedOptionData> normalizeUpdateOptions(
+            List<UpdateQuestionOptionRequest> options
+    ) {
+        if (options == null) {
+            return List.of();
+        }
+        return options.stream()
+                .map(option -> option == null
+                        ? null
+                        : new NormalizedOptionData(option.optionId(), option.optionText()))
+                .toList();
+    }
+
+    private void validateOptionIdentities(
+            Question question,
+            List<NormalizedOptionData> requestedOptions,
+            boolean replaceAllOptions
+    ) {
+        Set<UUID> existingOptionIds = question.getOptions().stream()
+                .map(option -> option.getId())
+                .filter(id -> id != null)
+                .collect(java.util.stream.Collectors.toSet());
+        Set<UUID> retainedOptionIds = new HashSet<>();
+        for (NormalizedOptionData option : requestedOptions) {
+            UUID optionId = option.optionId();
+            if (optionId == null) {
+                continue;
+            }
+            if (!retainedOptionIds.add(optionId)) {
+                throw new InvalidQuestionDataException(
+                        "DUPLICATE_OPTION_ID",
+                        "Option ID is duplicated: " + optionId
+                );
+            }
+            if (!existingOptionIds.contains(optionId)) {
+                throw new InvalidQuestionDataException(
+                        "INVALID_OPTION_REFERENCE",
+                        "Option does not belong to this question: " + optionId
+                );
+            }
+        }
+
+        if (!question.getOptions().isEmpty()
+                && retainedOptionIds.isEmpty()
+                && !replaceAllOptions) {
+            throw new InvalidQuestionDataException(
+                    "OPTION_IDENTITIES_REQUIRED",
+                    "Retain existing option IDs or set replaceAllOptions to true"
+            );
+        }
+    }
+
     private NormalizedQuestionData normalizeQuestionData(
             QuestionType type,
             String questionText,
             boolean required,
-            List<QuestionOptionRequest> options,
+            List<NormalizedOptionData> options,
             Integer scaleMin,
             Integer scaleMax,
             String scaleMinLabel,
@@ -190,7 +274,7 @@ public class QuestionServiceImpl implements QuestionService {
 
     private void validateQuestionData(
             QuestionType type,
-            List<QuestionOptionRequest> options,
+            List<NormalizedOptionData> options,
             Integer scaleMin,
             Integer scaleMax
     ) {
@@ -224,9 +308,12 @@ public class QuestionServiceImpl implements QuestionService {
         }
     }
 
-    private List<String> normalizeChoiceOptions(List<QuestionOptionRequest> options) {
+    private List<NormalizedOptionData> normalizeChoiceOptions(List<NormalizedOptionData> options) {
         return options.stream()
-                .map(option -> option.optionText().trim())
+                .map(option -> new NormalizedOptionData(
+                        option.optionId(),
+                        option.optionText().trim()
+                ))
                 .toList();
     }
 
@@ -272,7 +359,7 @@ public class QuestionServiceImpl implements QuestionService {
             QuestionType type,
             String questionText,
             boolean required,
-            List<String> optionTexts,
+            List<NormalizedOptionData> options,
             Integer scaleMin,
             Integer scaleMax,
             String scaleMinLabel,
@@ -280,7 +367,9 @@ public class QuestionServiceImpl implements QuestionService {
     ) {
 
         private NormalizedQuestionData {
-            optionTexts = List.copyOf(optionTexts);
+            options = List.copyOf(options);
         }
     }
+
+    private record NormalizedOptionData(UUID optionId, String optionText) {}
 }

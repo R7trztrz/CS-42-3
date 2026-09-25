@@ -271,6 +271,31 @@ class QuestionControllerTest {
     }
 
     @Test
+    void createQuestionRejectsClientSuppliedOptionId() throws Exception {
+        mockMvc.perform(post("/api/questions")
+                        .with(researcherJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "SINGLE_CHOICE",
+                                  "questionText": "Choose one",
+                                  "required": false,
+                                  "options": [
+                                    {
+                                      "optionId": "7e9754a3-e64d-45fb-9fe5-084fe8cab190",
+                                      "optionText": "First"
+                                    },
+                                    {"optionText": "Second"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(questionService);
+    }
+
+    @Test
     void getQuestionForMissingOrUnownedResourceReturnsUnifiedNotFound() throws Exception {
         when(questionService.getQuestion(QUESTION_ID))
                 .thenThrow(new QuestionNotFoundException(QUESTION_ID));

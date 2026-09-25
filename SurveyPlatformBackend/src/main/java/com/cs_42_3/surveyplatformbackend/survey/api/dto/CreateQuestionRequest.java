@@ -17,7 +17,7 @@ public record CreateQuestionRequest(
         @NotBlank(message = "Question text is required")
         String questionText,
         boolean required,
-        List<@Valid QuestionOptionRequest> options,
+        List<@Valid CreateQuestionOptionRequest> options,
         Integer scaleMin,
         Integer scaleMax,
         String scaleMinLabel,

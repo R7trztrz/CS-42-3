@@ -63,7 +63,7 @@ public class SurveyExceptionHandler {
             InvalidQuestionDataException exception,
             HttpServletRequest request
     ) {
-        return buildResponse(HttpStatus.BAD_REQUEST, "QUESTION_VALIDATION_ERROR", exception.getMessage(), request);
+        return buildResponse(HttpStatus.BAD_REQUEST, exception.getCode(), exception.getMessage(), request);
     }
 
     @ExceptionHandler(StudyNotFoundException.class)

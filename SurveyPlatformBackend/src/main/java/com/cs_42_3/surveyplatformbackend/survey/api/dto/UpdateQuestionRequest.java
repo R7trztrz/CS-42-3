@@ -17,9 +17,14 @@ public record UpdateQuestionRequest(
         @NotBlank(message = "Question text is required")
         String questionText,
         boolean required,
-        List<@Valid QuestionOptionRequest> options,
+        List<@Valid UpdateQuestionOptionRequest> options,
         Integer scaleMin,
         Integer scaleMax,
         String scaleMinLabel,
-        String scaleMaxLabel
-) {}
+        String scaleMaxLabel,
+        Boolean replaceAllOptions
+) {
+    public UpdateQuestionRequest {
+        replaceAllOptions = Boolean.TRUE.equals(replaceAllOptions);
+    }
+}

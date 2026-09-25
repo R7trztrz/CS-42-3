@@ -17,8 +17,13 @@ import lombok.Getter;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -161,6 +166,62 @@ public class Question {
     }
 
     /**
+     * Synchronizes choice options while preserving every explicitly retained option UUID.
+     * A null option ID represents a new option.
+     */
+    public boolean synchronizeOptions(List<OptionPlacement> requestedOptions) {
+        Objects.requireNonNull(requestedOptions, "Option list is required");
+
+        Map<UUID, QuestionOption> existingById = new HashMap<>();
+        for (QuestionOption option : options) {
+            if (option.getId() != null) {
+                existingById.put(option.getId(), option);
+            }
+        }
+
+        Set<QuestionOption> retained = new HashSet<>();
+        List<QuestionOption> desiredOrder = new ArrayList<>(requestedOptions.size());
+        boolean changed = false;
+        for (int index = 0; index < requestedOptions.size(); index++) {
+            OptionPlacement placement = requestedOptions.get(index);
+            QuestionOption option = placement.optionId() == null
+                    ? null
+                    : existingById.get(placement.optionId());
+            if (placement.optionId() != null && option == null) {
+                throw new IllegalArgumentException(
+                        "Question option does not belong to this question: " + placement.optionId()
+                );
+            }
+            if (option == null) {
+                option = QuestionOption.create(this, placement.optionText(), index);
+                changed = true;
+            } else {
+                changed |= option.update(placement.optionText(), index);
+            }
+            retained.add(option);
+            desiredOrder.add(option);
+        }
+
+        Iterator<QuestionOption> iterator = options.iterator();
+        while (iterator.hasNext()) {
+            QuestionOption option = iterator.next();
+            if (!retained.contains(option)) {
+                iterator.remove();
+                changed = true;
+            }
+        }
+        if (!options.equals(desiredOrder)) {
+            options.clear();
+            options.addAll(desiredOrder);
+            changed = true;
+        }
+        if (changed) {
+            touchUpdatedAt();
+        }
+        return changed;
+    }
+
+    /**
      * Returns an immutable snapshot of the ordered options.
      *
      * @return options ordered from zero upward
@@ -201,5 +262,11 @@ public class Question {
 
     private void touchUpdatedAt() {
         updatedAt = Instant.now();
+    }
+
+    public record OptionPlacement(UUID optionId, String optionText) {
+        public OptionPlacement {
+            Objects.requireNonNull(optionText, "Option text is required");
+        }
     }
 }

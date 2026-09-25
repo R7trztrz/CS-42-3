@@ -55,4 +55,13 @@ public class QuestionOption {
     static QuestionOption create(Question question, String optionText, int optionOrder) {
         return new QuestionOption(question, optionText, optionOrder);
     }
+
+    boolean update(String newOptionText, int newOptionOrder) {
+        Objects.requireNonNull(newOptionText, "Option text is required");
+        boolean changed = !Objects.equals(optionText, newOptionText)
+                || optionOrder != newOptionOrder;
+        optionText = newOptionText;
+        optionOrder = newOptionOrder;
+        return changed;
+    }
 }

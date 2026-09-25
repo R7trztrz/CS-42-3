@@ -1,8 +1,9 @@
 package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -124,8 +126,8 @@ class QuestionServiceImplTest {
                 "  Choose one  ",
                 true,
                 List.of(
-                        new QuestionOptionRequest("  First  "),
-                        new QuestionOptionRequest("Second")
+                        new CreateQuestionOptionRequest("  First  "),
+                        new CreateQuestionOptionRequest("Second")
                 ),
                 1,
                 5,
@@ -154,9 +156,9 @@ class QuestionServiceImplTest {
                 "Choose any",
                 false,
                 List.of(
-                        new QuestionOptionRequest("Alpha"),
-                        new QuestionOptionRequest("Beta"),
-                        new QuestionOptionRequest("Gamma")
+                        new CreateQuestionOptionRequest("Alpha"),
+                        new CreateQuestionOptionRequest("Beta"),
+                        new CreateQuestionOptionRequest("Gamma")
                 ),
                 null,
                 null,
@@ -179,8 +181,8 @@ class QuestionServiceImplTest {
                 "Rate the session",
                 true,
                 List.of(
-                        new QuestionOptionRequest("Ignored A"),
-                        new QuestionOptionRequest("Ignored B")
+                        new CreateQuestionOptionRequest("Ignored A"),
+                        new CreateQuestionOptionRequest("Ignored B")
                 ),
                 1,
                 7,
@@ -204,8 +206,8 @@ class QuestionServiceImplTest {
                 "Additional feedback",
                 false,
                 List.of(
-                        new QuestionOptionRequest("Ignored A"),
-                        new QuestionOptionRequest("Ignored B")
+                        new CreateQuestionOptionRequest("Ignored A"),
+                        new CreateQuestionOptionRequest("Ignored B")
                 ),
                 1,
                 5,
@@ -228,7 +230,7 @@ class QuestionServiceImplTest {
                 QuestionType.SINGLE_CHOICE,
                 "Choose one",
                 false,
-                List.of(new QuestionOptionRequest("Only option")),
+                List.of(new CreateQuestionOptionRequest("Only option")),
                 null,
                 null,
                 null,
@@ -248,8 +250,8 @@ class QuestionServiceImplTest {
                 "Choose any",
                 false,
                 List.of(
-                        new QuestionOptionRequest("Valid"),
-                        new QuestionOptionRequest("   ")
+                        new CreateQuestionOptionRequest("Valid"),
+                        new CreateQuestionOptionRequest("   ")
                 ),
                 null,
                 null,
@@ -305,13 +307,14 @@ class QuestionServiceImplTest {
                 "New text",
                 true,
                 List.of(
-                        new QuestionOptionRequest("Yes"),
-                        new QuestionOptionRequest("No")
+                        new UpdateQuestionOptionRequest(null, "Yes"),
+                        new UpdateQuestionOptionRequest(null, "No")
                 ),
                 null,
                 null,
                 null,
-                null
+                null,
+                false
         );
 
         var response = questionService.updateQuestion(QUESTION_ID, request);
@@ -337,12 +340,124 @@ class QuestionServiceImplTest {
                 null,
                 null,
                 null,
-                null
+                null,
+                false
         );
 
         assertThatThrownBy(() -> questionService.updateQuestion(QUESTION_ID, request))
                 .isInstanceOf(QuestionNotFoundException.class);
         verify(questionRepository, never()).saveAndFlush(any(Question.class));
+    }
+
+    @Test
+    void updateQuestionPreservesOptionIdsWhileRenamingAndReordering() {
+        UUID firstOptionId = UUID.fromString("ae4e3353-1756-44e3-9ec5-a93f3e47633e");
+        UUID secondOptionId = UUID.fromString("67166959-d033-4a75-aebb-20cff7acb337");
+        Question question = choiceQuestion(firstOptionId, secondOptionId);
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.SINGLE_CHOICE,
+                "Updated choice",
+                false,
+                List.of(
+                        new UpdateQuestionOptionRequest(secondOptionId, "Second renamed"),
+                        new UpdateQuestionOptionRequest(firstOptionId, "First")
+                ),
+                null,
+                null,
+                null,
+                null,
+                false
+        );
+
+        var response = questionService.updateQuestion(QUESTION_ID, request);
+
+        assertThat(response.options())
+                .extracting(option -> option.id())
+                .containsExactly(secondOptionId, firstOptionId);
+        assertThat(response.options())
+                .extracting(option -> option.optionText())
+                .containsExactly("Second renamed", "First");
+    }
+
+    @Test
+    void updateQuestionRequiresExplicitWholeOptionReplacement() {
+        Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.SINGLE_CHOICE,
+                "Updated choice",
+                false,
+                List.of(
+                        new UpdateQuestionOptionRequest(null, "Replacement A"),
+                        new UpdateQuestionOptionRequest(null, "Replacement B")
+                ),
+                null,
+                null,
+                null,
+                null,
+                false
+        );
+
+        assertThatThrownBy(() -> questionService.updateQuestion(QUESTION_ID, request))
+                .isInstanceOfSatisfying(InvalidQuestionDataException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo("OPTION_IDENTITIES_REQUIRED"));
+        verify(questionRepository, never()).saveAndFlush(any(Question.class));
+    }
+
+    @Test
+    void updateQuestionAllowsExplicitWholeOptionReplacement() {
+        Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.SINGLE_CHOICE,
+                "Updated choice",
+                false,
+                List.of(
+                        new UpdateQuestionOptionRequest(null, "Replacement A"),
+                        new UpdateQuestionOptionRequest(null, "Replacement B")
+                ),
+                null,
+                null,
+                null,
+                null,
+                true
+        );
+
+        var response = questionService.updateQuestion(QUESTION_ID, request);
+
+        assertThat(response.options())
+                .extracting(option -> option.optionText())
+                .containsExactly("Replacement A", "Replacement B");
+    }
+
+    @Test
+    void updateQuestionRejectsOptionIdFromAnotherQuestion() {
+        Question question = choiceQuestion(UUID.randomUUID(), UUID.randomUUID());
+        when(questionRepository.findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(question));
+        UpdateQuestionRequest request = new UpdateQuestionRequest(
+                QuestionType.SINGLE_CHOICE,
+                "Updated choice",
+                false,
+                List.of(
+                        new UpdateQuestionOptionRequest(UUID.randomUUID(), "Foreign"),
+                        new UpdateQuestionOptionRequest(null, "New")
+                ),
+                null,
+                null,
+                null,
+                null,
+                false
+        );
+
+        assertThatThrownBy(() -> questionService.updateQuestion(QUESTION_ID, request))
+                .isInstanceOfSatisfying(InvalidQuestionDataException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo("INVALID_OPTION_REFERENCE"));
     }
 
     @Test
@@ -387,5 +502,22 @@ class QuestionServiceImplTest {
                 null,
                 null
         );
+    }
+
+    private Question choiceQuestion(UUID firstOptionId, UUID secondOptionId) {
+        Question question = Question.create(
+                RESEARCHER_ID,
+                QuestionType.SINGLE_CHOICE,
+                "Existing choice",
+                false,
+                null,
+                null,
+                null,
+                null
+        );
+        question.replaceOptions(List.of("First", "Second"));
+        ReflectionTestUtils.setField(question.getOptions().get(0), "id", firstOptionId);
+        ReflectionTestUtils.setField(question.getOptions().get(1), "id", secondOptionId);
+        return question;
     }
 }
