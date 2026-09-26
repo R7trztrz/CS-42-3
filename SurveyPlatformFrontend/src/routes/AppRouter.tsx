@@ -19,6 +19,7 @@ import NewInterface from '../pages/prototypes/NewInterface'
 import ResearcherDashboard from '../pages/researcher/ResearcherDashboard'
 import ResearcherEdit from '../pages/researcher/ResearcherEdit'
 import StudyList from '../pages/researcher/StudyList'
+import ParticipationPage from '../pages/participant/ParticipationPage'
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />,
+  },
+  {
+    path: '/participate/:token',
+    element: <ParticipationPage />,
   },
   {
     element: <ProtectedRoute />,
