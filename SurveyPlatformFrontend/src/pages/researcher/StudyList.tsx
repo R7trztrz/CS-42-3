@@ -7,12 +7,14 @@ import CreateStudyDialog, {
 } from '../../components/studies/CreateStudyDialog'
 import {
   listStudies,
-  type StudyPageResponse,
   type StudyResponse,
+  type StudySummaryResponse,
   type StudyStatus,
 } from '../../services/studyApi'
+import { sortStudies } from '../../utils/studySorting'
 
 const PAGE_SIZE = 20
+const API_PAGE_SIZE = 100
 
 const statusStyles: Record<StudyStatus, string> = {
   DRAFT: 'border-amber-300 bg-amber-50 text-amber-800',
@@ -26,13 +28,14 @@ const statusDots: Record<StudyStatus, string> = {
   CLOSED: 'bg-sky-600',
 }
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
+const dateFormatter = new Intl.DateTimeFormat('en-AU', {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
+  timeZone: 'Australia/Sydney',
 })
 
-function formatCreatedAt(value: string) {
+function formatUpdatedAt(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Unknown' : dateFormatter.format(date)
 }
@@ -58,7 +61,7 @@ function getListErrorMessage(error: unknown) {
 function StudyList() {
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
-  const [studyPage, setStudyPage] = useState<StudyPageResponse | null>(null)
+  const [allStudies, setAllStudies] = useState<StudySummaryResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [requestVersion, setRequestVersion] = useState(0)
@@ -72,9 +75,19 @@ function StudyList() {
       setErrorMessage('')
 
       try {
-        const response = await listStudies(page, PAGE_SIZE)
+        const firstPage = await listStudies(0, API_PAGE_SIZE)
+        const remainingPages = await Promise.all(
+          Array.from(
+            { length: Math.max(0, firstPage.totalPages - 1) },
+            (_, index) => listStudies(index + 1, API_PAGE_SIZE),
+          ),
+        )
+        const studies = sortStudies([
+          ...firstPage.content,
+          ...remainingPages.flatMap((response) => response.content),
+        ])
 
-        if (!ignore) setStudyPage(response)
+        if (!ignore) setAllStudies(studies)
       } catch (error) {
         if (!ignore) setErrorMessage(getListErrorMessage(error))
       } finally {
@@ -87,11 +100,11 @@ function StudyList() {
     return () => {
       ignore = true
     }
-  }, [page, requestVersion])
+  }, [requestVersion])
 
-  const studies = studyPage?.content ?? []
-  const totalStudies = studyPage?.totalElements ?? 0
-  const totalPages = studyPage?.totalPages ?? 0
+  const totalStudies = allStudies.length
+  const totalPages = Math.ceil(totalStudies / PAGE_SIZE)
+  const studies = allStudies.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   const handleStudyCreated = (study: StudyResponse, templateId: StudyTemplateId) => {
     const query = new URLSearchParams({ template: templateId })
@@ -109,9 +122,6 @@ function StudyList() {
             <h2 className="mt-1 text-3xl font-semibold text-[#172033]">
               All research studies
             </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              View and manage studies owned by the current researcher.
-            </p>
           </div>
 
           <button
@@ -132,9 +142,6 @@ function StudyList() {
               <h3 id="study-list-heading" className="font-semibold text-[#172033]">
                 Your studies
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Most recently created studies appear first.
-              </p>
             </div>
             <p className="border-l-2 border-sky-500 pl-3 text-sm font-semibold text-[#52667d]">
               {isLoading ? 'Loading...' : `${totalStudies} ${totalStudies === 1 ? 'study' : 'studies'}`}
@@ -177,7 +184,7 @@ function StudyList() {
                     <tr className="border-b border-[#d9e2ec] bg-[#edf3f8] text-xs font-semibold uppercase text-[#52667d]">
                       <th className="px-6 py-3.5">Study</th>
                       <th className="px-5 py-3.5">Status</th>
-                      <th className="px-5 py-3.5">Created</th>
+                      <th className="px-5 py-3.5">Last updated</th>
                       <th className="px-6 py-3.5 text-right">Continue</th>
                     </tr>
                   </thead>
@@ -185,7 +192,7 @@ function StudyList() {
                     {studies.map((study, index) => (
                       <tr
                         key={study.id}
-                        className={`border-b border-gray-100 last:border-b-0 hover:bg-emerald-50 ${
+                        className={`border-b border-gray-100 last:border-b-0 ${
                           index % 2 === 0 ? 'bg-white' : 'bg-[#fafcfd]'
                         }`}
                       >
@@ -194,7 +201,6 @@ function StudyList() {
                             <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${statusDots[study.status]}`} />
                             <div className="min-w-0">
                               <p className="font-semibold text-[#172033]">{study.title}</p>
-                              <p className="mt-1 truncate font-mono text-xs text-gray-400">{study.id}</p>
                             </div>
                           </div>
                         </td>
@@ -204,12 +210,12 @@ function StudyList() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
-                          {formatCreatedAt(study.createdAt)}
+                          {formatUpdatedAt(study.updatedAt)}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link
                             to={`/studies/${study.id}/edit`}
-                            className="text-sm font-semibold text-emerald-700 hover:text-emerald-900"
+                            className="inline-flex rounded-sm border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
                           >
                             Open study
                           </Link>

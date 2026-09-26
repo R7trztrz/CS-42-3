@@ -18,6 +18,8 @@ export type StudyResponse = {
   version: number
   eyeTrackingEnabled: boolean
   questionnaireEnabled: boolean
+  publishedAt: string | null
+  participationUrl: string | null
 }
 
 export type StudySummaryResponse = {
@@ -25,6 +27,26 @@ export type StudySummaryResponse = {
   title: string
   status: StudyStatus
   createdAt: string
+  updatedAt: string
+}
+
+export type StudyFeedResponse = {
+  studyId: string
+  templateCode: string
+  theme: string | null
+  content: Record<string, unknown> | null
+  schemaVersion: number | null
+  version: number
+  updatedAt: string
+}
+
+export type ParticipationResponse = {
+  title: string
+  description: string | null
+  eyeTrackingEnabled: boolean
+  questionnaireEnabled: boolean
+  theme: string | null
+  content: Record<string, unknown>
 }
 
 export type StudyPageResponse = {
@@ -45,5 +67,39 @@ export async function listStudies(page = 0, size = 20) {
     params: { page, size },
   })
 
+  return response.data
+}
+
+export async function getStudy(studyId: string) {
+  const response = await api.get<StudyResponse>(`/api/studies/${studyId}`)
+  return response.data
+}
+
+export async function getStudyFeed(studyId: string) {
+  const response = await api.get<StudyFeedResponse>(`/api/studies/${studyId}/feed`)
+  return response.data
+}
+
+export async function saveStudyFeed(
+  studyId: string,
+  content: Record<string, unknown>,
+  version: number,
+) {
+  const response = await api.put<StudyFeedResponse>(`/api/studies/${studyId}/feed`, {
+    content,
+    version,
+  })
+  return response.data
+}
+
+export async function publishStudy(studyId: string, version: number) {
+  const response = await api.post<StudyResponse>(`/api/studies/${studyId}/publish`, {
+    version,
+  })
+  return response.data
+}
+
+export async function getParticipation(token: string) {
+  const response = await api.get<ParticipationResponse>(`/api/participation/${token}`)
   return response.data
 }
