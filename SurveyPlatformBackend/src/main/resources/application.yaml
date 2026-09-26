@@ -20,3 +20,6 @@ security:
 
 turnstile:
   secret: ${TURNSTILE_SECRET:}
+
+app:
+  participant-base-url: ${APP_PARTICIPANT_BASE_URL:http://localhost:5173}

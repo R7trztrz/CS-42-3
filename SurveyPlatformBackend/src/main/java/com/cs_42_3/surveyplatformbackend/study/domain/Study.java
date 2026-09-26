@@ -68,6 +68,22 @@ public class Study {
     @Column(name = "updated_at", nullable = false, columnDefinition = "timestamptz")
     private Instant updatedAt;
 
+    @Column(name = "participation_token", length = 43, unique = true)
+    private String participationToken;
+
+    @Column(name = "published_at", columnDefinition = "timestamptz")
+    private Instant publishedAt;
+
+    /** Freezes configuration through the irreversible draft-to-collecting transition. */
+    public void publish(String token, Instant time) {
+        if (status != StudyStatus.DRAFT) {
+            throw new com.cs_42_3.surveyplatformbackend.study.exception.StudyNotPublishableException();
+        }
+        participationToken = java.util.Objects.requireNonNull(token);
+        publishedAt = java.util.Objects.requireNonNull(time);
+        status = StudyStatus.COLLECTING;
+    }
+
     // Managed by JPA; this is not a published content version.
     @Version
     @Column(name = "lock_version", nullable = false)

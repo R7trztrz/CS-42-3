@@ -229,5 +229,62 @@ creations only; existing copies are not overwritten. Existing studies are not
 backfilled because their original template choice is unknown.
 
 Add template content through a new migration after agreeing on the editor JSON
-contract. Do not rewrite V5 after it has been applied. Feed retrieval/editing,
-legacy-study initialization and publishing are separate follow-up work.
+contract. Do not rewrite V5 after it has been applied. Legacy-study initialization
+remains separate follow-up work.
+
+## Study publication (FR-14)
+
+Flyway V7 adds a unique participation token and publication timestamp.
+Send a researcher JWT to `POST /api/studies/{studyId}/publish` with the current
+**study** version, not the feed version:
+
+```json
+{
+  "version": 0
+}
+```
+
+Only an owned DRAFT with a nonempty feed JSON object can be published.
+Publication atomically assigns a random participation token, records publishedAt,
+changes status to COLLECTING and updates the study timestamp and JPA version.
+The 200 response contains study details, the refreshed version, publishedAt and
+participationUrl. The owner's detail endpoint also returns this URL later.
+COLLECTING and CLOSED cannot be republished. Study and feed editing are blocked
+after publication. Publication and feed saves lock the same study row.
+
+Questionnaire readiness checks and question snapshots are temporarily bypassed,
+even when questionnaireEnabled is true. An English TODO marks this integration
+work. Detailed Craft.js validation is also deferred: publication does not yet
+guarantee renderability or satisfy questionnaire readiness/snapshot criteria.
+
+Configure the frontend base URL (defaults to the local frontend origin):
+
+```powershell
+$env:APP_PARTICIPANT_BASE_URL = "http://localhost:5173"
+```
+
+The backend appends `/participate/{token}`. Set the deployed frontend base URL
+in production. The frontend must implement this page separately.
+
+`GET /api/participation/{token}` requires no researcher JWT. It returns title,
+description, runtime switches, feed theme and JSON content, without management
+metadata. Only this GET route is anonymously permitted. Responses use
+`Cache-Control: no-store`; every read checks the current study state.
+Invalid links return 404 PARTICIPATION_NOT_FOUND; CLOSED returns 410 STUDY_CLOSED.
+
+Publishing returns 404 STUDY_NOT_FOUND for missing or foreign-owned studies, or
+409 STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT or FEED_NOT_READY.
+Invalid versions return 400; framework error normalization is unchanged.
+
+Participant sessions, data submission, questionnaire execution and the close
+command remain separate features. Future questionnaire saves must use the same
+study lock and DRAFT-only rule; future participation writes must recheck state.
+
+Run the focused suite (isolated H2 storage and production security filter rules):
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyPublicationApiTest,StudyApiTest,StudyPersistenceTest,FeedApiTest" test
+```
+
+Live PostgreSQL/Flyway and frontend participation-page integration require
+separate verification.
