@@ -16,6 +16,14 @@ import org.springframework.data.domain.Pageable;
  * @author Simon Tian
  */
 public interface StudyRepository extends JpaRepository<Study, UUID> {
+    /** Looks up the unguessable public entry token without exposing owner identity. */
+    Optional<Study> findByParticipationToken(String token);
+
+    /** Serializes feed saves with study lifecycle changes in the same transaction. */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select s from Study s where s.id = :id and s.ownerId = :ownerId")
+    Optional<Study> findOwnedByIdForUpdate(@org.springframework.data.repository.query.Param("id") UUID id,
+                                         @org.springframework.data.repository.query.Param("ownerId") UUID ownerId);
     /** Retrieves only studies owned by the requested researcher. */
     Page<Study> findAllByOwnerId(UUID ownerId, Pageable pageable);
 

@@ -30,6 +30,54 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** Maps the STUDY_NOT_PUBLISHABLE business failure without persistence details. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.StudyNotPublishableException.class)
+    public ResponseEntity<ErrorResponse> handleStudyNotPublishable(
+            com.cs_42_3.surveyplatformbackend.study.exception.StudyNotPublishableException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.STUDY_NOT_PUBLISHABLE.code(), exception.getMessage()));
+    }
+
+    /** Maps the FEED_NOT_READY business failure without persistence details. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.FeedNotReadyException.class)
+    public ResponseEntity<ErrorResponse> handleFeedNotReady(
+            com.cs_42_3.surveyplatformbackend.study.exception.FeedNotReadyException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.FEED_NOT_READY.code(), exception.getMessage()));
+    }
+
+    /** Maps the PARTICIPATION_NOT_FOUND business failure without persistence details. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.ParticipationNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleParticipationNotFound(
+            com.cs_42_3.surveyplatformbackend.study.exception.ParticipationNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ErrorCode.PARTICIPATION_NOT_FOUND.code(), exception.getMessage()));
+    }
+
+    /** Maps the STUDY_CLOSED business failure without persistence details. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.StudyClosedException.class)
+    public ResponseEntity<ErrorResponse> handleStudyClosed(
+            com.cs_42_3.surveyplatformbackend.study.exception.StudyClosedException exception) {
+        return ResponseEntity.status(HttpStatus.GONE)
+                .body(new ErrorResponse(ErrorCode.STUDY_CLOSED.code(), exception.getMessage()));
+    }
+
+    /** Reports missing feed rows, including legacy studies without an initialized feed. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.feed.exception.FeedNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleFeedNotFound(
+            com.cs_42_3.surveyplatformbackend.feed.exception.FeedNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse(ErrorCode.FEED_NOT_FOUND.code(), exception.getMessage()));
+    }
+
+    /** Asks the client to reload rather than overwrite a newer feed document. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.feed.exception.FeedVersionConflictException.class)
+    public ResponseEntity<ErrorResponse> handleFeedVersionConflict(
+            com.cs_42_3.surveyplatformbackend.feed.exception.FeedVersionConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.FEED_VERSION_CONFLICT.code(), exception.getMessage()));
+    }
+
     /** Rejects an invalid template selection before creating any study records. */
     @ExceptionHandler(FeedTemplateNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleFeedTemplateNotFound(

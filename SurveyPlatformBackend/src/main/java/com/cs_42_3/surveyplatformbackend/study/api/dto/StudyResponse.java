@@ -12,7 +12,7 @@ import java.util.UUID;
  *
  * @author Simon Tian
  */
-@Schema(description = "Basic study details. Participation links are pending FR-14 integration.")
+@Schema(description = "Owner-facing study details including publication metadata.")
 public record StudyResponse(
         @Schema(description = "Server-generated study identifier.", format = "uuid", example = "550e8400-e29b-41d4-a716-446655440000")
         UUID id,
@@ -31,7 +31,10 @@ public record StudyResponse(
         @Schema(description = "Whether eye tracking is enabled. Defaults to false.")
         boolean eyeTrackingEnabled,
         @Schema(description = "Whether a questionnaire follows manual browsing completion. Defaults to false.")
-        boolean questionnaireEnabled
+        boolean questionnaireEnabled,
+        Instant publishedAt,
+        @Schema(description = "Participant page URL; null before publication.")
+        String participationUrl
 ) {
     /**
      * Maps a persisted study to its API representation.
@@ -40,8 +43,14 @@ public record StudyResponse(
      * @return the response representation
      */
     public static StudyResponse from(Study study) {
+        return from(study, null);
+    }
+
+    /** Adds the deployment-specific page link for the authenticated owner. */
+    public static StudyResponse from(Study study, String participationUrl) {
         return new StudyResponse(study.getId(), study.getTitle(), study.getDescription(),
                 study.getStatus(), study.getCreatedAt(), study.getUpdatedAt(),
-                study.getLockVersion(), study.isEyeTrackingEnabled(), study.isQuestionnaireEnabled());
+                study.getLockVersion(), study.isEyeTrackingEnabled(), study.isQuestionnaireEnabled(),
+                study.getPublishedAt(), participationUrl);
     }
 }
