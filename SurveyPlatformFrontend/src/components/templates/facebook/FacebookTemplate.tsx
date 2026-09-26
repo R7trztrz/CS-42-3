@@ -1,5 +1,7 @@
 import { Element, useNode } from '@craftjs/core'
 
+import CanvasContainer from '../../editor/CanvasContainer'
+
 import {
   ActionBarWidget,
   AvatarWidget,
@@ -183,6 +185,17 @@ function FacebookTemplate({
 
 FacebookTemplate.craft = {
   displayName: 'Facebook Template',
+  props: {
+    // `canvasComponent` is a component reference, not JSON-serializable, so it
+    // never survives a save/deserialize round trip (craft.js drops function
+    // props when persisting node state). Without this default, a reloaded
+    // node re-renders with `canvasComponent` undefined, so its linked
+    // "facebook-root" Element's `is` no longer matches the type craft.js has
+    // on record for that node, and craft.js crashes trying to rebuild it.
+    // ResearcherEdit still overrides this for the live, uncontrolled first
+    // mount by passing `canvasComponent={ResearcherEditCanvas}` explicitly.
+    canvasComponent: CanvasContainer,
+  },
 }
 
 export default FacebookTemplate
