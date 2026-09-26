@@ -48,6 +48,7 @@
 # Container and deployment definitions, when present.
 !Dockerfile
 !Dockerfile.*
+!.dockerignore
 !compose.yml
 !compose.yaml
 !docker-compose.yml
