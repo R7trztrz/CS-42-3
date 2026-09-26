@@ -8,43 +8,63 @@ type AvatarWidgetProps = {
   styleId?: PlatformStyle
 }
 
-const platformAvatarStyles: Record<PlatformStyle, string> = {
-  facebook: 'rounded-full ring-1 ring-gray-200',
-  instagram: 'rounded-full ring-2 ring-pink-500',
-  tiktok: 'rounded-full ring-2 ring-cyan-400',
-  x: 'rounded-full ring-1 ring-gray-300',
-  threads: 'rounded-full ring-1 ring-black',
-  bluesky: 'rounded-full ring-2 ring-sky-400',
-  'truth-social': 'rounded-full ring-2 ring-blue-700',
-}
-
 function AvatarWidget({
-  src,
-  alt = 'User avatar',
+  src = '',
+  alt = 'User',
   size = 40,
   styleId = 'facebook',
 }: AvatarWidgetProps) {
   const {
     connectors: { connect, drag },
-  } = useNode()
+    selected,
+  } = useNode((node) => ({
+    selected: node.events.selected,
+  }))
+
+  const initials = alt
+    .split(' ')
+    .map((part) => part.charAt(0))
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  const displaySize =
+    styleId === 'facebook'
+      ? Math.max(size, 48)
+      : size
 
   return (
     <div
       ref={(ref) => {
-        if (ref) connect(drag(ref))
+        if (ref) {
+          connect(drag(ref))
+        }
       }}
-      className={`cursor-move overflow-hidden bg-gray-200 ${platformAvatarStyles[styleId]}`}
-      style={{ width: size, height: size }}
+      className={`inline-flex shrink-0 cursor-move items-center justify-center rounded-full ${
+        selected
+          ? 'ring-2 ring-emerald-400 ring-offset-2'
+          : ''
+      }`}
+      style={{
+        width: displaySize,
+        height: displaySize,
+      }}
     >
       {src ? (
         <img
           src={src}
           alt={alt}
-          className="h-full w-full object-cover"
+          className="h-full w-full rounded-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
-          U
+        <div
+          className={
+            styleId === 'facebook'
+              ? 'flex h-full w-full items-center justify-center rounded-full bg-[#e4e6eb] text-sm font-semibold text-[#65676b]'
+              : 'flex h-full w-full items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-600'
+          }
+        >
+          {initials || 'U'}
         </div>
       )}
     </div>
@@ -55,7 +75,7 @@ AvatarWidget.craft = {
   displayName: 'Avatar Widget',
   props: {
     src: '',
-    alt: 'User avatar',
+    alt: 'User',
     size: 40,
     styleId: 'facebook',
   },
