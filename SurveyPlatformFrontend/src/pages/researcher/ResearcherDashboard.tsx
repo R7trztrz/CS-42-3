@@ -7,6 +7,7 @@ import {
   type StudyStatus,
   type StudySummaryResponse,
 } from '../../services/studyApi'
+import { sortStudies } from '../../utils/studySorting'
 
 const PAGE_SIZE = 100
 const RECENT_STUDY_LIMIT = 5
@@ -57,13 +58,14 @@ const statusDots: Record<StudyStatus, string> = {
   CLOSED: 'bg-sky-600',
 }
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
+const dateFormatter = new Intl.DateTimeFormat('en-AU', {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
+  timeZone: 'Australia/Sydney',
 })
 
-function formatCreatedAt(value: string) {
+function formatUpdatedAt(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? 'Unknown' : dateFormatter.format(date)
 }
@@ -120,7 +122,7 @@ function ResearcherDashboard() {
       try {
         const response = await loadAllStudies()
 
-        if (!ignore) setStudies(response)
+        if (!ignore) setStudies(sortStudies(response))
       } catch (error) {
         if (!ignore) setErrorMessage(getDashboardErrorMessage(error))
       } finally {
@@ -159,9 +161,6 @@ function ResearcherDashboard() {
             <h2 className="mt-1 text-3xl font-semibold text-[#172033]">
               Research dashboard
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-              Track the status of your studies and return to recent research work.
-            </p>
           </div>
           <div className="border-l-2 border-sky-500 pl-4 text-right">
             <p className="text-xs font-semibold uppercase text-gray-500">Workspace total</p>
@@ -172,17 +171,9 @@ function ResearcherDashboard() {
         </section>
 
         <section aria-labelledby="study-status-heading" className="py-7">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h3 id="study-status-heading" className="text-base font-semibold text-[#172033]">
-                Study status
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">Current activity across your workspace</p>
-            </div>
-            <p className="text-xs font-medium text-gray-500">
-              {isLoading ? 'Loading...' : 'Live study data'}
-            </p>
-          </div>
+          <h3 id="study-status-heading" className="mb-4 text-base font-semibold text-[#172033]">
+            Study status
+          </h3>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {statusDetails.map((item) => (
@@ -214,9 +205,6 @@ function ResearcherDashboard() {
               <h3 id="recent-studies-heading" className="font-semibold text-[#172033]">
                 Recent studies
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Select a row to continue your research
-              </p>
             </div>
             <Link to="/studies" className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">
               View all studies
@@ -258,7 +246,7 @@ function ResearcherDashboard() {
                   <tr className="border-b border-[#d9e2ec] bg-[#edf3f8] text-xs font-semibold uppercase text-[#52667d]">
                     <th className="px-6 py-3.5">Study</th>
                     <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5">Created</th>
+                    <th className="px-5 py-3.5">Last updated</th>
                     <th className="px-6 py-3.5 text-right">Continue</th>
                   </tr>
                 </thead>
@@ -285,7 +273,6 @@ function ResearcherDashboard() {
                           <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${statusDots[study.status]}`} />
                           <div className="min-w-0">
                             <p className="font-semibold text-[#172033]">{study.title}</p>
-                            <p className="mt-1 truncate font-mono text-xs text-gray-400">{study.id}</p>
                           </div>
                         </div>
                       </td>
@@ -295,10 +282,12 @@ function ResearcherDashboard() {
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
-                        {formatCreatedAt(study.createdAt)}
+                        {formatUpdatedAt(study.updatedAt)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className="text-sm font-semibold text-emerald-700">Open study</span>
+                        <span className="inline-flex rounded-sm border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-700">
+                          Open study
+                        </span>
                       </td>
                     </tr>
                   ))}

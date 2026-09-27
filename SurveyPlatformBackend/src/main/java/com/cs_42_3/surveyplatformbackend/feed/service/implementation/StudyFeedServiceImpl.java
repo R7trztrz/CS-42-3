@@ -41,7 +41,7 @@ public class StudyFeedServiceImpl implements StudyFeedService {
     @Transactional
     public StudyFeed saveFeed(UUID ownerId, UUID studyId, String content, long expectedVersion) {
         // Lock the study before checking its lifecycle so a status update cannot race this save.
-        // Future publication must acquire this same study lock before reading the feed.
+        // Publication acquires this same study lock before reading the feed.
         var study = studies.findOwnedByIdForUpdate(studyId, ownerId)
                 .orElseThrow(StudyNotFoundException::new);
         if (study.getStatus() != StudyStatus.DRAFT) {

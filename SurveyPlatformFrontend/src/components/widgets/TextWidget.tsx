@@ -3,46 +3,86 @@ import type { PlatformStyle } from './types'
 
 type TextWidgetProps = {
   text?: string
-  className?: string
   styleId?: PlatformStyle
 }
 
-const platformTextStyles: Record<PlatformStyle, string> = {
-  facebook: 'text-[#050505]',
-  instagram: 'text-[#262626]',
-  tiktok: 'text-black',
-  x: 'text-[#0f1419]',
-  threads: 'text-black',
-  bluesky: 'text-[#161e27]',
-  'truth-social': 'text-[#243447]',
-}
-
 function TextWidget({
-  text = 'Sample text',
-  className = '',
+  text = 'New text widget',
   styleId = 'facebook',
 }: TextWidgetProps) {
   const {
     connectors: { connect, drag },
-  } = useNode()
+    selected,
+  } = useNode((node) => ({
+    selected: node.events.selected,
+  }))
+
+  const getFacebookTextClass = () => {
+    if (text === 'Emma Wilson') {
+      return 'text-[15px] font-semibold leading-5 text-[#050505]'
+    }
+
+    if (
+      text.includes('ago') ||
+      text.includes('🌐')
+    ) {
+      return 'text-[13px] leading-4 text-[#65676b]'
+    }
+
+    if (
+      text === '···' ||
+      text === '...'
+    ) {
+      return 'text-xl font-semibold tracking-wider text-[#65676b]'
+    }
+
+    if (
+      text.includes('Like') ||
+      text.includes('Comment') ||
+      text.includes('Share')
+    ) {
+      return 'text-center text-[14px] font-semibold text-[#65676b]'
+    }
+
+    if (
+      text === "What's on your mind?"
+    ) {
+      return 'text-[16px] font-normal text-[#65676b]'
+    }
+
+    return 'text-[15px] leading-6 text-[#050505]'
+  }
 
   return (
-    <p
+    <div
       ref={(ref) => {
-        if (ref) connect(drag(ref))
+        if (ref) {
+          connect(drag(ref))
+        }
       }}
-      className={`cursor-move text-base ${platformTextStyles[styleId]} ${className}`}
+      className={`cursor-move rounded-sm ${
+        selected
+          ? 'ring-2 ring-emerald-400 ring-offset-2'
+          : ''
+      }`}
     >
-      {text}
-    </p>
+      <p
+        className={
+          styleId === 'facebook'
+            ? getFacebookTextClass()
+            : 'text-sm text-gray-800'
+        }
+      >
+        {text}
+      </p>
+    </div>
   )
 }
 
 TextWidget.craft = {
   displayName: 'Text Widget',
   props: {
-    text: 'Sample text',
-    className: '',
+    text: 'New text widget',
     styleId: 'facebook',
   },
 }

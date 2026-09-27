@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import axios from 'axios'
 import { createStudy, type StudyResponse } from '../../services/studyApi'
 
@@ -88,7 +88,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
 
   const hasEnteredData = title.trim().length > 0 || description.trim().length > 0 || selectedTemplate !== null
 
-  const requestClose = () => {
+  const requestClose = useCallback(() => {
     if (isSubmitting) return
 
     if (hasEnteredData && !window.confirm('Discard this new study?')) {
@@ -96,11 +96,13 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
     }
 
     onClose()
-  }
+  }, [hasEnteredData, isSubmitting, onClose])
 
   useEffect(() => {
     titleInputRef.current?.focus()
+  }, [])
 
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') requestClose()
     }
@@ -113,7 +115,7 @@ function CreateStudyDialog({ onClose, onCreated }: CreateStudyDialogProps) {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  })
+  }, [requestClose])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

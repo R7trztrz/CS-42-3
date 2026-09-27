@@ -45,6 +45,7 @@ public class StudyController {
 
     private final StudyService studyService;
     private final CurrentResearcher currentResearcher;
+    private final com.cs_42_3.surveyplatformbackend.study.service.ParticipationLinks participationLinks;
 
     /** Updates only supplied fields of an owned draft, using the expected edit version. */
     @PatchMapping(value = "/{studyId}", consumes = "application/json")
@@ -97,7 +98,7 @@ public class StudyController {
     @GetMapping("/{studyId}")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(operationId = "getStudy", summary = "Get my study",
-            description = "Implements FR-12 basic details. Participation links will be integrated with FR-14 publishing.")
+            description = "Implements FR-12 basic details, including the participant page link after publication.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Owned study details.",
                     content = @Content(schema = @Schema(implementation = StudyResponse.class))),
@@ -108,7 +109,8 @@ public class StudyController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     public StudyResponse getStudy(@PathVariable UUID studyId) {
-        return StudyResponse.from(studyService.getStudy(currentResearcher.getId(), studyId));
+        Study study = studyService.getStudy(currentResearcher.getId(), studyId);
+        return StudyResponse.from(study, participationLinks.forToken(study.getParticipationToken()));
     }
 
     /**

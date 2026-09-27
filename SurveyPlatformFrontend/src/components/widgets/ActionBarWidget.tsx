@@ -8,16 +8,6 @@ type ActionBarWidgetProps = {
   styleId?: PlatformStyle
 }
 
-const platformActionStyles: Record<PlatformStyle, string> = {
-  facebook: 'text-gray-600',
-  instagram: 'text-gray-900',
-  tiktok: 'text-black',
-  x: 'text-[#536471]',
-  threads: 'text-black',
-  bluesky: 'text-[#42576c]',
-  'truth-social': 'text-blue-800',
-}
-
 function ActionBarWidget({
   likes = 0,
   comments = 0,
@@ -26,18 +16,78 @@ function ActionBarWidget({
 }: ActionBarWidgetProps) {
   const {
     connectors: { connect, drag },
-  } = useNode()
+    selected,
+  } = useNode((node) => ({
+    selected: node.events.selected,
+  }))
+
+  if (styleId === 'facebook') {
+    return (
+      <div
+        ref={(ref) => {
+          if (ref) {
+            connect(drag(ref))
+          }
+        }}
+        className={`flex cursor-move items-center justify-between ${
+          selected
+            ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
+            : ''
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-1">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1877f2] text-[10px] text-white ring-2 ring-white">
+              👍
+            </div>
+
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f55368] text-[10px] text-white ring-2 ring-white">
+              ♥
+            </div>
+          </div>
+
+          <span className="text-[14px] text-[#65676b]">
+            {likes}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 text-[14px] text-[#65676b]">
+          <span>
+            {comments} comments
+          </span>
+
+          <span>
+            {shares} shares
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
       ref={(ref) => {
-        if (ref) connect(drag(ref))
+        if (ref) {
+          connect(drag(ref))
+        }
       }}
-      className={`flex cursor-move gap-6 text-sm ${platformActionStyles[styleId]}`}
+      className={`flex cursor-move gap-5 text-sm text-gray-600 ${
+        selected
+          ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
+          : ''
+      }`}
     >
-      <button type="button">Like {likes}</button>
-      <button type="button">Comment {comments}</button>
-      <button type="button">Share {shares}</button>
+      <span>
+        Like {likes}
+      </span>
+
+      <span>
+        Comment {comments}
+      </span>
+
+      <span>
+        Share {shares}
+      </span>
     </div>
   )
 }

@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
  * @author Simon Tian
  */
 public interface StudyRepository extends JpaRepository<Study, UUID> {
+    /** Looks up the unguessable public entry token without exposing owner identity. */
+    Optional<Study> findByParticipationToken(String token);
 
     /** Serializes feed saves with study lifecycle changes in the same transaction. */
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

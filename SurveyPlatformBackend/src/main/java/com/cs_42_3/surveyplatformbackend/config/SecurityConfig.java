@@ -40,6 +40,7 @@ import java.util.Base64;
  * Security-related application configuration.
  *
  * @author Jiale Chen
+ * @author Simon Tian
  */
 @Configuration
 @EnableMethodSecurity
@@ -73,6 +74,8 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        // Only the public entry read is anonymous; future write APIs need their own rules.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/participation/*").permitAll()
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",

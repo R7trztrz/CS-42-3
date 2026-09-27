@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.security;
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
 import com.cs_42_3.surveyplatformbackend.study.api.StudyController;
 import com.cs_42_3.surveyplatformbackend.study.service.StudyService;
+import com.cs_42_3.surveyplatformbackend.study.service.ParticipationLinks;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +40,9 @@ class SecurityWebMvcTest {
 
     @MockitoBean
     private CurrentResearcher currentResearcher;
+
+    @MockitoBean
+    private ParticipationLinks participationLinks;
 
     @Autowired
     private JwtEncoder jwtEncoder;

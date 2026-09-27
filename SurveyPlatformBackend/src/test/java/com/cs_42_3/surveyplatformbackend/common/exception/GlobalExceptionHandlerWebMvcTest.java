@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.api.StudyController;
 import com.cs_42_3.surveyplatformbackend.study.service.StudyService;
+import com.cs_42_3.surveyplatformbackend.study.service.ParticipationLinks;
 
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +39,9 @@ class GlobalExceptionHandlerWebMvcTest {
 
     @MockitoBean
     private CurrentResearcher currentResearcher;
+
+    @MockitoBean
+    private ParticipationLinks participationLinks;
 
     /** Verifies that malformed JSON returns 400 REQUEST_BODY_INVALID. */
     @Test
