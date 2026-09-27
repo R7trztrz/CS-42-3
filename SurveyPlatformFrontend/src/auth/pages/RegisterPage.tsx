@@ -1,3 +1,4 @@
+import { ApiError } from '../api/ApiError'
 import { Link } from 'react-router-dom'
 import { useRef, useState, type FormEvent } from 'react'
 import { Turnstile } from '@marsidev/react-turnstile'
@@ -60,8 +61,27 @@ export default function RegisterPage() {
             setPassword('')
             setConfirmPassword('')
         } catch (error) {
-            if (error instanceof Error) {
-                setError(error.message)
+            if (error instanceof ApiError) {
+                switch (error.code) {
+                    case 'AUTH_DUPLICATE_EMAIL':
+                        setError('Email is already registered. Please log in instead.')
+                        break
+
+                    case 'AUTH_HUMAN_VERIFICATION_FAILED':
+                        setError('Human verification failed. Please try again.')
+                        break
+
+                    case 'AUTH_RATE_LIMIT_EXCEEDED':
+                        setError('Too many registration attempts. Please try again later.')
+                        break
+
+                    case 'REQUEST_VALIDATION_FAILED':
+                        setError(error.message)
+                        break
+
+                    default:
+                        setError(error.message)
+                }
             } else {
                 setError('Registration failed.')
             }

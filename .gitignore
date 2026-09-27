@@ -10,3 +10,8 @@
 # Allow the application directories; their own ignore rules still apply.
 !/SurveyPlatformBackend/
 !/SurveyPlatformFrontend/
+
+# GitHub Actions workflows
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
