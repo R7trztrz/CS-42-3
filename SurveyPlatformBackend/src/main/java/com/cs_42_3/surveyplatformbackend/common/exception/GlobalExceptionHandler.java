@@ -1,25 +1,33 @@
 package com.cs_42_3.surveyplatformbackend.common.exception;
 
+import com.cs_42_3.surveyplatformbackend.feed.exception.FeedTemplateNotFoundException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.CurrentPasswordIncorrectException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.DuplicateEmailException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.InvalidCredentialsException;
 import com.cs_42_3.surveyplatformbackend.researcher.service.PasswordMismatchException;
 import com.cs_42_3.surveyplatformbackend.security.ratelimit.RateLimitExceededException;
 import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationException;
-
-import jakarta.validation.ConstraintViolationException;
-import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
+import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictException;
-import com.cs_42_3.surveyplatformbackend.feed.exception.FeedTemplateNotFoundException;
+import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.CannotCreateTransactionException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
-
 
 /**
  * Handles application exceptions and returns consistent API error responses.
@@ -29,6 +37,9 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /** Reports missing feed rows, including legacy studies without an initialized feed. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.feed.exception.FeedNotFoundException.class)
@@ -75,36 +86,105 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(ErrorCode.STUDY_NOT_FOUND.code(), exception.getMessage()));
     }
 
-    /*
-     * TODO(global exception coverage): the framework exceptions listed below have no
-     * handler yet, so they fall through to Spring Boot's default /error response and
-     * return a body shape that differs from ErrorResponse. None of them is specific to
-     * one module, so they belong here rather than in a module-level advice.
-     *
-     * - HttpMessageNotReadableException (400)
-     *     Thrown while reading a @RequestBody. Triggered by POST /api/studies when the
-     *     JSON is malformed, the body is missing, or a field carries the wrong JSON type.
-     * - HttpMediaTypeNotSupportedException (415)
-     *     Thrown when no converter matches the request Content-Type. Triggered by
-     *     POST /api/studies with a non-JSON Content-Type.
-     * - HttpRequestMethodNotSupportedException (405)
-     *     Thrown by handler mapping when the path matches but the HTTP method does not.
-     *     Triggered by e.g. DELETE /api/studies, which has no matching operation.
-     * - MethodArgumentTypeMismatchException (400)
-     *     Triggered by malformed study UUIDs or nonnumeric pagination parameters.
-     * - DataIntegrityViolationException (500)
-     *     Thrown when a database constraint fails, e.g. the studies.owner_id foreign key
-     *     or a CHECK constraint, surfaced at transaction commit. Its message embeds the
-     *     failing SQL statement and constraint name, so a handler must not put
-     *     getMessage() into the response.
-     * - DataAccessResourceFailureException and CannotCreateTransactionException (500)
-     *     Thrown when a database connection cannot be obtained.
-     * - InvalidDataAccessResourceUsageException (500)
-     *     Thrown on SQL grammar failures such as a missing table or column.
-     *
-     * A catch-all Exception handler would cover the last three, provided it passes the
-     * status of framework errors through instead of forcing 500.
-     */
+    /** Returns a safe 400 response when the request body cannot be parsed. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(
+                        ErrorCode.REQUEST_BODY_INVALID.code(),
+                        "Request body is invalid."
+                ));
+    }
+
+    /** Rejects request content types that the endpoint cannot consume. */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(new ErrorResponse(
+                        ErrorCode.MEDIA_TYPE_NOT_SUPPORTED.code(),
+                        "Content type is not supported."
+                ));
+    }
+
+    /** Rejects HTTP methods that are not supported by the matched endpoint. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new ErrorResponse(
+                        ErrorCode.METHOD_NOT_SUPPORTED.code(),
+                        "HTTP method is not supported for this endpoint."
+                ));
+    }
+
+    /** Reports invalid path or query parameter types without exposing framework details. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(
+                        ErrorCode.ARGUMENT_TYPE_MISMATCH.code(),
+                        "Request parameter has an invalid type."
+                ));
+    }
+
+    /** Hides database constraint details while logging the full integrity violation server-side. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception
+    ) {
+        log.error("Database integrity violation", exception);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        ErrorCode.INTERNAL_SERVER_ERROR.code(),
+                        "An internal server error occurred."
+                ));
+    }
+
+    /** Handles database connectivity failures without exposing infrastructure details. */
+    @ExceptionHandler({
+            DataAccessResourceFailureException.class,
+            CannotCreateTransactionException.class
+    })
+    public ResponseEntity<ErrorResponse> handleDatabaseUnavailable(
+            RuntimeException exception
+    ) {
+        log.error("Database connection failure", exception);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        ErrorCode.INTERNAL_SERVER_ERROR.code(),
+                        "An internal server error occurred."
+                ));
+    }
+
+    /** Hides SQL/schema details while logging invalid database resource usage server-side. */
+    @ExceptionHandler(InvalidDataAccessResourceUsageException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDataAccessResourceUsage(
+            InvalidDataAccessResourceUsageException exception
+    ) {
+        log.error("Invalid database resource usage", exception);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        ErrorCode.INTERNAL_SERVER_ERROR.code(),
+                        "An internal server error occurred."
+                ));
+    }
 
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateEmail(
@@ -112,7 +192,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_DUPLICATE_EMAIL.code(),
+                        exception.getMessage()
+                ));
     }
 
     @ExceptionHandler(PasswordMismatchException.class)
@@ -121,7 +204,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_PASSWORD_MISMATCH.code(),
+                        exception.getMessage()
+                ));
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
@@ -130,7 +216,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_INVALID_CREDENTIALS.code(),
+                        exception.getMessage()
+                ));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -146,7 +235,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(message));
+                .body(new ErrorResponse(
+                        ErrorCode.REQUEST_VALIDATION_FAILED.code(),
+                        message
+                ));
     }
 
     /**
@@ -165,9 +257,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
             ConstraintViolationException exception) {
 
+        log.error("Constraint violation", exception);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("An internal server error occurred."));
+                .body(new ErrorResponse(
+                        ErrorCode.INTERNAL_SERVER_ERROR.code(),
+                        "An internal server error occurred."
+                ));
     }
 
     /**
@@ -187,7 +284,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccessDenied() {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse("Access denied."));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_FORBIDDEN.code(),
+                        "Access denied."
+                ));
     }
 
     @ExceptionHandler(ResponseStatusException.class)
@@ -200,7 +300,10 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(exception.getStatusCode())
-                .body(new ErrorResponse(message));
+                .body(new ErrorResponse(
+                        ErrorCode.REQUEST_FAILED.code(),
+                        message
+                ));
     }
 
     @ExceptionHandler(HumanVerificationException.class)
@@ -209,7 +312,10 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_HUMAN_VERIFICATION_FAILED.code(),
+                        exception.getMessage()
+                ));
     }
 
     @ExceptionHandler(RateLimitExceededException.class)
@@ -218,7 +324,10 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                ErrorCode.AUTH_RATE_LIMIT_EXCEEDED.code(),
+                exception.getMessage()
+        ));
     }
 
     @ExceptionHandler(CurrentPasswordIncorrectException.class)
@@ -227,6 +336,33 @@ public class GlobalExceptionHandler {
     ) {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(exception.getMessage()));
+                .body(new ErrorResponse(
+                        ErrorCode.AUTH_CURRENT_PASSWORD_INCORRECT.code(),
+                        exception.getMessage()
+                ));
+    }
+
+    /** Handles unexpected errors while preserving status codes from Spring framework errors. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            Exception exception
+    ) {
+        if (exception instanceof org.springframework.web.ErrorResponse frameworkError) {
+            return ResponseEntity
+                    .status(frameworkError.getStatusCode())
+                    .body(new ErrorResponse(
+                            ErrorCode.REQUEST_FAILED.code(),
+                            "Request failed."
+                    ));
+        }
+
+        log.error("Unexpected server error", exception);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        ErrorCode.INTERNAL_SERVER_ERROR.code(),
+                        "An internal server error occurred."
+                ));
     }
 }

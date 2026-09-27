@@ -1,5 +1,13 @@
 package com.cs_42_3.surveyplatformbackend.config;
 
+import com.cs_42_3.surveyplatformbackend.common.exception.ErrorCode;
+import com.cs_42_3.surveyplatformbackend.common.exception.ErrorResponse;
+import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +29,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.List;
 import javax.crypto.SecretKey;
@@ -50,7 +59,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
-            CorsConfigurationSource corsConfigurationSource
+            CorsConfigurationSource corsConfigurationSource,
+            AuthenticationEntryPoint authenticationEntryPoint,
+            AccessDeniedHandler accessDeniedHandler
     ) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -74,7 +85,14 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
+
                 .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)
                         )
@@ -166,5 +184,47 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
+    }
+
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint(
+            ObjectMapper objectMapper
+    ) {
+        return (request, response, authException) -> {
+
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+            ErrorResponse errorResponse = new ErrorResponse(
+                    ErrorCode.AUTH_UNAUTHORIZED.code(),
+                    "Authentication required."
+            );
+
+            objectMapper.writeValue(
+                    response.getOutputStream(),
+                    errorResponse
+            );
+        };
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler(
+            ObjectMapper objectMapper
+    ) {
+        return (request, response, accessDeniedException) -> {
+
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+            ErrorResponse errorResponse = new ErrorResponse(
+                    ErrorCode.AUTH_FORBIDDEN.code(),
+                    "Access denied."
+            );
+
+            objectMapper.writeValue(
+                    response.getOutputStream(),
+                    errorResponse
+            );
+        };
     }
 }
