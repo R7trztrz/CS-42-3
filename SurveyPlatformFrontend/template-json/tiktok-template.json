@@ -1,0 +1,230 @@
+{
+  "ROOT": {
+    "type": {
+      "resolvedName": "TikTokTemplate"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "TikTok Template",
+    "custom": {},
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {
+      "tiktok-root": "uXATnRg6Bd"
+    }
+  },
+  "uXATnRg6Bd": {
+    "type": {
+      "resolvedName": "ResearcherEditCanvas"
+    },
+    "isCanvas": true,
+    "props": {},
+    "displayName": "Researcher Edit Canvas",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [
+      "Q4HsRCEO44"
+    ],
+    "linkedNodes": {}
+  },
+  "Q4HsRCEO44": {
+    "type": {
+      "resolvedName": "TikTokDesktopShell"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "tiktok-shell"
+    },
+    "displayName": "TikTok Desktop Shell",
+    "custom": {},
+    "parent": "uXATnRg6Bd",
+    "hidden": false,
+    "nodes": [
+      "Ids1O4UavI"
+    ],
+    "linkedNodes": {}
+  },
+  "Ids1O4UavI": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full w-full overflow-hidden"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "Q4HsRCEO44",
+    "hidden": false,
+    "nodes": [
+      "ulgfrzj_n_",
+      "gE1G4fbY43"
+    ],
+    "linkedNodes": {}
+  },
+  "ulgfrzj_n_": {
+    "type": {
+      "resolvedName": "TikTokSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "TikTok Sidebar",
+    "custom": {},
+    "parent": "Ids1O4UavI",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "gE1G4fbY43": {
+    "type": {
+      "resolvedName": "TikTokMainArea"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "tiktok-main"
+    },
+    "displayName": "TikTok Main Area",
+    "custom": {},
+    "parent": "Ids1O4UavI",
+    "hidden": false,
+    "nodes": [
+      "bOw0-KxUdu",
+      "eqVSJRKqT_"
+    ],
+    "linkedNodes": {}
+  },
+  "bOw0-KxUdu": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-[72px] shrink-0 items-center justify-center border-b border-[#1f1f1f] bg-[#0f0f0f]"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "gE1G4fbY43",
+    "hidden": false,
+    "nodes": [
+      "JHVAGczY2j"
+    ],
+    "linkedNodes": {}
+  },
+  "JHVAGczY2j": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full items-center gap-9"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "bOw0-KxUdu",
+    "hidden": false,
+    "nodes": [
+      "LLzcWktkiI",
+      "AJoIpUJXj_"
+    ],
+    "linkedNodes": {}
+  },
+  "LLzcWktkiI": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full items-center text-[14px] font-semibold",
+      "style": {
+        "color": "#777777"
+      },
+      "children": "Following"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "JHVAGczY2j",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "AJoIpUJXj_": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full items-center border-b-2 border-white px-1 text-[14px] font-semibold",
+      "style": {
+        "color": "#ffffff"
+      },
+      "children": "For You"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "JHVAGczY2j",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "eqVSJRKqT_": {
+    "type": {
+      "resolvedName": "TikTokFeedStage"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "tiktok-feed"
+    },
+    "displayName": "TikTok Feed Stage",
+    "custom": {},
+    "parent": "gE1G4fbY43",
+    "hidden": false,
+    "nodes": [
+      "26KY9hYu9T",
+      "F6VbnWIZx4"
+    ],
+    "linkedNodes": {}
+  },
+  "26KY9hYu9T": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "tiktok",
+      "username": "@emmaw",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "eqVSJRKqT_",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "F6VbnWIZx4": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "tiktok",
+      "username": "@emmaw",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "eqVSJRKqT_",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}
