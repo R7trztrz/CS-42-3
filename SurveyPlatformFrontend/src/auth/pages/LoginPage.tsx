@@ -1,3 +1,4 @@
+import { ApiError } from '../api/ApiError'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { loginResearcher } from '../api/authApi'
@@ -41,8 +42,19 @@ export default function LoginPage() {
 
             navigate('/researcher-dashboard', { replace: true })
         } catch (error) {
-            if (error instanceof Error) {
-                setError(error.message)
+            if (error instanceof ApiError) {
+                switch (error.code) {
+                    case 'AUTH_INVALID_CREDENTIALS':
+                        setError('Invalid email or password.')
+                        break
+
+                    case 'AUTH_RATE_LIMIT_EXCEEDED':
+                        setError('Too many login attempts. Please try again later.')
+                        break
+
+                    default:
+                        setError(error.message)
+                }
             } else {
                 setError('Login failed.')
             }

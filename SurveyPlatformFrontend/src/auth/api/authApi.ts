@@ -1,3 +1,4 @@
+import { ApiError } from './ApiError'
 import type {
     ApiErrorResponse,
     LoginRequest,
@@ -23,8 +24,10 @@ export async function registerResearcher(
     if (!response.ok) {
         const errorBody = (await response.json()) as ApiErrorResponse
 
-        throw new Error(
+        throw new ApiError(
+            errorBody.code || 'REQUEST_FAILED',
             errorBody.error || 'Registration failed',
+            response.status,
         )
     }
 
@@ -44,8 +47,10 @@ export async function loginResearcher(
     if (!response.ok) {
         const errorBody = (await response.json()) as ApiErrorResponse
 
-        throw new Error(
+        throw new ApiError(
+            errorBody.code || 'REQUEST_FAILED',
             errorBody.error || 'Login failed',
+            response.status,
         )
     }
 
