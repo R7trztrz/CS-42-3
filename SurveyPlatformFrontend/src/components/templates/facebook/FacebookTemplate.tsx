@@ -1,37 +1,42 @@
-import { Element, useNode } from '@craftjs/core'
+import {
+  Element,
+  useNode,
+} from '@craftjs/core'
+
+import CanvasContainer from '../../editor/CanvasContainer'
 
 import {
-  ActionBarWidget,
-  AvatarWidget,
-  ImageWidget,
-  TextWidget,
+  PostWidget,
 } from '../../widgets'
 
 import FacebookTopBar from './FacebookTopBar'
 import FacebookStories from './FacebookStories'
 import FacebookCreatePost from './FacebookCreatePost'
+import FacebookLeftSidebar from './FacebookLeftSidebar'
+import FacebookRightSidebar from './FacebookRightSidebar'
 
 import {
-  FacebookActionButtonsRow,
-  FacebookBodySection,
-  FacebookFooterSection,
-  FacebookHeaderLeft,
-  FacebookHeaderRow,
-  FacebookImageSection,
-  FacebookMetaColumn,
-  FacebookPostCard,
+  FacebookDesktopShell,
+  FacebookMainFeed,
 } from './FacebookLayout'
 
+
 type FacebookTemplateProps = {
-  canvasComponent: React.ElementType
+  canvasComponent?: React.ElementType
 }
 
+
 function FacebookTemplate({
-  canvasComponent: CanvasComponent,
+  canvasComponent:
+    CanvasComponent =
+      CanvasContainer,
 }: FacebookTemplateProps) {
   const {
-    connectors: { connect },
+    connectors: {
+      connect,
+    },
   } = useNode()
+
 
   return (
     <div
@@ -47,142 +52,106 @@ function FacebookTemplate({
         is={CanvasComponent}
         canvas
       >
-        <div className="mx-auto w-full max-w-[620px] overflow-hidden rounded-xl bg-[#f0f2f5] shadow-sm">
-          {/* Fixed Facebook shell */}
-          <div className="w-full">
+        <Element
+          id="facebook-shell"
+          is={FacebookDesktopShell}
+          canvas
+        >
+          <div className="flex h-full w-full flex-col overflow-hidden bg-[#f0f2f5]">
+
+            {/* Top navigation */}
             <FacebookTopBar />
-          </div>
 
-          <div className="mx-auto w-full max-w-[620px] px-5 py-5">
-            {/* Stories */}
-            <div className="mb-4">
-              <FacebookStories />
-            </div>
 
-            {/* Create post */}
-            <div className="mb-4 flex justify-center">
-              <FacebookCreatePost />
-            </div>
+            <div className="flex min-h-0 flex-1 overflow-hidden">
 
-            {/* Editable post */}
-            <div className="flex justify-center">
+              {/* Left sidebar */}
+              <div className="w-[250px] shrink-0">
+                <FacebookLeftSidebar />
+              </div>
+
+
+              {/* ==================================================
+                  MAIN FEED
+
+                  IMPORTANT:
+                  Stories, composer and ALL posts are direct
+                  children of the same Craft canvas.
+
+                  Newly dragged PostWidget nodes therefore land
+                  at the same level as the default posts.
+                 ================================================== */}
+
               <Element
-                id="facebook-post"
-                is={FacebookPostCard}
+                id="facebook-main-feed"
+                is={FacebookMainFeed}
                 canvas
               >
-                {/* Header */}
-                <Element
-                  id="facebook-header"
-                  is={FacebookHeaderRow}
-                  canvas
-                >
-                  <Element
-                    id="facebook-header-left"
-                    is={FacebookHeaderLeft}
-                    canvas
-                  >
-                    <AvatarWidget
-                      src=""
-                      alt="Emma Wilson"
-                      size={48}
-                      styleId="facebook"
-                    />
 
-                    <Element
-                      id="facebook-meta"
-                      is={FacebookMetaColumn}
-                      canvas
-                    >
-                      <TextWidget
-                        text="Emma Wilson"
-                        styleId="facebook"
-                      />
+                <FacebookStories />
 
-                      <TextWidget
-                        text="2h ago · 🌐"
-                        styleId="facebook"
-                      />
-                    </Element>
-                  </Element>
 
-                  <TextWidget
-                    text="···"
-                    styleId="facebook"
-                  />
-                </Element>
+                <FacebookCreatePost />
 
-                {/* Body */}
-                <Element
-                  id="facebook-body"
-                  is={FacebookBodySection}
-                  canvas
-                >
-                  <TextWidget
-                    text="Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂"
-                    styleId="facebook"
-                  />
-                </Element>
 
-                {/* Image */}
-                <Element
-                  id="facebook-image"
-                  is={FacebookImageSection}
-                  canvas
-                >
-                  <ImageWidget
-                    src=""
-                    alt="Campus autumn scenery"
-                    styleId="facebook"
-                  />
-                </Element>
+                {/* Default Facebook Post 1 */}
 
-                {/* Engagement row */}
-                <Element
-                  id="facebook-footer"
-                  is={FacebookFooterSection}
-                  canvas
-                >
-                  <ActionBarWidget
-                    likes={47}
-                    comments={12}
-                    shares={8}
-                    styleId="facebook"
-                  />
-                </Element>
+                <PostWidget
+                  styleId="facebook"
+                  username="@emmaw"
+                  displayName="Emma Wilson"
+                  time="2h ago"
+                  avatarSrc=""
+                  imageSrc=""
+                  caption="Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂"
+                  likes={47}
+                  comments={12}
+                  shares={8}
+                />
 
-                {/* Bottom actions */}
-                <Element
-                  id="facebook-actions"
-                  is={FacebookActionButtonsRow}
-                  canvas
-                >
-                  <TextWidget
-                    text="👍 Like"
-                    styleId="facebook"
-                  />
 
-                  <TextWidget
-                    text="💬 Comment"
-                    styleId="facebook"
-                  />
+                {/* Default Facebook Post 2 */}
 
-                  <TextWidget
-                    text="↗ Share"
-                    styleId="facebook"
-                  />
-                </Element>
+                <PostWidget
+                  styleId="facebook"
+                  username="@alexc"
+                  displayName="Alex Chen"
+                  time="4h ago"
+                  avatarSrc=""
+                  imageSrc=""
+                  caption="Working on an interesting social media research project. The differences in UI patterns across platforms are far more significant than I expected. #research #HCI #UXDesign"
+                  likes={31}
+                  comments={6}
+                  shares={3}
+                />
+
               </Element>
+
+
+              {/* Right sidebar */}
+              <div className="w-[250px] shrink-0">
+                <FacebookRightSidebar />
+              </div>
+
             </div>
+
           </div>
-        </div>
+        </Element>
       </Element>
     </div>
   )
 }
 
+
 FacebookTemplate.craft = {
-  displayName: 'Facebook Template',
+  displayName:
+    'Facebook Template',
+
+  props: {
+    canvasComponent:
+      CanvasContainer,
+  },
 }
+
 
 export default FacebookTemplate

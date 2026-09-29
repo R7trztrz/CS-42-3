@@ -28,13 +28,13 @@ function useCraftContainer() {
 
 /*
  * =========================================================
- * Facebook Desktop Shell
+ * Instagram Desktop Shell
  * =========================================================
  *
- * Entire simulated Facebook desktop environment.
+ * Entire Instagram researcher-side desktop environment.
  */
 
-export function FacebookDesktopShell({
+export function InstagramDesktopShell({
   children,
 }: ChildrenProps) {
   const {
@@ -52,7 +52,7 @@ export function FacebookDesktopShell({
           connect(ref)
         }
       }}
-      className={`h-[720px] w-full overflow-hidden bg-[#f0f2f5] ${
+      className={`h-[720px] w-full overflow-hidden bg-white ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
@@ -64,35 +64,25 @@ export function FacebookDesktopShell({
 }
 
 
-FacebookDesktopShell.craft = {
+InstagramDesktopShell.craft = {
   displayName:
-    'Facebook Desktop Shell',
+    'Instagram Desktop Shell',
 }
 
 
 /*
  * =========================================================
- * Facebook Main Feed
+ * Instagram Main Feed
  * =========================================================
  *
+ * Main scrollable center area.
+ *
  * IMPORTANT:
- *
- * Every direct child gets the SAME 12px spacing.
- *
- * Stories
- * ↓ 12px
- * Composer
- * ↓ 12px
- * Post
- * ↓ 12px
- * Post
- * ↓ 12px
- * Newly dragged Post
- *
- * PostWidget itself should NOT have mt-* / mb-*.
+ * The MainFeed itself does NOT control spacing between posts.
+ * Post spacing is handled by InstagramPostList.
  */
 
-export function FacebookMainFeed({
+export function InstagramMainFeed({
   children,
 }: ChildrenProps) {
   const {
@@ -110,13 +100,13 @@ export function FacebookMainFeed({
           connect(ref)
         }
       }}
-      className={`min-w-0 flex-1 overflow-y-auto bg-[#f0f2f5] ${
+      className={`min-w-0 flex-1 overflow-y-auto bg-white ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[580px] flex-col gap-3 px-3 py-4">
+      <div className="mx-auto w-full max-w-[680px] px-4 py-4">
         {children}
       </div>
     </main>
@@ -124,19 +114,35 @@ export function FacebookMainFeed({
 }
 
 
-FacebookMainFeed.craft = {
+InstagramMainFeed.craft = {
   displayName:
-    'Facebook Main Feed',
+    'Instagram Main Feed',
 }
 
 
 /*
  * =========================================================
- * Facebook Composer Card
+ * Instagram Post List
  * =========================================================
+ *
+ * IMPORTANT:
+ *
+ * All Instagram posts should be direct children of this
+ * Craft canvas.
+ *
+ * We deliberately use gap-0.
+ *
+ * Post 1
+ * Post 2
+ * Newly dragged Post
+ * Newly duplicated Post
+ *
+ * No extra vertical spacing is added between them.
+ *
+ * PostWidget itself should also NOT contain mt-* / mb-*.
  */
 
-export function FacebookComposerCard({
+export function InstagramPostList({
   children,
 }: ChildrenProps) {
   const {
@@ -148,40 +154,42 @@ export function FacebookComposerCard({
 
 
   return (
-    <section
+    <div
       ref={(ref) => {
         if (ref) {
           connect(ref)
         }
       }}
-      className={`w-full overflow-hidden rounded-xl border border-[#dddfe2] bg-white shadow-sm ${
+      className={`flex w-full flex-col gap-0 ${
         selected
-          ? 'ring-2 ring-emerald-400 ring-offset-2'
+          ? 'ring-1 ring-inset ring-emerald-300'
           : ''
       }`}
     >
       {children}
-    </section>
+    </div>
   )
 }
 
 
-FacebookComposerCard.craft = {
+InstagramPostList.craft = {
   displayName:
-    'Facebook Composer Card',
+    'Instagram Post List',
 }
 
 
 /*
  * =========================================================
- * Facebook Post Card
+ * Instagram Post Card
  * =========================================================
  *
- * Kept for compatibility with old Craft JSON / resolver.
- * New full posts should preferably use PostWidget.
+ * Kept for compatibility with older Craft JSON / resolver.
+ *
+ * New complete Instagram posts should normally use
+ * PostWidget styleId="instagram".
  */
 
-export function FacebookPostCard({
+export function InstagramPostCard({
   children,
 }: ChildrenProps) {
   const {
@@ -205,7 +213,7 @@ export function FacebookPostCard({
           )
         }
       }}
-      className={`w-full cursor-move overflow-hidden rounded-xl border border-[#dddfe2] bg-white text-[#050505] shadow-sm ${
+      className={`w-full cursor-move bg-white text-[#262626] ${
         selected
           ? 'ring-2 ring-emerald-400 ring-offset-2'
           : ''
@@ -217,19 +225,19 @@ export function FacebookPostCard({
 }
 
 
-FacebookPostCard.craft = {
+InstagramPostCard.craft = {
   displayName:
-    'Facebook Post Card',
+    'Instagram Post Card',
 }
 
 
 /*
  * =========================================================
- * Facebook Post Header Row
+ * Instagram Header Row
  * =========================================================
  */
 
-export function FacebookHeaderRow({
+export function InstagramHeaderRow({
   children,
 }: ChildrenProps) {
   const {
@@ -247,7 +255,7 @@ export function FacebookHeaderRow({
           connect(ref)
         }
       }}
-      className={`flex w-full items-start justify-between px-4 pt-4 ${
+      className={`flex w-full items-center justify-between px-[18px] py-[14px] ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
@@ -259,19 +267,19 @@ export function FacebookHeaderRow({
 }
 
 
-FacebookHeaderRow.craft = {
+InstagramHeaderRow.craft = {
   displayName:
-    'Facebook Header Row',
+    'Instagram Header Row',
 }
 
 
 /*
  * =========================================================
- * Facebook Header Left
+ * Instagram Header Left
  * =========================================================
  */
 
-export function FacebookHeaderLeft({
+export function InstagramHeaderLeft({
   children,
 }: ChildrenProps) {
   const {
@@ -289,7 +297,7 @@ export function FacebookHeaderLeft({
           connect(ref)
         }
       }}
-      className={`flex min-w-0 items-start gap-3 ${
+      className={`flex min-w-0 items-center gap-3 ${
         selected
           ? 'rounded-md ring-1 ring-emerald-300'
           : ''
@@ -301,19 +309,19 @@ export function FacebookHeaderLeft({
 }
 
 
-FacebookHeaderLeft.craft = {
+InstagramHeaderLeft.craft = {
   displayName:
-    'Facebook Header Left',
+    'Instagram Header Left',
 }
 
 
 /*
  * =========================================================
- * Facebook Meta Column
+ * Instagram Meta Column
  * =========================================================
  */
 
-export function FacebookMetaColumn({
+export function InstagramMetaColumn({
   children,
 }: ChildrenProps) {
   const {
@@ -343,19 +351,19 @@ export function FacebookMetaColumn({
 }
 
 
-FacebookMetaColumn.craft = {
+InstagramMetaColumn.craft = {
   displayName:
-    'Facebook Meta Column',
+    'Instagram Meta Column',
 }
 
 
 /*
  * =========================================================
- * Facebook Body Section
+ * Instagram Image Section
  * =========================================================
  */
 
-export function FacebookBodySection({
+export function InstagramImageSection({
   children,
 }: ChildrenProps) {
   const {
@@ -373,7 +381,7 @@ export function FacebookBodySection({
           connect(ref)
         }
       }}
-      className={`w-full px-4 pb-3 pt-2 ${
+      className={`aspect-square w-full overflow-hidden bg-[#f4f5f7] ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
@@ -385,19 +393,19 @@ export function FacebookBodySection({
 }
 
 
-FacebookBodySection.craft = {
+InstagramImageSection.craft = {
   displayName:
-    'Facebook Body Section',
+    'Instagram Image Section',
 }
 
 
 /*
  * =========================================================
- * Facebook Image Section
+ * Instagram Action Row
  * =========================================================
  */
 
-export function FacebookImageSection({
+export function InstagramActionRow({
   children,
 }: ChildrenProps) {
   const {
@@ -415,7 +423,7 @@ export function FacebookImageSection({
           connect(ref)
         }
       }}
-      className={`w-full overflow-hidden bg-[#e9edf2] ${
+      className={`flex w-full items-center justify-between ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
@@ -427,19 +435,19 @@ export function FacebookImageSection({
 }
 
 
-FacebookImageSection.craft = {
+InstagramActionRow.craft = {
   displayName:
-    'Facebook Image Section',
+    'Instagram Action Row',
 }
 
 
 /*
  * =========================================================
- * Facebook Footer Section
+ * Instagram Footer Section
  * =========================================================
  */
 
-export function FacebookFooterSection({
+export function InstagramFooterSection({
   children,
 }: ChildrenProps) {
   const {
@@ -457,7 +465,7 @@ export function FacebookFooterSection({
           connect(ref)
         }
       }}
-      className={`w-full bg-white ${
+      className={`w-full bg-white px-[18px] pb-5 pt-[14px] ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
@@ -469,21 +477,19 @@ export function FacebookFooterSection({
 }
 
 
-FacebookFooterSection.craft = {
+InstagramFooterSection.craft = {
   displayName:
-    'Facebook Footer Section',
+    'Instagram Footer Section',
 }
 
 
 /*
  * =========================================================
- * Facebook Action Buttons Row
+ * Instagram Caption Section
  * =========================================================
- *
- * Compatibility layout for old widget-composed Facebook posts.
  */
 
-export function FacebookActionButtonsRow({
+export function InstagramCaptionSection({
   children,
 }: ChildrenProps) {
   const {
@@ -501,9 +507,9 @@ export function FacebookActionButtonsRow({
           connect(ref)
         }
       }}
-      className={`grid min-h-[52px] w-full grid-cols-3 border-t border-[#ced0d4] px-2 ${
+      className={`w-full ${
         selected
-          ? 'ring-1 ring-inset ring-emerald-300'
+          ? 'rounded-md ring-1 ring-emerald-300'
           : ''
       }`}
     >
@@ -513,7 +519,7 @@ export function FacebookActionButtonsRow({
 }
 
 
-FacebookActionButtonsRow.craft = {
+InstagramCaptionSection.craft = {
   displayName:
-    'Facebook Action Buttons Row',
+    'Instagram Caption Section',
 }
