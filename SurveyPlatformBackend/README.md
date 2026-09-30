@@ -294,10 +294,12 @@ retains incoming references to the now-missing item, and makes that draft visibl
 invalid until repaired. `GET` returns stable item and target IDs, per-item
 reference status, `valid`, and structured `validationIssues`.
 
-This module currently covers authoring-time draft consistency. Participant
-runtime execution, publishing snapshots, and a visual questionnaire editor are
-separate follow-up work; no publish transition should be enabled without the
-snapshot boundary.
+This module currently covers authoring-time draft consistency. Questionnaire
+runtime execution, publication snapshots, and a visual questionnaire editor are
+separate follow-up work. The FR-14 Study publication endpoint is enabled by the
+mainline module, but it currently bypasses questionnaire readiness and snapshot
+creation. A questionnaire-enabled Study must therefore not be treated as having
+a publish-safe questionnaire or participant questionnaire runtime yet.
 
 ## Creating a study with a feed template
 
