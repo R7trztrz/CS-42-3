@@ -573,4 +573,98 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.code")
                         .value("REQUEST_VALIDATION_FAILED"));
     }
+
+
+    /** Verifies that the login endpoint returns 429 after ten requests from the same IP. */
+    @Test
+    void shouldReturnTooManyRequestsWhenLoginRateLimitIsExceeded()
+            throws Exception {
+
+        String clientIp = "192.0.2.210";
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(
+                            post("/auth/login")
+                                    .with(request -> {
+                                        request.setRemoteAddr(clientIp);
+                                        return request;
+                                    })
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("""
+                                {
+                                  "email": "auth-test@example.com",
+                                  "password": "WrongPassword123"
+                                }
+                                """)
+                    )
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(
+                        post("/auth/login")
+                                .with(request -> {
+                                    request.setRemoteAddr(clientIp);
+                                    return request;
+                                })
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                            {
+                              "email": "auth-test@example.com",
+                              "password": "OldPassword123"
+                            }
+                            """)
+                )
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code")
+                        .value("AUTH_RATE_LIMIT_EXCEEDED"));
+    }
+
+    /** Verifies that the registration endpoint returns 429 after five requests from the same IP. */
+    @Test
+    void shouldReturnTooManyRequestsWhenRegistrationRateLimitIsExceeded()
+            throws Exception {
+
+        String clientIp = "192.0.2.211";
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(
+                            post("/auth/register")
+                                    .with(request -> {
+                                        request.setRemoteAddr(clientIp);
+                                        return request;
+                                    })
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content("""
+                                {
+                                  "email": "auth-test@example.com",
+                                  "password": "ValidPassword123",
+                                  "confirmPassword": "ValidPassword123",
+                                  "captchaToken": "test-token"
+                                }
+                                """)
+                    )
+                    .andExpect(status().isConflict());
+        }
+
+        mockMvc.perform(
+                        post("/auth/register")
+                                .with(request -> {
+                                    request.setRemoteAddr(clientIp);
+                                    return request;
+                                })
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                            {
+                              "email": "auth-test@example.com",
+                              "password": "ValidPassword123",
+                              "confirmPassword": "ValidPassword123",
+                              "captchaToken": "test-token"
+                            }
+                            """)
+                )
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code")
+                        .value("AUTH_RATE_LIMIT_EXCEEDED"));
+    }
+
 }
