@@ -667,4 +667,87 @@ class AuthIntegrationTest {
                         .value("AUTH_RATE_LIMIT_EXCEEDED"));
     }
 
+
+    /** Verifies that unexpected registration fields are ignored and cannot change the assigned role. */
+    @Test
+    void shouldIgnoreUnexpectedRegistrationFields() throws Exception {
+
+        mockMvc.perform(
+                        post("/auth/register")
+                                .with(request -> {
+                                    request.setRemoteAddr("192.0.2.230");
+                                    return request;
+                                })
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "email": "minimal-data@example.com",
+                                  "password": "ValidPassword123",
+                                  "confirmPassword": "ValidPassword123",
+                                  "captchaToken": "test-token",
+                                  "role": "ADMIN",
+                                  "phone": "123456789"
+                                }
+                                """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.role")
+                        .value("RESEARCHER"))
+                .andExpect(jsonPath("$.phone").doesNotExist())
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+
+        Researcher savedResearcher = researcherRepository
+                .findByEmail("minimal-data@example.com")
+                .orElseThrow();
+
+        assertEquals(
+                "RESEARCHER",
+                savedResearcher.getRole().name()
+        );
+    }
+
+
+    /** Verifies that unexpected login fields cannot alter the authenticated identity or role. */
+    @Test
+    void shouldIgnoreUnexpectedLoginFields() throws Exception {
+
+        String responseBody =
+                mockMvc.perform(
+                                post("/auth/login")
+                                        .with(request -> {
+                                            request.setRemoteAddr("192.0.2.231");
+                                            return request;
+                                        })
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content("""
+                                        {
+                                          "email": "auth-test@example.com",
+                                          "password": "OldPassword123",
+                                          "role": "ADMIN",
+                                          "phone": "123456789"
+                                        }
+                                        """)
+                        )
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.phone").doesNotExist())
+                        .andExpect(jsonPath("$.password").doesNotExist())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+
+        String token = JsonPath.read(responseBody, "$.token");
+
+        Jwt jwt = jwtDecoder.decode(token);
+
+        assertEquals(
+                researcher.getId().toString(),
+                jwt.getSubject()
+        );
+
+        assertEquals(
+                "RESEARCHER",
+                jwt.getClaimAsString("role")
+        );
+    }
 }
