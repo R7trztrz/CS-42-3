@@ -36,6 +36,7 @@ public class JwtService {
                 .issuedAt(now)
                 .expiresAt(now.plus(2, ChronoUnit.HOURS))
                 .subject(researcher.getId().toString())
+                .claim("userId", researcher.getId().toString())
                 .claim("email", researcher.getEmail())
                 .claim("role", researcher.getRole().name())
                 .build();
