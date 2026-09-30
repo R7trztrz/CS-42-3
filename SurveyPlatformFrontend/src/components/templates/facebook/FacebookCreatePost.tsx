@@ -1,48 +1,98 @@
+import { useNode } from '@craftjs/core'
+
+import FacebookIcon from './FacebookIcon'
+
+
 function FacebookCreatePost() {
+  const {
+    connectors: { connect },
+  } = useNode()
+
   return (
-    <section className="w-full max-w-xl rounded-xl bg-white p-4 shadow-sm">
+    <section
+      ref={(ref) => {
+        if (ref) {
+          connect(ref)
+        }
+      }}
+      className="mx-auto mb-4 w-full max-w-[560px] rounded-xl border border-[#dddfe2] bg-white px-4 py-3 shadow-sm"
+    >
+      {/* Composer row */}
+
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">
+
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#5b49ff] text-[10px] font-bold text-white">
           You
         </div>
 
-        <button
-          type="button"
-          className="flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-left text-sm text-gray-500 hover:bg-gray-200"
-        >
-          What's on your mind?
-        </button>
+        <div className="flex h-10 flex-1 items-center rounded-full bg-[#f0f2f5] px-4 text-[14px] text-[#65676b]">
+          What&apos;s on your mind?
+        </div>
+
       </div>
 
-      <div className="mt-4 border-t border-gray-200 pt-3">
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-          >
-            <span>🎥</span>
-            <span>Live video</span>
-          </button>
 
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-          >
-            <span>🖼️</span>
-            <span>Photo/video</span>
-          </button>
+      <div className="my-3 h-px bg-[#e4e6eb]" />
 
-          <button
-            type="button"
-            className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-          >
-            <span>😊</span>
-            <span>Feeling</span>
-          </button>
+
+      {/* Actions */}
+
+      <div className="grid grid-cols-3">
+
+        <div className="flex items-center justify-center gap-2 rounded-md py-2 text-[#65676b] hover:bg-[#f0f2f5]">
+
+          <FacebookIcon
+            name="camera"
+            size={20}
+            className="text-[#f3425f]"
+          />
+
+          <span className="text-[13px] font-medium">
+            Live video
+          </span>
+
         </div>
+
+
+        <div className="flex items-center justify-center gap-2 rounded-md py-2 text-[#65676b] hover:bg-[#f0f2f5]">
+
+          <FacebookIcon
+            name="photo"
+            size={20}
+            className="text-[#45bd62]"
+          />
+
+          <span className="text-[13px] font-medium">
+            Photo/video
+          </span>
+
+        </div>
+
+
+        <div className="flex items-center justify-center gap-2 rounded-md py-2 text-[#65676b] hover:bg-[#f0f2f5]">
+
+          <FacebookIcon
+            name="smile"
+            size={20}
+            className="text-[#f7b928]"
+          />
+
+          <span className="text-[13px] font-medium">
+            Feeling
+          </span>
+
+        </div>
+
       </div>
     </section>
   )
 }
+
+
+FacebookCreatePost.craft = {
+  displayName:
+    'Facebook Create Post',
+}
+
 
 export default FacebookCreatePost

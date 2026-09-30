@@ -1,0 +1,207 @@
+{
+  "ROOT": {
+    "type": {
+      "resolvedName": "InstagramTemplate"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Instagram Template",
+    "custom": {},
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {
+      "instagram-root": "hsWxC1sAYD"
+    }
+  },
+  "hsWxC1sAYD": {
+    "type": {
+      "resolvedName": "ResearcherEditCanvas"
+    },
+    "isCanvas": true,
+    "props": {},
+    "displayName": "Researcher Edit Canvas",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [
+      "YyE-MesIeM"
+    ],
+    "linkedNodes": {}
+  },
+  "YyE-MesIeM": {
+    "type": {
+      "resolvedName": "InstagramDesktopShell"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "instagram-shell"
+    },
+    "displayName": "Instagram Desktop Shell",
+    "custom": {},
+    "parent": "hsWxC1sAYD",
+    "hidden": false,
+    "nodes": [
+      "JgB2w0J6qE"
+    ],
+    "linkedNodes": {}
+  },
+  "JgB2w0J6qE": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full w-full overflow-hidden bg-white"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "YyE-MesIeM",
+    "hidden": false,
+    "nodes": [
+      "NsqS1dxBc3",
+      "UXbKCIdfFF",
+      "lZkRNIQQMt"
+    ],
+    "linkedNodes": {}
+  },
+  "NsqS1dxBc3": {
+    "type": {
+      "resolvedName": "InstagramSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Instagram Sidebar",
+    "custom": {},
+    "parent": "JgB2w0J6qE",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "UXbKCIdfFF": {
+    "type": {
+      "resolvedName": "InstagramMainFeed"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "instagram-main-feed"
+    },
+    "displayName": "Instagram Main Feed",
+    "custom": {},
+    "parent": "JgB2w0J6qE",
+    "hidden": false,
+    "nodes": [
+      "9b5z1Pcrew"
+    ],
+    "linkedNodes": {}
+  },
+  "9b5z1Pcrew": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "mx-auto w-full max-w-[560px]"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "UXbKCIdfFF",
+    "hidden": false,
+    "nodes": [
+      "RxGCXXGFkp",
+      "Q42dir7f_O"
+    ],
+    "linkedNodes": {}
+  },
+  "RxGCXXGFkp": {
+    "type": {
+      "resolvedName": "InstagramStories"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Instagram Stories",
+    "custom": {},
+    "parent": "9b5z1Pcrew",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "Q42dir7f_O": {
+    "type": {
+      "resolvedName": "InstagramPostList"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "instagram-post-list"
+    },
+    "displayName": "Instagram Post List",
+    "custom": {},
+    "parent": "9b5z1Pcrew",
+    "hidden": false,
+    "nodes": [
+      "FGXx7i49Cl",
+      "H33EAyVTGn"
+    ],
+    "linkedNodes": {}
+  },
+  "FGXx7i49Cl": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "instagram",
+      "username": "@emmaw",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "Q42dir7f_O",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "H33EAyVTGn": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "instagram",
+      "username": "@alexc",
+      "displayName": "Alex Chen",
+      "time": "4h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Another beautiful day around campus.",
+      "likes": 23,
+      "comments": 4,
+      "shares": 2,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "Q42dir7f_O",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "lZkRNIQQMt": {
+    "type": {
+      "resolvedName": "InstagramSuggestions"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Instagram Suggestions",
+    "custom": {},
+    "parent": "JgB2w0J6qE",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}

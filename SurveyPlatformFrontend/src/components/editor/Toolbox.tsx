@@ -5,6 +5,7 @@ import {
   TextWidget,
   ImageWidget,
   ActionBarWidget,
+  PostWidget,
 } from '../widgets'
 
 import type { PlatformStyle } from '../widgets/types'
@@ -38,7 +39,35 @@ function Toolbox({
         Drag a component onto the canvas.
       </p>
 
+
       <div className="mt-5 space-y-3">
+
+        {/* Full Post Widget */}
+        <button
+          ref={(ref) => {
+            if (ref) {
+              connectors.create(
+                ref,
+                <PostWidget
+                  styleId={styleId}
+                  displayName="Emma Wilson"
+                  username="@emmaw"
+                  time="2h ago"
+                  caption="Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂"
+                  likes={47}
+                  comments={12}
+                  shares={8}
+                />,
+              )
+            }
+          }}
+          type="button"
+          className={toolButtonClass}
+        >
+          Post
+        </button>
+
+
         {/* Text Widget */}
         <button
           ref={(ref) => {
@@ -58,6 +87,7 @@ function Toolbox({
           Text
         </button>
 
+
         {/* Avatar Widget */}
         <button
           ref={(ref) => {
@@ -76,6 +106,7 @@ function Toolbox({
           Avatar
         </button>
 
+
         {/* Image Widget */}
         <button
           ref={(ref) => {
@@ -93,6 +124,7 @@ function Toolbox({
         >
           Image
         </button>
+
 
         {/* Action Bar Widget */}
         <button
@@ -114,9 +146,11 @@ function Toolbox({
         >
           Action Bar
         </button>
+
       </div>
     </div>
   )
 }
+
 
 export default Toolbox

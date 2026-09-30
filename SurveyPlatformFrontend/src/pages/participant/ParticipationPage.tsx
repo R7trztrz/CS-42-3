@@ -1,7 +1,18 @@
-import { Editor, Frame } from '@craftjs/core'
+import {
+  Editor,
+  Frame,
+} from '@craftjs/core'
+
 import axios from 'axios'
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+
+import {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  useParams,
+} from 'react-router-dom'
 
 import CanvasContainer from '../../components/editor/CanvasContainer'
 import InterfaceErrorBoundary from '../../components/editor/InterfaceErrorBoundary'
@@ -10,36 +21,89 @@ import {
   ActionBarWidget,
   AvatarWidget,
   ImageWidget,
+  PostWidget,
   TextWidget,
 } from '../../components/widgets'
 
+/*
+ * Facebook
+ */
 import FacebookTemplate from '../../components/templates/facebook/FacebookTemplate'
 import FacebookTopBar from '../../components/templates/facebook/FacebookTopBar'
 import FacebookStories from '../../components/templates/facebook/FacebookStories'
 import FacebookCreatePost from '../../components/templates/facebook/FacebookCreatePost'
+import FacebookIcon from '../../components/templates/facebook/FacebookIcon'
+import FacebookLeftSidebar from '../../components/templates/facebook/FacebookLeftSidebar'
+import FacebookRightSidebar from '../../components/templates/facebook/FacebookRightSidebar'
 
 import {
   FacebookActionButtonsRow,
   FacebookBodySection,
   FacebookComposerCard,
+  FacebookDesktopShell,
   FacebookFooterSection,
   FacebookHeaderLeft,
   FacebookHeaderRow,
   FacebookImageSection,
+  FacebookMainFeed,
   FacebookMetaColumn,
   FacebookPostCard,
 } from '../../components/templates/facebook/FacebookLayout'
 
+/*
+ * Instagram
+ */
+import InstagramTemplate from '../../components/templates/instagram/InstagramTemplate'
+import InstagramSidebar from '../../components/templates/instagram/InstagramSidebar'
+import InstagramStories from '../../components/templates/instagram/InstagramStories'
+import InstagramSuggestions from '../../components/templates/instagram/InstagramSuggestions'
+import InstagramIcon from '../../components/templates/instagram/InstagramIcon'
+
+import {
+  InstagramActionRow,
+  InstagramCaptionSection,
+  InstagramDesktopShell,
+  InstagramFooterSection,
+  InstagramHeaderLeft,
+  InstagramHeaderRow,
+  InstagramImageSection,
+  InstagramMainFeed,
+  InstagramMetaColumn,
+  InstagramPostCard,
+  InstagramPostList,
+} from '../../components/templates/instagram/InstagramLayout'
+
+/*
+ * TikTok
+ */
+import TikTokTemplate from '../../components/templates/tiktok/TikTokTemplate'
+import TikTokIcon from '../../components/templates/tiktok/TikTokIcon'
+import TikTokSidebar from '../../components/templates/tiktok/TikTokSidebar'
+
+import {
+  TikTokActionRail,
+  TikTokDesktopShell,
+  TikTokFeedStage,
+  TikTokMainArea,
+  TikTokPostStage,
+  TikTokVideoCard,
+} from '../../components/templates/tiktok/TikTokLayout'
+
+/*
+ * Participation API
+ */
 import {
   getParticipation,
   type ParticipationResponse,
 } from '../../services/studyApi'
 
-
+/*
+ * Old Craft component names that may still exist
+ * inside previously saved Study feeds.
+ */
 const legacyComponentNames: Record<string, string> = {
   ResearcherEditCanvas: 'CanvasContainer',
 }
-
 
 function normalizePublishedContent(
   value: unknown,
@@ -86,13 +150,18 @@ function normalizePublishedContent(
   )
 }
 
-
 function getParticipationError(
   error: unknown,
 ) {
   if (axios.isAxiosError(error)) {
     if (!error.response) {
       return 'Unable to reach the study server.'
+    }
+
+    if (
+      error.response.status === 401
+    ) {
+      return 'This participation session is not authorised.'
     }
 
     if (
@@ -117,12 +186,12 @@ function getParticipationError(
   return 'The study could not be loaded.'
 }
 
-
 function ParticipationPage() {
-  const { token } =
-    useParams<{
-      token: string
-    }>()
+  const {
+    token,
+  } = useParams<{
+    token: string
+  }>()
 
   const [
     participation,
@@ -141,7 +210,6 @@ function ParticipationPage() {
     isLoading,
     setIsLoading,
   ] = useState(true)
-
 
   useEffect(() => {
     let ignore = false
@@ -191,16 +259,15 @@ function ParticipationPage() {
     return () => {
       ignore = true
     }
-  }, [token])
-
+  }, [
+    token,
+  ])
 
   return (
     <div className="min-h-screen bg-[#f3f6f8] text-[#172033]">
-
+      {/* Participant header */}
       <header className="border-b border-[#314158] bg-[#101b2b] px-5 py-5 text-white md:px-8">
-
-        <div className="mx-auto flex w-full max-w-5xl items-center gap-4">
-
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-500 text-sm font-bold text-[#101b2b]">
             SP
           </div>
@@ -214,25 +281,24 @@ function ParticipationPage() {
               Survey Platform
             </h1>
           </div>
-
         </div>
-
       </header>
 
-
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 md:px-8 md:py-10">
-
+      <main className="mx-auto w-full max-w-[110rem] px-5 py-8 md:px-8 md:py-10">
+        {/* Loading */}
         {isLoading && (
-          <p className="py-20 text-center text-sm text-gray-600">
+          <p
+            className="py-20 text-center text-sm text-gray-600"
+            role="status"
+          >
             Loading study...
           </p>
         )}
 
-
+        {/* Error */}
         {!isLoading &&
           errorMessage && (
-            <section className="rounded-md border border-red-200 bg-white px-6 py-16 text-center shadow-sm">
-
+            <section className="mx-auto max-w-3xl rounded-md border border-red-200 bg-white px-6 py-16 text-center shadow-sm">
               <h2 className="text-xl font-semibold">
                 Study unavailable
               </h2>
@@ -243,16 +309,15 @@ function ParticipationPage() {
               >
                 {errorMessage}
               </p>
-
             </section>
           )}
 
-
+        {/* Participation */}
         {!isLoading &&
           participation && (
             <>
+              {/* Study information */}
               <section className="mb-6 border-b border-gray-300 pb-6">
-
                 <p className="text-sm font-semibold text-emerald-700">
                   Participant view
                 </p>
@@ -270,14 +335,11 @@ function ParticipationPage() {
                     }
                   </p>
                 )}
-
               </section>
 
-
-              <section className="rounded-md border border-gray-200 bg-white p-5 shadow-sm md:p-8 [&_.cursor-move]:cursor-default">
-
+              {/* Published interface */}
+              <section className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm [&_.cursor-move]:cursor-default">
                 <InterfaceErrorBoundary>
-
                   <Editor
                     enabled={false}
                     resolver={{
@@ -288,27 +350,26 @@ function ParticipationPage() {
                       AvatarWidget,
                       ImageWidget,
                       ActionBarWidget,
+                      PostWidget,
 
                       /*
-                       * Legacy / shared canvas
+                       * Shared canvas
                        */
                       CanvasContainer,
 
                       /*
-                       * Facebook template
+                       * Facebook
                        */
                       FacebookTemplate,
-
-                      /*
-                       * Facebook fixed shell
-                       */
                       FacebookTopBar,
                       FacebookStories,
                       FacebookCreatePost,
+                      FacebookIcon,
+                      FacebookLeftSidebar,
+                      FacebookRightSidebar,
 
-                      /*
-                       * Facebook layout nodes
-                       */
+                      FacebookDesktopShell,
+                      FacebookMainFeed,
                       FacebookComposerCard,
                       FacebookPostCard,
                       FacebookHeaderRow,
@@ -318,6 +379,41 @@ function ParticipationPage() {
                       FacebookImageSection,
                       FacebookFooterSection,
                       FacebookActionButtonsRow,
+
+                      /*
+                       * Instagram
+                       */
+                      InstagramTemplate,
+                      InstagramSidebar,
+                      InstagramStories,
+                      InstagramSuggestions,
+                      InstagramIcon,
+
+                      InstagramDesktopShell,
+                      InstagramMainFeed,
+                      InstagramPostList,
+                      InstagramPostCard,
+                      InstagramHeaderRow,
+                      InstagramHeaderLeft,
+                      InstagramMetaColumn,
+                      InstagramImageSection,
+                      InstagramActionRow,
+                      InstagramFooterSection,
+                      InstagramCaptionSection,
+
+                      /*
+                       * TikTok
+                       */
+                      TikTokTemplate,
+                      TikTokIcon,
+                      TikTokSidebar,
+
+                      TikTokDesktopShell,
+                      TikTokMainArea,
+                      TikTokFeedStage,
+                      TikTokPostStage,
+                      TikTokVideoCard,
+                      TikTokActionRail,
                     }}
                   >
                     <Frame
@@ -328,18 +424,13 @@ function ParticipationPage() {
                       )}
                     />
                   </Editor>
-
                 </InterfaceErrorBoundary>
-
               </section>
             </>
           )}
-
       </main>
-
     </div>
   )
 }
-
 
 export default ParticipationPage
