@@ -31,5 +31,6 @@ export interface ChangePasswordRequest {
 }
 
 export interface ApiErrorResponse {
+    code?: string
     error?: string
 }

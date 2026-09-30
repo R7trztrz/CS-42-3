@@ -28,7 +28,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V7/V8 constraints and questionnaire mappings. */
+/** PostgreSQL integration coverage for V9/V10 constraints and questionnaire mappings. */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"

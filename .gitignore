@@ -4,7 +4,14 @@
 # Keep the root ignore rules and project README under version control.
 !/.gitignore
 !/README.md
+!/docker-compose.yml
+!/.env.docker.example
 
 # Allow the application directories; their own ignore rules still apply.
 !/SurveyPlatformBackend/
 !/SurveyPlatformFrontend/
+
+# GitHub Actions workflows
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml

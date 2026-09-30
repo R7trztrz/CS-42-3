@@ -1,0 +1,248 @@
+{
+  "ROOT": {
+    "type": {
+      "resolvedName": "FacebookTemplate"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Template",
+    "custom": {},
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {
+      "facebook-root": "lEm8ZkjVKg"
+    }
+  },
+  "lEm8ZkjVKg": {
+    "type": {
+      "resolvedName": "ResearcherEditCanvas"
+    },
+    "isCanvas": true,
+    "props": {},
+    "displayName": "Researcher Edit Canvas",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [
+      "3mg3HffB8l"
+    ],
+    "linkedNodes": {}
+  },
+  "3mg3HffB8l": {
+    "type": {
+      "resolvedName": "FacebookDesktopShell"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "facebook-shell"
+    },
+    "displayName": "Facebook Desktop Shell",
+    "custom": {},
+    "parent": "lEm8ZkjVKg",
+    "hidden": false,
+    "nodes": [
+      "NyS7RFSZYh"
+    ],
+    "linkedNodes": {}
+  },
+  "NyS7RFSZYh": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full w-full flex-col overflow-hidden bg-[#f0f2f5]"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "3mg3HffB8l",
+    "hidden": false,
+    "nodes": [
+      "GVrIRKbW8q",
+      "8enqmx05R0"
+    ],
+    "linkedNodes": {}
+  },
+  "GVrIRKbW8q": {
+    "type": {
+      "resolvedName": "FacebookTopBar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Top Bar",
+    "custom": {},
+    "parent": "NyS7RFSZYh",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "8enqmx05R0": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex min-h-0 flex-1 overflow-hidden"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "NyS7RFSZYh",
+    "hidden": false,
+    "nodes": [
+      "WbxB0qd8fs",
+      "qFPl3Rkggc",
+      "BL62VtZ_fX"
+    ],
+    "linkedNodes": {}
+  },
+  "WbxB0qd8fs": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "w-[250px] shrink-0"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "8enqmx05R0",
+    "hidden": false,
+    "nodes": [
+      "UUIvA03JT8"
+    ],
+    "linkedNodes": {}
+  },
+  "UUIvA03JT8": {
+    "type": {
+      "resolvedName": "FacebookLeftSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Left Sidebar",
+    "custom": {},
+    "parent": "WbxB0qd8fs",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "qFPl3Rkggc": {
+    "type": {
+      "resolvedName": "FacebookMainFeed"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "facebook-main-feed"
+    },
+    "displayName": "Facebook Main Feed",
+    "custom": {},
+    "parent": "8enqmx05R0",
+    "hidden": false,
+    "nodes": [
+      "sNgoc6u-rG",
+      "lRIbDlz6XJ",
+      "qsG_PWVhkg",
+      "87buOFQaPn"
+    ],
+    "linkedNodes": {}
+  },
+  "sNgoc6u-rG": {
+    "type": {
+      "resolvedName": "FacebookStories"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Stories",
+    "custom": {},
+    "parent": "qFPl3Rkggc",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "lRIbDlz6XJ": {
+    "type": {
+      "resolvedName": "FacebookCreatePost"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Create Post",
+    "custom": {},
+    "parent": "qFPl3Rkggc",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "qsG_PWVhkg": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "facebook",
+      "username": "@emmaw",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "qFPl3Rkggc",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "87buOFQaPn": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "facebook",
+      "username": "@alexc",
+      "displayName": "Alex Chen",
+      "time": "4h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Working on an interesting social media research project. The differences in UI patterns across platforms are far more significant than I expected. #research #HCI #UXDesign",
+      "likes": 31,
+      "comments": 6,
+      "shares": 3,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "qFPl3Rkggc",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "BL62VtZ_fX": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "w-[250px] shrink-0"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "8enqmx05R0",
+    "hidden": false,
+    "nodes": [
+      "UzTW2-yAuo"
+    ],
+    "linkedNodes": {}
+  },
+  "UzTW2-yAuo": {
+    "type": {
+      "resolvedName": "FacebookRightSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Facebook Right Sidebar",
+    "custom": {},
+    "parent": "BL62VtZ_fX",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}

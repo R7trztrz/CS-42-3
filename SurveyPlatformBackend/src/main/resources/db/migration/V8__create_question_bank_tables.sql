@@ -1,4 +1,4 @@
--- Create the reusable question bank required by FR32-FR35 after the main V1-V5 baseline.
+-- Create the reusable question bank required by FR32-FR35 after the main V1-V7 baseline.
 -- UUID identifiers are assigned by the application, matching V1 and V2.
 CREATE TABLE questions (
     id UUID NOT NULL,

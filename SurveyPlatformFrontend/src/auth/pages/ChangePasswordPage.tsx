@@ -1,3 +1,4 @@
+import { ApiError } from '../api/ApiError'
 import { useState, type FormEvent } from 'react'
 import { changePassword } from '../api/authApi'
 
@@ -41,8 +42,23 @@ export default function ChangePasswordPage() {
             setNewPassword('')
             setConfirmNewPassword('')
         } catch (error) {
-            if (error instanceof Error) {
-                setError(error.message)
+            if (error instanceof ApiError) {
+                switch (error.code) {
+                    case 'AUTH_CURRENT_PASSWORD_INCORRECT':
+                        setError('Current password is incorrect.')
+                        break
+
+                    case 'AUTH_PASSWORD_MISMATCH':
+                        setError('New passwords do not match.')
+                        break
+
+                    case 'REQUEST_VALIDATION_FAILED':
+                        setError(error.message)
+                        break
+
+                    default:
+                        setError(error.message)
+                }
             } else {
                 setError('Password change failed.')
             }

@@ -88,7 +88,7 @@ public class StudyServiceImpl implements StudyService {
                     "Page must be nonnegative and size must be between 1 and 100.");
         }
         var pageable = PageRequest.of(page, size,
-                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.asc("id")));
         return studyRepository.findAllByOwnerId(ownerId, pageable);
     }
 

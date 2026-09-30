@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * Independent feed copy owned by a study, identified by that study's UUID.
- * Content editing and publishing are separate operations to be implemented later.
+ * Stores editable draft content independently from the selected template.
  *
  * @author Simon Tian
  */
@@ -30,6 +30,9 @@ public class StudyFeed {
     @Column(length = 32)
     private String theme;
 
+    // TODO(FR-30 follow-up sprint): Validate Craft.js root and node structure,
+    // registered widget types, prop types, references, cycles, duplicate mounts,
+    // document size, and study-scoped asset references before accepting saves.
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String content;
@@ -54,6 +57,11 @@ public class StudyFeed {
         theme = template.getTheme();
         content = template.getContent();
         schemaVersion = template.getSchemaVersion();
+    }
+
+    /** Replaces the complete document while preserving template metadata. */
+    public void replaceContent(String content) {
+        this.content = java.util.Objects.requireNonNull(content, "Content is required.");
     }
 
     @PrePersist

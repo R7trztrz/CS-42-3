@@ -9,6 +9,7 @@ import {
 import Toolbox from '../../components/editor/Toolbox'
 import PropertiesPanel from '../../components/editor/PropertiesPanel'
 
+
 const templateNames = {
   facebook: 'Facebook',
   instagram: 'Instagram',
@@ -102,7 +103,7 @@ function WidgetEditor() {
 
         <div className="grid grid-cols-[260px_minmax(0,1fr)_320px] items-start gap-6">
           <div className="min-w-0">
-            <Toolbox />
+            <Toolbox styleId="facebook" />
           </div>
 
           <div className="min-w-0">
