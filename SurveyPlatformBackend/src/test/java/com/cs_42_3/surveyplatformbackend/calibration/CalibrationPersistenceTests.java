@@ -13,7 +13,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -29,13 +34,34 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Exercises FR-49 persistence against a real PostgreSQL schema, so that the entity mapping,
  * the Flyway migration and the CHECK constraints are verified together.
  *
- * <p>Requires the datasource environment variables described in the backend README.
+ * <p>Starts its own PostgreSQL container, like the other integration tests in this module, so
+ * no datasource environment variables are needed.
  *
  * @author Shuo Gu
  */
+@Testcontainers
 @SpringBootTest
 @Transactional
 class CalibrationPersistenceTests {
+
+    @Container
+    static final PostgreSQLContainer<?> postgres =
+            new PostgreSQLContainer<>("postgres:16-alpine")
+                    .withDatabaseName("survey_platform_test")
+                    .withUsername("test")
+                    .withPassword("test");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+
+        registry.add(
+                "security.jwt.secret",
+                () -> "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+        );
+    }
 
     private static final Instant STARTED_AT = Instant.parse("2026-09-12T04:11:02.310Z");
     private static final Instant FINISHED_AT = Instant.parse("2026-09-12T04:12:18.774Z");
