@@ -49,3 +49,5 @@ export {
   medianResidualPx,
   trimmedMean,
 } from './calibration/residuals'
+/** FR-50 gaze collection and widget attribution; see ./gaze/index.ts for the full surface. */
+export * from './gaze'

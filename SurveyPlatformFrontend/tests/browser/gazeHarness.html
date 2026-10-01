@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FR-50 gaze collection harness</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; padding: 0; }
+      #chrome { height: 72px; display: flex; align-items: center; padding: 0 16px;
+                background: #24303f; color: #fff; font-weight: 600; }
+      main { padding: 16px; display: grid; gap: 16px; }
+      #board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+      .widget { border: 1px solid #9aa7b8; border-radius: 10px; padding: 16px; background: #f4f7fb; }
+      .widget h2 { margin: 0 0 8px; font-size: 15px; }
+      .leaf { margin: 0; padding: 18px 10px; border-radius: 6px; background: #dde6f2; font-size: 13px; }
+      #unmarked { border: 1px dashed #c08a3e; border-radius: 10px; padding: 16px; background: #fdf6e8; }
+      #status { position: fixed; right: 12px; bottom: 12px; max-width: 46ch; padding: 10px 12px;
+                border-radius: 8px; background: rgba(20, 24, 30, 0.88); color: #f2f5f9;
+                font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap;
+                pointer-events: none; }
+      #dot { position: fixed; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+             background: rgba(220, 60, 60, 0.85); pointer-events: none; display: none; }
+    </style>
+  </head>
+  <body>
+    <header id="chrome">Survey chrome — deliberately carries no data-widget-id</header>
+    <main>
+      <section id="board">
+        <article class="widget" data-widget-id="question-1"><h2>Question 1</h2><p class="leaf">Nested content</p></article>
+        <article class="widget" data-widget-id="question-2"><h2>Question 2</h2><p class="leaf">Nested content</p></article>
+        <article class="widget" data-widget-id="question-3"><h2>Question 3</h2><p class="leaf">Nested content</p></article>
+        <article class="widget" data-widget-id="question-4"><h2>Question 4</h2><p class="leaf">Nested content</p></article>
+      </section>
+      <section id="unmarked"><h2>Not yet injected</h2><p class="leaf">Nested content</p></section>
+    </main>
+    <div id="dot"></div>
+    <pre id="status">Harness idle — no camera is requested.</pre>
+    <script type="module" src="./gazeHarness.ts"></script>
+  </body>
+</html>
