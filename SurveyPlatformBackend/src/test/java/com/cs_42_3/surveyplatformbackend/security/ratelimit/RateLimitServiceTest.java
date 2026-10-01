@@ -1,4 +1,3 @@
-
 package com.cs_42_3.surveyplatformbackend.security.ratelimit;
 
 import io.github.bucket4j.TimeMeter;

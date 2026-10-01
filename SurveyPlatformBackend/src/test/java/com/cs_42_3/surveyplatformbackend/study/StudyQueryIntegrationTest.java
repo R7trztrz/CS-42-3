@@ -1,4 +1,3 @@
-
 package com.cs_42_3.surveyplatformbackend.study;
 
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
