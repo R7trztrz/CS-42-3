@@ -55,6 +55,7 @@ class QuestionnaireConcurrencyIntegrationTest {
     private UUID studyId;
     private UUID firstQuestionId;
     private UUID secondQuestionId;
+    private UUID thirdQuestionId;
 
     @BeforeEach
     void setUp() {
@@ -72,6 +73,7 @@ class QuestionnaireConcurrencyIntegrationTest {
         ).getId();
         firstQuestionId = saveQuestion("First concurrent question").getId();
         secondQuestionId = saveQuestion("Second concurrent question").getId();
+        thirdQuestionId = saveQuestion("Third concurrent question").getId();
         when(currentResearcher.getId()).thenReturn(researcherId);
     }
 
@@ -104,6 +106,33 @@ class QuestionnaireConcurrencyIntegrationTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(success.created()).isTrue();
+    }
+
+    @Test
+    void concurrentUpdatesUsingTheSameExpectedVersionAllowExactlyOneChange() throws Exception {
+        QuestionnaireSaveResult created = questionnaireService.saveQuestionnaire(
+                studyId,
+                request(firstQuestionId)
+        );
+        UUID itemId = created.response().items().get(0).itemId();
+        long expectedVersion = created.response().version();
+
+        List<Object> outcomes = executeConcurrently(
+                updateRequest(expectedVersion, itemId, secondQuestionId),
+                updateRequest(expectedVersion, itemId, thirdQuestionId)
+        );
+
+        assertThat(outcomes.stream().filter(QuestionnaireSaveResult.class::isInstance)).hasSize(1);
+        assertThat(outcomes.stream().filter(QuestionnaireVersionConflictException.class::isInstance))
+                .hasSize(1);
+        QuestionnaireSaveResult success = outcomes.stream()
+                .filter(QuestionnaireSaveResult.class::isInstance)
+                .map(QuestionnaireSaveResult.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertThat(success.created()).isFalse();
+        assertThat(success.response().items().get(0).question().questionId())
+                .isIn(secondQuestionId, thirdQuestionId);
     }
 
     private List<Object> executeConcurrently(
@@ -141,6 +170,17 @@ class QuestionnaireConcurrencyIntegrationTest {
         return new SaveQuestionnaireRequest(
                 null,
                 List.of(new SaveQuestionnaireItemRequest(null, questionId))
+        );
+    }
+
+    private SaveQuestionnaireRequest updateRequest(
+            long expectedVersion,
+            UUID itemId,
+            UUID questionId
+    ) {
+        return new SaveQuestionnaireRequest(
+                expectedVersion,
+                List.of(new SaveQuestionnaireItemRequest(itemId, questionId))
         );
     }
 

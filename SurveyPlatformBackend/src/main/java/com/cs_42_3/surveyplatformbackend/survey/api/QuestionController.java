@@ -2,7 +2,7 @@ package com.cs_42_3.surveyplatformbackend.survey.api;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionPageResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
@@ -33,7 +33,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -54,10 +53,16 @@ public class QuestionController {
     @GetMapping
     @Operation(
             operationId = "listQuestions",
-            summary = "Lists the current researcher's reusable questions"
+            summary = "Lists the current researcher's reusable questions",
+            description = "Applies owner, optional type, and optional text filters before stable pagination. "
+                    + "Ordered by update time descending, then question ID descending."
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Questions returned"),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Question page returned",
+                    content = @Content(schema = @Schema(implementation = QuestionPageResponse.class))
+            ),
             @ApiResponse(
                     responseCode = "400",
                     description = "A filter value is malformed",
@@ -66,13 +71,17 @@ public class QuestionController {
             @ApiResponse(responseCode = "401", description = "Authentication required"),
             @ApiResponse(responseCode = "403", description = "Researcher role required")
     })
-    public ResponseEntity<List<QuestionSummaryResponse>> listQuestions(
+    public ResponseEntity<QuestionPageResponse> listQuestions(
+            @Parameter(description = "Zero-based page index", schema = @Schema(minimum = "0"))
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size", schema = @Schema(minimum = "1", maximum = "100"))
+            @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Optional exact question type filter")
             @RequestParam(required = false) QuestionType type,
             @Parameter(description = "Optional case-insensitive question text fragment")
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String search
     ) {
-        return ResponseEntity.ok(questionService.listQuestions(type, keyword));
+        return ResponseEntity.ok(questionService.listQuestions(type, search, page, size));
     }
 
     @GetMapping("/{questionId}")

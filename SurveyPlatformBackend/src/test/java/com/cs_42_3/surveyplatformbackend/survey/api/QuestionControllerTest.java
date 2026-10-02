@@ -2,6 +2,7 @@ package com.cs_42_3.surveyplatformbackend.survey.api;
 
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionResponse;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionPageResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
@@ -67,8 +68,8 @@ class QuestionControllerTest {
 
     @Test
     void listQuestionsReturnsSummaryResponseAndPassesFilters() throws Exception {
-        when(questionService.listQuestions(QuestionType.TEXT, "feedback"))
-                .thenReturn(List.of(
+        when(questionService.listQuestions(QuestionType.TEXT, "feedback", 0, 2))
+                .thenReturn(new QuestionPageResponse(List.of(
                         new QuestionSummaryResponse(
                                 QUESTION_ID,
                                 QuestionType.TEXT,
@@ -81,21 +82,27 @@ class QuestionControllerTest {
                                 "Older feedback",
                                 UPDATED_AT.minusSeconds(60)
                         )
-                ));
+                ), 0, 2, 2, 1));
 
         mockMvc.perform(get("/api/questions")
                         .with(researcherJwt())
+                        .param("page", "0")
+                        .param("size", "2")
                         .param("type", "TEXT")
-                        .param("keyword", "feedback"))
+                        .param("search", "feedback"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].questionId").value(QUESTION_ID.toString()))
-                .andExpect(jsonPath("$[0].type").value("TEXT"))
-                .andExpect(jsonPath("$[0].questionText").value("Share feedback"))
-                .andExpect(jsonPath("$[0].updatedAt").value(UPDATED_AT.toString()))
-                .andExpect(jsonPath("$[0].options").doesNotExist())
-                .andExpect(jsonPath("$[1].questionId").value(OLDER_QUESTION_ID.toString()));
+                .andExpect(jsonPath("$.content[0].questionId").value(QUESTION_ID.toString()))
+                .andExpect(jsonPath("$.content[0].type").value("TEXT"))
+                .andExpect(jsonPath("$.content[0].questionText").value("Share feedback"))
+                .andExpect(jsonPath("$.content[0].updatedAt").value(UPDATED_AT.toString()))
+                .andExpect(jsonPath("$.content[0].options").doesNotExist())
+                .andExpect(jsonPath("$.content[1].questionId").value(OLDER_QUESTION_ID.toString()))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1));
 
-        verify(questionService).listQuestions(QuestionType.TEXT, "feedback");
+        verify(questionService).listQuestions(QuestionType.TEXT, "feedback", 0, 2);
     }
 
     @Test

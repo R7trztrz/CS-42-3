@@ -16,6 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -134,8 +137,9 @@ class QuestionRepositoryIntegrationTest {
         List<Question> results = questionRepository.searchQuestions(
                 researcherId,
                 null,
-                null
-        );
+                null,
+                questionPage(0, 20)
+        ).getContent();
         List<UUID> tiedIds = List.of(first.getId(), second.getId()).stream()
                 .sorted(Comparator.comparing(UUID::toString).reversed())
                 .toList();
@@ -157,8 +161,9 @@ class QuestionRepositoryIntegrationTest {
         List<Question> results = questionRepository.searchQuestions(
                 researcherId,
                 QuestionType.SCALE,
-                null
-        );
+                null,
+                questionPage(0, 20)
+        ).getContent();
 
         assertThat(results)
                 .extracting(Question::getId)
@@ -178,8 +183,9 @@ class QuestionRepositoryIntegrationTest {
         List<Question> results = questionRepository.searchQuestions(
                 researcherId,
                 null,
-                "target"
-        );
+                "target",
+                questionPage(0, 20)
+        ).getContent();
 
         assertThat(results)
                 .extracting(Question::getQuestionText)
@@ -195,8 +201,9 @@ class QuestionRepositoryIntegrationTest {
         List<Question> results = questionRepository.searchQuestions(
                 researcherId,
                 QuestionType.TEXT,
-                "target"
-        );
+                "target",
+                questionPage(0, 20)
+        ).getContent();
 
         assertThat(results)
                 .extracting(Question::getId)
@@ -295,11 +302,18 @@ class QuestionRepositoryIntegrationTest {
         entityManager.clear();
 
         long startedAt = System.nanoTime();
-        List<Question> questions = questionRepository.searchQuestions(
-                researcherId,
-                QuestionType.TEXT,
-                "load test"
-        );
+        List<Question> questions = new java.util.ArrayList<>();
+        Page<Question> currentPage;
+        int pageIndex = 0;
+        do {
+            currentPage = questionRepository.searchQuestions(
+                    researcherId,
+                    QuestionType.TEXT,
+                    "load test",
+                    questionPage(pageIndex++, 100)
+            );
+            questions.addAll(currentPage.getContent());
+        } while (currentPage.hasNext());
         Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
 
         LOGGER.info(
@@ -308,7 +322,17 @@ class QuestionRepositoryIntegrationTest {
                 elapsed.toMillis()
         );
         assertThat(questions).hasSize(QUESTION_BANK_SIZE);
+        assertThat(pageIndex).isEqualTo(10);
+        assertThat(currentPage.getTotalElements()).isEqualTo(QUESTION_BANK_SIZE);
         assertThat(elapsed).isLessThan(LIST_TIME_BUDGET);
+    }
+
+    private PageRequest questionPage(int page, int size) {
+        return PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"))
+        );
     }
 
     private Question saveTextQuestion(UUID ownerId, String questionText) {

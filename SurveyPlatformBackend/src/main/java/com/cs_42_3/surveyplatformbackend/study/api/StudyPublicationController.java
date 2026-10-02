@@ -4,6 +4,8 @@ import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.api.dto.*;
 import com.cs_42_3.surveyplatformbackend.study.service.*;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,7 +35,8 @@ public class StudyPublicationController {
                     + "When questionnaireEnabled is true, validates the complete questionnaire flow and atomically creates an immutable snapshot. "
                     + "When it is false, no questionnaire or snapshot is required. Returns the participant page link and refreshed study version.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Published in COLLECTING state."),
+            @ApiResponse(responseCode = "200", description = "Published in COLLECTING state.",
+                    content = @Content(schema = @Schema(implementation = StudyResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request; framework error bodies are not yet standardized."),
             @ApiResponse(responseCode = "401", description = "Authentication required."),
             @ApiResponse(responseCode = "403", description = "RESEARCHER role required."),

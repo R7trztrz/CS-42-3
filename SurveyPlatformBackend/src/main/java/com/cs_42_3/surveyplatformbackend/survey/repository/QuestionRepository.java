@@ -3,7 +3,8 @@ package com.cs_42_3.surveyplatformbackend.survey.repository;
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -31,17 +32,15 @@ public interface QuestionRepository
      * @param keyword optional normalized case-insensitive text fragment
      * @return matching questions ordered by most recent update
      */
-    default List<Question> searchQuestions(
+    default Page<Question> searchQuestions(
             UUID researcherId,
             QuestionType type,
-            String keyword
+            String keyword,
+            Pageable pageable
     ) {
         return findAll(
                 QuestionSpecifications.forSearch(researcherId, type, keyword),
-                Sort.by(
-                        Sort.Order.desc("updatedAt"),
-                        Sort.Order.desc("id")
-                )
+                pageable
         );
     }
 

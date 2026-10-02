@@ -3,7 +3,7 @@ package com.cs_42_3.surveyplatformbackend.survey.service.implementation;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionPageResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionOptionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMapper;
@@ -19,6 +19,8 @@ import com.cs_42_3.surveyplatformbackend.survey.service.QuestionnaireQuestionRef
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.HashSet;
@@ -41,11 +43,30 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<QuestionSummaryResponse> listQuestions(QuestionType type, String keyword) {
+    public QuestionPageResponse listQuestions(
+            QuestionType type,
+            String search,
+            int page,
+            int size
+    ) {
+        if (page < 0 || size < 1 || size > 100) {
+            throw new InvalidQuestionDataException(
+                    "INVALID_PAGINATION",
+                    "Page must be nonnegative and size must be between 1 and 100"
+            );
+        }
         UUID researcherId = currentResearcher.getId();
-        return questionRepository.searchQuestions(researcherId, type, normalizeKeyword(keyword)).stream()
-                .map(this::toQuestionSummaryResponse)
-                .toList();
+        var pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"))
+        );
+        return QuestionPageResponse.from(questionRepository.searchQuestions(
+                researcherId,
+                type,
+                normalizeKeyword(search),
+                pageable
+        ));
     }
 
     @Override
@@ -377,15 +398,6 @@ public class QuestionServiceImpl implements QuestionService {
 
     private String normalizeOptionalText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private QuestionSummaryResponse toQuestionSummaryResponse(Question question) {
-        return new QuestionSummaryResponse(
-                question.getId(),
-                question.getType(),
-                question.getQuestionText(),
-                question.getUpdatedAt()
-        );
     }
 
     private record NormalizedQuestionData(

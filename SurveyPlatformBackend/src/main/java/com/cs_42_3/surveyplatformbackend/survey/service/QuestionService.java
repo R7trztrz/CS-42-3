@@ -2,11 +2,10 @@ package com.cs_42_3.surveyplatformbackend.survey.service;
 
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.CreateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
-import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionSummaryResponse;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionPageResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.UpdateQuestionRequest;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -14,7 +13,12 @@ import java.util.UUID;
  */
 public interface QuestionService {
 
-    List<QuestionSummaryResponse> listQuestions(QuestionType type, String keyword);
+    QuestionPageResponse listQuestions(
+            QuestionType type,
+            String search,
+            int page,
+            int size
+    );
 
     QuestionResponse getQuestion(UUID questionId);
 

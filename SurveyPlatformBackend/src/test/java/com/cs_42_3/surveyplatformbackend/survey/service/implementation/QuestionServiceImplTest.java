@@ -20,6 +20,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
@@ -86,28 +89,62 @@ class QuestionServiceImplTest {
         when(questionRepository.searchQuestions(
                 RESEARCHER_ID,
                 QuestionType.TEXT,
-                "background"
-        )).thenReturn(List.of(question));
+                "background",
+                questionPage(2, 10)
+        )).thenReturn(new PageImpl<>(List.of(question), questionPage(2, 10), 21));
 
-        var responses = questionService.listQuestions(QuestionType.TEXT, "  background  ");
+        var response = questionService.listQuestions(
+                QuestionType.TEXT,
+                "  background  ",
+                2,
+                10
+        );
 
-        assertThat(responses).hasSize(1);
-        assertThat(responses.get(0).questionText()).isEqualTo("Participant background");
+        assertThat(response.content()).hasSize(1);
+        assertThat(response.content().get(0).questionText()).isEqualTo("Participant background");
+        assertThat(response.page()).isEqualTo(2);
+        assertThat(response.size()).isEqualTo(10);
+        assertThat(response.totalElements()).isEqualTo(21);
+        assertThat(response.totalPages()).isEqualTo(3);
         verify(questionRepository).searchQuestions(
                 RESEARCHER_ID,
                 QuestionType.TEXT,
-                "background"
+                "background",
+                questionPage(2, 10)
         );
         verify(question, never()).getOptions();
     }
 
     @Test
     void listQuestionsConvertsBlankKeywordToNoFilter() {
-        when(questionRepository.searchQuestions(RESEARCHER_ID, null, null)).thenReturn(List.of());
+        when(questionRepository.searchQuestions(
+                RESEARCHER_ID,
+                null,
+                null,
+                questionPage(0, 20)
+        )).thenReturn(new PageImpl<>(List.of(), questionPage(0, 20), 0));
 
-        questionService.listQuestions(null, "   ");
+        questionService.listQuestions(null, "   ", 0, 20);
 
-        verify(questionRepository).searchQuestions(RESEARCHER_ID, null, null);
+        verify(questionRepository).searchQuestions(
+                RESEARCHER_ID,
+                null,
+                null,
+                questionPage(0, 20)
+        );
+    }
+
+    @Test
+    void listQuestionsRejectsInvalidPaginationBeforeResolvingTheOwner() {
+        assertThatThrownBy(() -> questionService.listQuestions(null, null, -1, 20))
+                .isInstanceOf(InvalidQuestionDataException.class)
+                .hasMessageContaining("Page must be nonnegative");
+        assertThatThrownBy(() -> questionService.listQuestions(null, null, 0, 101))
+                .isInstanceOf(InvalidQuestionDataException.class)
+                .hasMessageContaining("size must be between 1 and 100");
+
+        verify(currentResearcher, never()).getId();
+        verify(questionRepository, never()).searchQuestions(any(), any(), any(), any());
     }
 
     @Test
@@ -120,6 +157,14 @@ class QuestionServiceImplTest {
 
         assertThat(response.questionText()).isEqualTo("Owned question");
         verify(questionRepository).findByIdAndResearcherId(QUESTION_ID, RESEARCHER_ID);
+    }
+
+    private PageRequest questionPage(int page, int size) {
+        return PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("updatedAt"), Sort.Order.desc("id"))
+        );
     }
 
     @Test
