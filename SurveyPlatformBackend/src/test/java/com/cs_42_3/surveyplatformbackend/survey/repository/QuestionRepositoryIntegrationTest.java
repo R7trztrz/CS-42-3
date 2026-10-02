@@ -30,7 +30,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * PostgreSQL integration tests for the Flyway V8 schema and question repository.
+ * PostgreSQL integration tests for the Flyway V9 schema and question repository.
  * <p>
  * Uses the shared Testcontainers PostgreSQL instance so Flyway and JPA run on the production engine.
  */
@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import(TestcontainersConfiguration.class)
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class QuestionRepositoryIntegrationTest {
 
     private static final Logger LOGGER =

@@ -28,14 +28,14 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V9/V10 constraints and questionnaire mappings. */
+/** PostgreSQL integration coverage for V9-V12 constraints and questionnaire mappings. */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @Import(TestcontainersConfiguration.class)
 @Transactional
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class QuestionnaireRepositoryIntegrationTest {
 
     @Autowired
@@ -67,7 +67,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v7CreatesUuidColumnsAndDeferredUniquenessConstraints() {
+    void v10CreatesUuidColumnsAndDeferredUniquenessConstraints() {
         assertThat(columnType("questionnaires", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaires", "study_id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_items", "question_id")).isEqualTo("uuid");
@@ -77,14 +77,55 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v8CreatesBranchColumnsChecksAndRestrictiveReferences() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV12() {
+        List<String> versions = jdbcTemplate.queryForList(
+                """
+                        SELECT version
+                        FROM flyway_schema_history
+                        WHERE success = TRUE
+                          AND version IS NOT NULL
+                        ORDER BY installed_rank
+                        """,
+                String.class
+        );
+
+        assertThat(versions).containsExactly(
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+        );
+    }
+
+    @Test
+    void v11AndV12CreateBranchChecksWithoutCouplingTriggersToMutableOptions() {
         assertThat(columnType("questionnaire_branch_rules", "source_option_id"))
                 .isEqualTo("uuid");
         assertThat(columnType("questionnaire_branch_rules", "source_scale_value"))
                 .isEqualTo("integer");
         assertThat(deleteAction("fk_branch_rules_source_item")).isEqualTo("CASCADE");
         assertThat(deleteAction("fk_branch_rules_target_item")).isEqualTo("RESTRICT");
-        assertThat(deleteAction("fk_branch_rules_source_option")).isEqualTo("RESTRICT");
+        assertThat(constraintExists("fk_branch_rules_source_option")).isFalse();
+    }
+
+    @Test
+    void v12CreatesSelfContainedJsonSnapshotWithOnePublicationPerStudy() {
+        assertThat(columnType("questionnaire_publication_snapshots", "id")).isEqualTo("uuid");
+        assertThat(columnType("questionnaire_publication_snapshots", "content")).isEqualTo("jsonb");
+        assertThat(deleteAction("fk_questionnaire_publication_snapshots_study"))
+                .isEqualTo("RESTRICT");
+        assertThat(constraintExists("uq_questionnaire_publication_snapshots_study")).isTrue();
+    }
+
+    @Test
+    void v12RejectsNonObjectSnapshotContent() {
+        assertThatThrownBy(() -> insertSnapshot("[]"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void v12RejectsSecondSnapshotForTheSameStudy() {
+        insertSnapshot("{\"items\":[]}");
+
+        assertThatThrownBy(() -> insertSnapshot("{\"items\":[]}"))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
@@ -111,7 +152,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v8RejectsRulesWithoutExactlyOneTrigger() {
+    void v11RejectsRulesWithoutExactlyOneTrigger() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
@@ -129,7 +170,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v8RejectsSelfLoops() {
+    void v11RejectsSelfLoops() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         Question source = questionRepository.findById(
@@ -151,7 +192,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v8RejectsDuplicateOptionTriggers() {
+    void v11RejectsDuplicateOptionTriggers() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
@@ -174,7 +215,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v8RejectsDuplicateScaleTriggers() {
+    void v11RejectsDuplicateScaleTriggers() {
         Questionnaire questionnaire = saveScaleBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
@@ -203,17 +244,17 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void deletingBranchOptionIsRestricted() {
+    void deletingBranchOptionLeavesDraftRuleForApplicationValidation() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID optionId = questionnaire.getItems().get(0).getBranchRules().stream()
                 .findFirst()
                 .orElseThrow()
                 .getSourceOptionId();
 
-        assertThatThrownBy(() -> jdbcTemplate.update(
-                "DELETE FROM question_options WHERE id = ?",
-                optionId
-        )).isInstanceOf(DataIntegrityViolationException.class);
+        jdbcTemplate.update("DELETE FROM question_options WHERE id = ?", optionId);
+
+        assertThat(count("question_options", "id", optionId)).isZero();
+        assertThat(count("questionnaire_branch_rules", "source_option_id", optionId)).isOne();
     }
 
     @Test
@@ -451,6 +492,34 @@ class QuestionnaireRepositoryIntegrationTest {
                         """,
                 String.class,
                 constraintName
+        );
+    }
+
+    private boolean constraintExists(String constraintName) {
+        Boolean value = jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = ?)",
+                Boolean.class,
+                constraintName
+        );
+        return Boolean.TRUE.equals(value);
+    }
+
+    private void insertSnapshot(String content) {
+        jdbcTemplate.update(
+                """
+                        INSERT INTO questionnaire_publication_snapshots (
+                            id,
+                            study_id,
+                            source_questionnaire_id,
+                            questionnaire_version,
+                            published_at,
+                            content
+                        ) VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP, CAST(? AS jsonb))
+                        """,
+                UUID.randomUUID(),
+                study.getId(),
+                UUID.randomUUID(),
+                content
         );
     }
 

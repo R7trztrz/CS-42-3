@@ -4,6 +4,7 @@ import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorDetail;
 import com.cs_42_3.surveyplatformbackend.survey.exception.SurveyExceptionHandler;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireResponse;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireContentSource;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireSaveResult;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleResponse;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireItemReferenceStatus;
@@ -70,8 +71,35 @@ class QuestionnaireControllerTest {
         mockMvc.perform(get("/api/studies/{studyId}/questionnaire", STUDY_ID)
                         .with(researcherJwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(QUESTIONNAIRE_ID.toString()))
+                .andExpect(jsonPath("$.questionnaireId").value(QUESTIONNAIRE_ID.toString()))
                 .andExpect(jsonPath("$.studyId").value(STUDY_ID.toString()));
+    }
+
+    @Test
+    void getSerializesPublishedSnapshotMetadata() throws Exception {
+        UUID snapshotId = UUID.randomUUID();
+        Instant publishedAt = Instant.parse("2026-10-02T03:15:00Z");
+        when(questionnaireService.getQuestionnaire(STUDY_ID)).thenReturn(
+                new QuestionnaireResponse(
+                        QUESTIONNAIRE_ID,
+                        snapshotId,
+                        STUDY_ID,
+                        QuestionnaireContentSource.PUBLISHED_SNAPSHOT,
+                        List.of(),
+                        3L,
+                        Instant.parse("2026-10-02T03:10:00Z"),
+                        publishedAt,
+                        true,
+                        List.of()
+                )
+        );
+
+        mockMvc.perform(get("/api/studies/{studyId}/questionnaire", STUDY_ID)
+                        .with(researcherJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contentSource").value("PUBLISHED_SNAPSHOT"))
+                .andExpect(jsonPath("$.snapshotId").value(snapshotId.toString()))
+                .andExpect(jsonPath("$.publishedAt").value(publishedAt.toString()));
     }
 
     @Test
@@ -95,7 +123,7 @@ class QuestionnaireControllerTest {
                         "Location",
                         "http://localhost/api/studies/" + STUDY_ID + "/questionnaire"
                 ))
-                .andExpect(jsonPath("$.id").value(QUESTIONNAIRE_ID.toString()))
+                .andExpect(jsonPath("$.questionnaireId").value(QUESTIONNAIRE_ID.toString()))
                 .andExpect(jsonPath("$.version").value(0));
     }
 
@@ -112,6 +140,18 @@ class QuestionnaireControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist("Location"));
+    }
+
+    @Test
+    void expectedVersionMemberIsRequiredEvenForInitialCreation() throws Exception {
+        mockMvc.perform(put("/api/studies/{studyId}/questionnaire", STUDY_ID)
+                        .with(researcherJwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"items": []}
+                                """))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(questionnaireService);
     }
 
     @Test

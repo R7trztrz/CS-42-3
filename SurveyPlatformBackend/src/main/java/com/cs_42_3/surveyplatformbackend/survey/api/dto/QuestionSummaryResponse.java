@@ -9,7 +9,7 @@ import java.util.UUID;
  * Compact response model used when listing reusable survey questions.
  */
 public record QuestionSummaryResponse(
-        UUID id,
+        UUID questionId,
         QuestionType type,
         String questionText,
         Instant updatedAt

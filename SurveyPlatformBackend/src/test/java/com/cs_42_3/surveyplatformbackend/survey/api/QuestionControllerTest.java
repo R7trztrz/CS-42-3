@@ -88,12 +88,12 @@ class QuestionControllerTest {
                         .param("type", "TEXT")
                         .param("keyword", "feedback"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(QUESTION_ID.toString()))
+                .andExpect(jsonPath("$[0].questionId").value(QUESTION_ID.toString()))
                 .andExpect(jsonPath("$[0].type").value("TEXT"))
                 .andExpect(jsonPath("$[0].questionText").value("Share feedback"))
                 .andExpect(jsonPath("$[0].updatedAt").value(UPDATED_AT.toString()))
                 .andExpect(jsonPath("$[0].options").doesNotExist())
-                .andExpect(jsonPath("$[1].id").value(OLDER_QUESTION_ID.toString()));
+                .andExpect(jsonPath("$[1].questionId").value(OLDER_QUESTION_ID.toString()));
 
         verify(questionService).listQuestions(QuestionType.TEXT, "feedback");
     }
@@ -105,9 +105,9 @@ class QuestionControllerTest {
         mockMvc.perform(get("/api/questions/{questionId}", QUESTION_ID)
                         .with(researcherJwt()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(QUESTION_ID.toString()))
+                .andExpect(jsonPath("$.questionId").value(QUESTION_ID.toString()))
                 .andExpect(jsonPath("$.required").value(true))
-                .andExpect(jsonPath("$.options[0].id").value(OPTION_ID.toString()))
+                .andExpect(jsonPath("$.options[0].optionId").value(OPTION_ID.toString()))
                 .andExpect(jsonPath("$.options[0].optionOrder").value(0));
     }
 
@@ -134,7 +134,7 @@ class QuestionControllerTest {
                         "Location",
                         "http://localhost/api/questions/" + QUESTION_ID
                 ))
-                .andExpect(jsonPath("$.id").value(QUESTION_ID.toString()));
+                .andExpect(jsonPath("$.questionId").value(QUESTION_ID.toString()));
     }
 
     @Test
@@ -184,7 +184,7 @@ class QuestionControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(QUESTION_ID.toString()));
+                .andExpect(jsonPath("$.questionId").value(QUESTION_ID.toString()));
     }
 
     @Test

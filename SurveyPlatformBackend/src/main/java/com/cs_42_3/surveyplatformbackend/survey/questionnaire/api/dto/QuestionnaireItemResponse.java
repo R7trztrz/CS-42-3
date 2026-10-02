@@ -17,7 +17,9 @@ public record QuestionnaireItemResponse(
         @Schema(description = "Latest full question data, or null when missing", nullable = true)
         QuestionResponse question,
         QuestionnaireItemReferenceStatus referenceStatus,
-        List<QuestionnaireBranchRuleResponse> branchRules
+        List<QuestionnaireBranchRuleResponse> branchRules,
+        @Schema(description = "Implicit default successor item, or null when this item ends the questionnaire")
+        UUID defaultNextItemId
 ) {
     public QuestionnaireItemResponse {
         referenceStatus = referenceStatus == null
@@ -33,6 +35,17 @@ public record QuestionnaireItemResponse(
             boolean missing,
             QuestionResponse question
     ) {
-        this(itemId, position, missing, question, null, List.of());
+        this(itemId, position, missing, question, null, List.of(), null);
+    }
+
+    public QuestionnaireItemResponse(
+            UUID itemId,
+            int position,
+            boolean missing,
+            QuestionResponse question,
+            QuestionnaireItemReferenceStatus referenceStatus,
+            List<QuestionnaireBranchRuleResponse> branchRules
+    ) {
+        this(itemId, position, missing, question, referenceStatus, branchRules, null);
     }
 }

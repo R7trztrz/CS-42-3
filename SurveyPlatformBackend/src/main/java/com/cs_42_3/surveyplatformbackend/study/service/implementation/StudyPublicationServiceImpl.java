@@ -5,6 +5,7 @@ import com.cs_42_3.surveyplatformbackend.study.domain.*;
 import com.cs_42_3.surveyplatformbackend.study.exception.*;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import com.cs_42_3.surveyplatformbackend.study.service.StudyPublicationService;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.service.QuestionnaireSnapshotPublicationService;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -28,6 +29,7 @@ import java.util.UUID;
 public class StudyPublicationServiceImpl implements StudyPublicationService {
     private final StudyRepository studies;
     private final StudyFeedRepository feeds;
+    private final QuestionnaireSnapshotPublicationService questionnaireSnapshots;
     private final ObjectMapper mapper;
     private final SecureRandom random = new SecureRandom();
 
@@ -52,13 +54,13 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
         if (document == null || !document.isObject() || document.isEmpty()) {
             throw new FeedNotReadyException();
         }
+        Instant publicationTime = Instant.now();
         if (study.isQuestionnaireEnabled()) {
-            // TODO: Validate questionnaire readiness and freeze question content after module integration.
-            // Temporarily allow publication without checking or snapshotting the questionnaire.
+            questionnaireSnapshots.createSnapshot(study, publicationTime);
         }
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
-        study.publish(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), Instant.now());
+        study.publish(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), publicationTime);
         try {
             studies.flush();
         } catch (OptimisticLockingFailureException | OptimisticLockException exception) {

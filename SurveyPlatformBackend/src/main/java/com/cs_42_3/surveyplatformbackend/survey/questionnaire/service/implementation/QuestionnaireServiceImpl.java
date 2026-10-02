@@ -31,6 +31,7 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.StudyNot
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireFlowValidator;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireService;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.service.QuestionnaireSnapshotReadService;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -61,13 +62,18 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
     private final CurrentResearcher currentResearcher;
     private final QuestionResponseMapper questionResponseMapper;
     private final QuestionnaireFlowValidator flowValidator;
+    private final QuestionnaireSnapshotReadService snapshotReadService;
 
     @Override
     @Transactional(readOnly = true)
     public QuestionnaireResponse getQuestionnaire(UUID studyId) {
         UUID researcherId = currentResearcher.getId();
-        studyRepository.findByIdAndOwnerId(studyId, researcherId)
+        Study study = studyRepository.findByIdAndOwnerId(studyId, researcherId)
                 .orElseThrow(() -> new StudyNotFoundException(studyId));
+
+        if (study.getStatus() != StudyStatus.DRAFT) {
+            return snapshotReadService.getPublishedQuestionnaire(studyId);
+        }
 
         Questionnaire questionnaire = questionnaireRepository.findByStudyId(studyId)
                 .orElseThrow(() -> new QuestionnaireNotFoundException(studyId));
@@ -632,6 +638,9 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             List<QuestionnaireBranchRuleResponse> branchRules = new ArrayList<>();
             for (int ruleIndex = 0; ruleIndex < sortedRules.size(); ruleIndex++) {
                 QuestionnaireBranchRule rule = sortedRules.get(ruleIndex);
+                if (question != null) {
+                    addLiveRuleIssue(question, item, rule, ruleIndex, issues);
+                }
                 QuestionnaireItem target = rule.getTargetItem();
                 Integer targetPosition = positionByItem.get(target);
                 if (targetPosition == null) {
@@ -673,7 +682,10 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                     missing
                             ? QuestionnaireItemReferenceStatus.MISSING_QUESTION
                             : QuestionnaireItemReferenceStatus.VALID,
-                    branchRules
+                    branchRules,
+                    item.getPosition() + 1 < items.size()
+                            ? items.get(item.getPosition() + 1).getId()
+                            : null
             ));
         }
         return new QuestionnaireResponse(
@@ -685,6 +697,51 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                 issues.isEmpty(),
                 issues
         );
+    }
+
+    private void addLiveRuleIssue(
+            Question question,
+            QuestionnaireItem item,
+            QuestionnaireBranchRule rule,
+            int ruleIndex,
+            List<QuestionnaireValidationIssue> issues
+    ) {
+        String code = null;
+        String message = null;
+        if (question.getType() == QuestionType.SINGLE_CHOICE) {
+            Set<UUID> optionIds = question.getOptions().stream()
+                    .map(QuestionOption::getId)
+                    .collect(Collectors.toSet());
+            if (rule.getSourceOptionId() == null
+                    || rule.getSourceScaleValue() != null
+                    || !optionIds.contains(rule.getSourceOptionId())) {
+                code = "INVALID_OPTION_TRIGGER";
+                message = "Branch option no longer belongs to the current source question";
+            }
+        } else if (question.getType() == QuestionType.SCALE) {
+            Integer value = rule.getSourceScaleValue();
+            if (rule.getSourceOptionId() != null
+                    || value == null
+                    || question.getScaleMin() == null
+                    || question.getScaleMax() == null
+                    || value < question.getScaleMin()
+                    || value > question.getScaleMax()) {
+                code = "SCALE_TRIGGER_OUT_OF_RANGE";
+                message = "Branch scale value is outside the current source range";
+            }
+        } else {
+            code = "BRANCH_TYPE_UNSUPPORTED";
+            message = "Only SINGLE_CHOICE and SCALE items may have conditional branches";
+        }
+        if (code != null) {
+            issues.add(new QuestionnaireValidationIssue(
+                    code,
+                    item.getPosition(),
+                    item.getId(),
+                    ruleIndex,
+                    message
+            ));
+        }
     }
 
     private String branchRuleSortKey(QuestionnaireBranchRule rule) {

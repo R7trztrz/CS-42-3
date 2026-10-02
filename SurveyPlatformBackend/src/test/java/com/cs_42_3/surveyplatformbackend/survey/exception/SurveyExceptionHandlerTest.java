@@ -42,9 +42,9 @@ class SurveyExceptionHandlerTest {
     }
 
     @Test
-    void branchOptionForeignKeyMapsToChangedReferenceConflict() {
+    void branchTargetForeignKeyMapsToChangedReferenceConflict() {
         var response = handler.handlePersistenceFailure(
-                violation("fk_branch_rules_source_option"),
+                violation("fk_branch_rules_target_item"),
                 request
         );
 

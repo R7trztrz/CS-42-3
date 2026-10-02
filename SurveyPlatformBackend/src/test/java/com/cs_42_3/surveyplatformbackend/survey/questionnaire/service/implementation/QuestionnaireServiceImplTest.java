@@ -8,6 +8,8 @@ import com.cs_42_3.surveyplatformbackend.survey.api.mapper.QuestionResponseMappe
 import com.cs_42_3.surveyplatformbackend.survey.domain.Question;
 import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireBranchRuleRequest;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireContentSource;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireResponse;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireItemRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.SaveQuestionnaireRequest;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.domain.Questionnaire;
@@ -18,6 +20,7 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.Question
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.exception.QuestionnaireVersionConflictException;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.repository.QuestionnaireRepository;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.service.QuestionnaireFlowValidator;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.service.QuestionnaireSnapshotReadService;
 import com.cs_42_3.surveyplatformbackend.survey.repository.QuestionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +65,8 @@ class QuestionnaireServiceImplTest {
     private QuestionRepository questionRepository;
     @Mock
     private CurrentResearcher currentResearcher;
+    @Mock
+    private QuestionnaireSnapshotReadService snapshotReadService;
 
     private final Map<UUID, Question> questionBank = new LinkedHashMap<>();
     private QuestionnaireServiceImpl service;
@@ -75,7 +80,8 @@ class QuestionnaireServiceImplTest {
                 questionRepository,
                 currentResearcher,
                 new QuestionResponseMapper(),
-                new QuestionnaireFlowValidator()
+                new QuestionnaireFlowValidator(),
+                snapshotReadService
         );
         draftStudy = new Study(RESEARCHER_ID, "Owned study", null);
         questionBank.put(QUESTION_ONE_ID, question(QUESTION_ONE_ID, "First"));
@@ -192,7 +198,7 @@ class QuestionnaireServiceImplTest {
         assertThat(result.created()).isFalse();
         assertThat(result.response().version()).isEqualTo(3L);
         assertThat(result.response().items().get(0).itemId()).isEqualTo(existingItemId);
-        assertThat(result.response().items().get(0).question().id()).isEqualTo(QUESTION_TWO_ID);
+        assertThat(result.response().items().get(0).question().questionId()).isEqualTo(QUESTION_TWO_ID);
         verify(questionnaireRepository).saveAndFlush(questionnaire);
     }
 
@@ -311,6 +317,31 @@ class QuestionnaireServiceImplTest {
     }
 
     @Test
+    void collectingStudyReadsOnlyTheImmutablePublicationSnapshot() {
+        ReflectionTestUtils.setField(draftStudy, "status", StudyStatus.COLLECTING);
+        QuestionnaireResponse published = new QuestionnaireResponse(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                STUDY_ID,
+                QuestionnaireContentSource.PUBLISHED_SNAPSHOT,
+                List.of(),
+                7L,
+                Instant.now(),
+                Instant.now(),
+                true,
+                List.of()
+        );
+        when(studyRepository.findByIdAndOwnerId(STUDY_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(draftStudy));
+        when(snapshotReadService.getPublishedQuestionnaire(STUDY_ID)).thenReturn(published);
+
+        assertThat(service.getQuestionnaire(STUDY_ID)).isSameAs(published);
+        verify(snapshotReadService).getPublishedQuestionnaire(STUDY_ID);
+        verify(questionnaireRepository, never()).findByStudyId(any());
+        verify(questionRepository, never()).findAllByResearcherIdAndIdIn(any(), anyCollection());
+    }
+
+    @Test
     void getMapsDeletedQuestionReferenceToMissingItem() {
         Questionnaire questionnaire = existingQuestionnaire(4L, QUESTION_ONE_ID);
         ReflectionTestUtils.setField(questionnaire.getItems().get(0), "questionId", null);
@@ -357,6 +388,36 @@ class QuestionnaireServiceImplTest {
                     assertThat(issue.itemIndex()).isZero();
                     assertThat(issue.ruleIndex()).isZero();
                 });
+    }
+
+    @Test
+    void getReportsOptionTriggerRemovedFromTheLiveDraftQuestion() {
+        UUID choiceId = UUID.randomUUID();
+        UUID removedOptionId = UUID.randomUUID();
+        questionBank.put(
+                choiceId,
+                singleChoiceQuestion(choiceId, false, UUID.randomUUID(), UUID.randomUUID())
+        );
+        Questionnaire questionnaire = existingQuestionnaire(
+                4L,
+                choiceId,
+                QUESTION_ONE_ID
+        );
+        questionnaire.replaceBranchRules(List.of(
+                List.of(new Questionnaire.BranchRulePlacement(removedOptionId, null, 1)),
+                List.of()
+        ));
+        when(studyRepository.findByIdAndOwnerId(STUDY_ID, RESEARCHER_ID))
+                .thenReturn(Optional.of(draftStudy));
+        when(questionnaireRepository.findByStudyId(STUDY_ID)).thenReturn(Optional.of(questionnaire));
+
+        var response = service.getQuestionnaire(STUDY_ID);
+
+        assertThat(response.valid()).isFalse();
+        assertThat(response.validationIssues())
+                .filteredOn(issue -> issue.code().equals("INVALID_OPTION_TRIGGER"))
+                .singleElement()
+                .satisfies(issue -> assertThat(issue.ruleIndex()).isZero());
     }
 
     @Test

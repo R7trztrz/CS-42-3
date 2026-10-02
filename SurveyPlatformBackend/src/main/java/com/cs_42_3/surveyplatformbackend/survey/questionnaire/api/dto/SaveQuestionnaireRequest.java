@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,7 @@ public record SaveQuestionnaireRequest(
                 example = "3",
                 nullable = true
         )
+        @JsonProperty(value = "expectedVersion", required = true)
         @PositiveOrZero Long expectedVersion,
         @Schema(
                 description = "Complete final questionnaire order. An empty array saves an empty draft; null is invalid."

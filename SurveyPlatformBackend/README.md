@@ -2,7 +2,7 @@
 
 Backend service for SurveyPlatform, a University of Sydney COMP5703 project. Built with Java, Spring Boot, and PostgreSQL, it provides the foundation for developing the survey platform.
 
-The backend currently includes researcher authentication and authorization, Study and feed-template APIs, the reusable question bank, and versioned questionnaire-draft APIs with FR38 single-choice and scale branching.
+The backend currently includes researcher authentication and authorization, Study and feed-template APIs, the reusable question bank, versioned questionnaire-draft APIs with FR38 single-choice and scale branching, and immutable questionnaire publication snapshots.
 
 Implemented functionality includes researcher registration and login, BCrypt password hashing, JWT issuance and validation, stateless request authentication, RESEARCHER role-based authorization, authenticated researcher identity handling, password change, Cloudflare Turnstile verification for registration, and rate limiting for authentication endpoints.
 
@@ -74,9 +74,11 @@ The current migration sequence is:
 - V1-V5: Study, researcher, runtime-setting, and feed-template foundations
 - V6: seeded Facebook feed template
 - V7: Study publication token and publication timestamp
-- V8: reusable question bank and stable question-option identities
-- V9: versioned questionnaire drafts and stable ordered item identities
-- V10: deterministic questionnaire branch rules
+- V8: synchronized social-feed template documents
+- V9: reusable question bank and stable question-option identities
+- V10: versioned questionnaire drafts and stable ordered item identities
+- V11: deterministic questionnaire branch rules
+- V12: immutable, self-contained questionnaire publication snapshots
 
 The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables. Add future migrations using the next immutable version number.
 
@@ -151,7 +153,7 @@ When using Swagger UI, call `/auth/login`, copy the returned access token, click
 1. Install JDK 17, set `JAVA_HOME` to the JDK installation directory, and add its `bin` directory to `PATH`.
 2. Create a PostgreSQL database and ensure it is accessible. The database account must have the permissions required for application reads and writes and migration execution.
 3. Ensure network access is available on the first Maven Wrapper run to download Maven and project dependencies.
-4. Install a Docker-compatible container runtime to run PostgreSQL integration tests. Without Docker, container-backed test classes are skipped; CI and final verification should run them with Docker available.
+4. Install and start a Docker-compatible container runtime to run PostgreSQL integration tests. Container-backed tests intentionally fail when Docker is unavailable so a required database gate cannot be reported as skipped.
 
 All database values in this document are examples. Replace them with the values for your environment. Do not store actual passwords in this README, `application.yaml`, or shared run configurations.
 
@@ -229,7 +231,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V10, and runs repository and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V12, and runs repository, publication, and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test

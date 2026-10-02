@@ -273,8 +273,7 @@ public class SurveyExceptionHandler {
                     request
             );
         }
-        if ("fk_branch_rules_source_option".equalsIgnoreCase(constraintName)
-                || "fk_branch_rules_source_item".equalsIgnoreCase(constraintName)
+        if ("fk_branch_rules_source_item".equalsIgnoreCase(constraintName)
                 || "fk_branch_rules_target_item".equalsIgnoreCase(constraintName)) {
             return buildResponse(
                     HttpStatus.CONFLICT,

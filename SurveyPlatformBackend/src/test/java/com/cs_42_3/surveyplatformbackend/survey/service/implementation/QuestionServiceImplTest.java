@@ -386,7 +386,7 @@ class QuestionServiceImplTest {
         var response = questionService.updateQuestion(QUESTION_ID, request);
 
         assertThat(response.options())
-                .extracting(option -> option.id())
+                .extracting(option -> option.optionId())
                 .containsExactly(secondOptionId, firstOptionId);
         assertThat(response.options())
                 .extracting(option -> option.optionText())

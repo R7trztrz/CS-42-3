@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
 @Import(TestcontainersConfiguration.class)
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class QuestionnaireConcurrencyIntegrationTest {
 
     @Autowired

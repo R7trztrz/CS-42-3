@@ -30,15 +30,15 @@ public class StudyPublicationController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(operationId = "publishStudy", summary = "Publish my draft study",
             description = "Publishes DRAFT exactly once using the numeric study version. Requires a nonempty feed JSON object. "
-                    + "Detailed document validation is deferred. Questionnaire readiness and question snapshots are temporarily bypassed, "
-                    + "even when questionnaireEnabled is true. Returns the participant page link and refreshed study version.")
+                    + "When questionnaireEnabled is true, validates the complete questionnaire flow and atomically creates an immutable snapshot. "
+                    + "When it is false, no questionnaire or snapshot is required. Returns the participant page link and refreshed study version.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Published in COLLECTING state."),
             @ApiResponse(responseCode = "400", description = "Invalid request; framework error bodies are not yet standardized."),
             @ApiResponse(responseCode = "401", description = "Authentication required."),
             @ApiResponse(responseCode = "403", description = "RESEARCHER role required."),
             @ApiResponse(responseCode = "404", description = "STUDY_NOT_FOUND."),
-            @ApiResponse(responseCode = "409", description = "STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT or FEED_NOT_READY.")
+            @ApiResponse(responseCode = "409", description = "STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT, FEED_NOT_READY, or QUESTIONNAIRE_PUBLICATION_VALIDATION_ERROR.")
     })
     public StudyResponse publish(@PathVariable UUID studyId, @Valid @RequestBody PublishStudyRequest request) {
         var study = service.publish(currentResearcher.getId(), studyId, request.version().longValue());

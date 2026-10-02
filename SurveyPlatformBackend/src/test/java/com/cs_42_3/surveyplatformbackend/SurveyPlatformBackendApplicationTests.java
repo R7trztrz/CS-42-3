@@ -9,7 +9,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
 @Import(TestcontainersConfiguration.class)
-@Testcontainers(disabledWithoutDocker = true)
+@Testcontainers
 class SurveyPlatformBackendApplicationTests {
 
     @Test

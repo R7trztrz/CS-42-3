@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Protects questionnaire references while the question bank changes answer domains.
+ * Locks questionnaire references while the question bank changes answer domains.
  * The question service depends on this port rather than questionnaire repositories.
  */
 public interface QuestionnaireQuestionReferencePort {

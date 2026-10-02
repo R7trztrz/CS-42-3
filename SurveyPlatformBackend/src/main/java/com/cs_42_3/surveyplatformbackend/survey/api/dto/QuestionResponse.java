@@ -10,7 +10,7 @@ import java.util.UUID;
  * Detailed response model for a reusable survey question.
  */
 public record QuestionResponse(
-        UUID id,
+        UUID questionId,
         QuestionType type,
         String questionText,
         boolean required,

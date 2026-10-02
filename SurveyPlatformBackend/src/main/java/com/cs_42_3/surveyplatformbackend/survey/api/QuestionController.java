@@ -130,7 +130,7 @@ public class QuestionController {
         QuestionResponse response = questionService.createQuestion(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{questionId}")
-                .buildAndExpand(response.id())
+                .buildAndExpand(response.questionId())
                 .toUri();
         return ResponseEntity.created(location).body(response);
     }
@@ -139,7 +139,7 @@ public class QuestionController {
     @Operation(
             operationId = "updateQuestion",
             summary = "Replaces an owned reusable question",
-            description = "Retain optionId values for unchanged options. Answer-domain changes are rejected with 409 when they would invalidate a questionnaire branch flow."
+            description = "Retain optionId values for unchanged options. Draft questionnaires immediately read the updated question; published studies remain stable through their immutable snapshot."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Question updated"),
@@ -155,11 +155,7 @@ public class QuestionController {
                     description = "Owned question not found",
                     content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
             ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "The change would invalidate an existing questionnaire reference",
-                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
-            )
+            @ApiResponse(responseCode = "409", description = "A concurrent question or questionnaire change was detected")
     })
     public ResponseEntity<QuestionResponse> updateQuestion(
             @Parameter(description = "Question UUID")
@@ -188,11 +184,7 @@ public class QuestionController {
                     description = "Owned question not found",
                     content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
             ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "The question is referenced by a non-draft study",
-                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))
-            )
+            @ApiResponse(responseCode = "409", description = "A concurrent question or questionnaire change was detected")
     })
     public ResponseEntity<Void> deleteQuestion(
             @Parameter(description = "Question UUID")

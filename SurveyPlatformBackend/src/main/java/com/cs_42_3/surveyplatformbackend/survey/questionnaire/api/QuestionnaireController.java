@@ -29,13 +29,13 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.net.URI;
 import java.util.UUID;
 
-/** REST API for reading and replacing one study's questionnaire draft. */
+/** REST API for reading a study's current questionnaire content and replacing its draft. */
 @RestController
 @RequestMapping("/api/studies/{studyId}/questionnaire")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('RESEARCHER')")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Questionnaires", description = "Researcher operations for questionnaire drafts")
+@Tag(name = "Questionnaires", description = "Researcher operations for questionnaire drafts and publications")
 public class QuestionnaireController {
 
     private final QuestionnaireService questionnaireService;
@@ -43,8 +43,8 @@ public class QuestionnaireController {
     @GetMapping
     @Operation(
             operationId = "getQuestionnaire",
-            summary = "Gets a study's questionnaire draft",
-            description = "Returns current full question data. Deleted question-bank entries remain as missing items."
+            summary = "Gets a study's questionnaire",
+            description = "DRAFT studies return current question-bank data and expose deleted entries as missing items. COLLECTING and CLOSED studies return only their immutable publication snapshot."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Questionnaire returned"),
