@@ -1,6 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.security.ratelimit;
 
 import io.github.bucket4j.Bucket;
+import io.github.bucket4j.TimeMeter;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -17,6 +18,16 @@ public class RateLimitService {
 
     private final ConcurrentMap<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
+    private final TimeMeter timeMeter;
+
+    public RateLimitService() {
+        this(TimeMeter.SYSTEM_MILLISECONDS);
+    }
+
+    // Allows tests to control time without waiting for real refills.
+    RateLimitService(TimeMeter timeMeter) {
+        this.timeMeter = timeMeter;
+    }
 
     public boolean allowRegister(String clientIp) {
         Bucket bucket = registerBuckets.computeIfAbsent(
@@ -38,6 +49,7 @@ public class RateLimitService {
 
     private Bucket createBucket(long requestsPerMinute) {
         return Bucket.builder()
+                .withCustomTimePrecision(timeMeter)
                 .addLimit(limit -> limit
                         .capacity(requestsPerMinute)
                         .refillIntervally(

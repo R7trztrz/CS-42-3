@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.researcher.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
@@ -28,6 +29,10 @@ public class RegisterRequest {
     @Size(
             min = 8,
             message = "Password must be at least 8 characters long"
+    )
+    @Pattern(
+            regexp = "^(?!\\d+$).+$",
+            message = "Password must not contain only digits"
     )
     private String password;
 

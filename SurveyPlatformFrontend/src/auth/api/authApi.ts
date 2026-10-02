@@ -8,7 +8,8 @@ import type {
     ChangePasswordRequest,
 } from '../types/auth'
 
-const API_BASE_URL = 'http://localhost:8080'
+const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
 export async function registerResearcher(
     request: RegisterRequest,
@@ -74,8 +75,10 @@ export async function changePassword(
     if (!response.ok) {
         const errorBody = (await response.json()) as ApiErrorResponse
 
-        throw new Error(
+        throw new ApiError(
+            errorBody.code || 'REQUEST_FAILED',
             errorBody.error || 'Password change failed',
+            response.status,
         )
     }
 }

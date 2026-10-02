@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 type ResearcherHeaderProps = {
   activePage?: 'dashboard' | 'studies'
@@ -10,6 +10,14 @@ const navigationItems = [
 ] as const
 
 function ResearcherHeader({ activePage }: ResearcherHeaderProps) {
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    localStorage.removeItem('researcherToken')
+    localStorage.removeItem('researcherTokenType')
+
+    navigate('/login', { replace: true })
+  }
   return (
     <header className="text-white">
       <div className="bg-[#101b2b] px-6 py-5 md:px-10">
@@ -27,15 +35,16 @@ function ResearcherHeader({ activePage }: ResearcherHeaderProps) {
           </div>
 
           <div className="flex items-center gap-3 text-sm">
-            <button
-              type="button"
-              className="font-medium text-gray-300 hover:text-white"
+            <Link
+                to="/account/change-password"
+                className="font-medium text-gray-300 hover:text-white"
             >
               Account
-            </button>
+            </Link>
             <button
-              type="button"
-              className="rounded-sm border border-[#52647b] px-3 py-2 font-semibold text-white hover:border-emerald-400 hover:bg-[#1d2b3f]"
+                type="button"
+                onClick={handleLogout}
+                className="rounded-sm border border-[#52647b] px-3 py-2 font-semibold text-white hover:border-emerald-400 hover:bg-[#1d2b3f]"
             >
               Logout
             </button>

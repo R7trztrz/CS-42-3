@@ -2,6 +2,7 @@ package com.cs_42_3.surveyplatformbackend.researcher.api.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -25,6 +26,10 @@ public class ChangePasswordRequest {
     )
     @NotBlank(message = "New password is required")
     @Size(min = 8, message = "New password must be at least 8 characters long")
+    @Pattern(
+            regexp = "^(?!\\d+$).+$",
+            message = "New password must not contain only digits"
+    )
     private String newPassword;
 
     @Schema(
