@@ -1,5 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.study.service.implementation;
 
+import com.cs_42_3.surveyplatformbackend.asset.exception.AssetException;
+import com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences;
 import com.cs_42_3.surveyplatformbackend.feed.domain.StudyFeed;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
@@ -24,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -42,6 +45,8 @@ class StudyPublicationServiceImplTest {
     @Mock
     private QuestionnaireSnapshotPublicationService snapshots;
     @Mock
+    private AssetReferences assetReferences;
+    @Mock
     private StudyFeed feed;
 
     private StudyPublicationServiceImpl service;
@@ -49,7 +54,7 @@ class StudyPublicationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new StudyPublicationServiceImpl(studies, feeds, snapshots, new ObjectMapper());
+        service = new StudyPublicationServiceImpl(studies, feeds, snapshots, new ObjectMapper(), assetReferences);
         study = new Study(OWNER_ID, "Study", null);
         ReflectionTestUtils.setField(study, "id", STUDY_ID);
         ReflectionTestUtils.setField(study, "lockVersion", 2L);
@@ -65,6 +70,7 @@ class StudyPublicationServiceImplTest {
         assertThat(result.getStatus()).isEqualTo(StudyStatus.COLLECTING);
         assertThat(result.getPublishedAt()).isNotNull();
         assertThat(result.getParticipationToken()).hasSize(43);
+        verify(assetReferences).validate(STUDY_ID, "{\"ROOT\":{}}");
         verifyNoInteractions(snapshots);
         verify(studies).flush();
     }
@@ -92,6 +98,18 @@ class StudyPublicationServiceImplTest {
                 .isInstanceOf(QuestionnairePublicationException.class);
         assertThat(study.getStatus()).isEqualTo(StudyStatus.DRAFT);
         assertThat(study.getPublishedAt()).isNull();
+        verify(studies, never()).flush();
+    }
+
+    @Test
+    void invalidAssetReferenceStopsPublicationBeforeSnapshotCreation() {
+        ReflectionTestUtils.setField(study, "questionnaireEnabled", true);
+        doThrow(AssetException.reference()).when(assetReferences).validate(STUDY_ID, "{\"ROOT\":{}}");
+
+        assertThatThrownBy(() -> service.publish(OWNER_ID, STUDY_ID, 2))
+                .isInstanceOf(AssetException.class);
+        assertThat(study.getStatus()).isEqualTo(StudyStatus.DRAFT);
+        verifyNoInteractions(snapshots);
         verify(studies, never()).flush();
     }
 }

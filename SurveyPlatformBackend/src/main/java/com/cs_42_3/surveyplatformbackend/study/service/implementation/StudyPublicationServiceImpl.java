@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.study.service.implementation;
 
+import com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
 import com.cs_42_3.surveyplatformbackend.study.domain.*;
 import com.cs_42_3.surveyplatformbackend.study.exception.*;
@@ -31,6 +32,7 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
     private final StudyFeedRepository feeds;
     private final QuestionnaireSnapshotPublicationService questionnaireSnapshots;
     private final ObjectMapper mapper;
+    private final AssetReferences assetReferences;
     private final SecureRandom random = new SecureRandom();
 
     @Override
@@ -54,6 +56,7 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
         if (document == null || !document.isObject() || document.isEmpty()) {
             throw new FeedNotReadyException();
         }
+        assetReferences.validate(studyId, feed.getContent());
         Instant publicationTime = Instant.now();
         if (study.isQuestionnaireEnabled()) {
             questionnaireSnapshots.createSnapshot(study, publicationTime);

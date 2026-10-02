@@ -31,6 +31,23 @@
         <survey.performance.tests>false</survey.performance.tests>
     </properties>
     <dependencies>
+        <!-- Jsoup: parses webpage metadata without executing scripts. -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.23.2</version>
+        </dependency>
+        <!-- Apache HttpClient: supports destination-checked DNS resolution for outbound requests. -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+        <!-- TwelveMonkeys: decodes WebP uploads through Java ImageIO without native binaries. -->
+        <dependency>
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-webp</artifactId>
+            <version>3.12.0</version>
+        </dependency>
         <!-- Actuator: provides application health checks and management endpoints. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

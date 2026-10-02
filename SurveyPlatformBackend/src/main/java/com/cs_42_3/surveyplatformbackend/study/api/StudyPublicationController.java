@@ -33,6 +33,7 @@ public class StudyPublicationController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(operationId = "publishStudy", summary = "Publish my draft study",
             description = "Publishes DRAFT exactly once using the numeric study version. Requires a nonempty feed JSON object. "
+                    + "Referenced image assets must belong to this study and exist in storage. "
                     + "When questionnaireEnabled is true, validates the complete questionnaire flow and atomically creates an immutable snapshot. "
                     + "When it is false, no questionnaire or snapshot is required. Returns the participant page link and refreshed study version.")
     @ApiResponses({

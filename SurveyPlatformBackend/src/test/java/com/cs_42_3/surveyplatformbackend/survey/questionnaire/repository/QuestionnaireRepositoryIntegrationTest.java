@@ -28,7 +28,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V9-V12 constraints and questionnaire mappings. */
+/** PostgreSQL integration coverage for V10-V13 constraints and questionnaire mappings. */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"
@@ -67,7 +67,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v10CreatesUuidColumnsAndDeferredUniquenessConstraints() {
+    void v11CreatesUuidColumnsAndDeferredUniquenessConstraints() {
         assertThat(columnType("questionnaires", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaires", "study_id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_items", "question_id")).isEqualTo("uuid");
@@ -77,7 +77,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV12() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV13() {
         List<String> versions = jdbcTemplate.queryForList(
                 """
                         SELECT version
@@ -90,12 +90,12 @@ class QuestionnaireRepositoryIntegrationTest {
         );
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"
         );
     }
 
     @Test
-    void v11AndV12CreateBranchChecksWithoutCouplingTriggersToMutableOptions() {
+    void v12CreatesBranchChecksWithoutCouplingTriggersToMutableOptions() {
         assertThat(columnType("questionnaire_branch_rules", "source_option_id"))
                 .isEqualTo("uuid");
         assertThat(columnType("questionnaire_branch_rules", "source_scale_value"))
@@ -106,7 +106,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v12CreatesSelfContainedJsonSnapshotWithOnePublicationPerStudy() {
+    void v13CreatesSelfContainedJsonSnapshotWithOnePublicationPerStudy() {
         assertThat(columnType("questionnaire_publication_snapshots", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_publication_snapshots", "content")).isEqualTo("jsonb");
         assertThat(deleteAction("fk_questionnaire_publication_snapshots_study"))

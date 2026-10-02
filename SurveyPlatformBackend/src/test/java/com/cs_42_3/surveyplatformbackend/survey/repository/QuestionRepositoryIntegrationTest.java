@@ -33,7 +33,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * PostgreSQL integration tests for the Flyway V9 schema and question repository.
+ * PostgreSQL integration tests for the Flyway V10 schema and question repository.
  * <p>
  * Uses the shared Testcontainers PostgreSQL instance so Flyway and JPA run on the production engine.
  */

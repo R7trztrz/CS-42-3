@@ -56,6 +56,6 @@ public class QuestionnaireQuestionReferenceService implements QuestionnaireQuest
 
     @Override
     public void prepareDelete(Question currentQuestion, ReferenceLock referenceLock) {
-        // V10 keeps a missing item via ON DELETE SET NULL; V12 decouples option UUIDs from live options.
+        // V11 keeps a missing item via ON DELETE SET NULL; V13 decouples option UUIDs from live options.
     }
 }
