@@ -211,6 +211,30 @@ class QuestionRepositoryIntegrationTest {
     }
 
     @Test
+    void searchQuestionsTreatsLikeMetacharactersAsLiteralText() {
+        Question literal = saveTextQuestion(
+                researcherId,
+                "Progress is 100%_complete\\today"
+        );
+        saveTextQuestion(researcherId, "Progress is 100XXcomplete today");
+        saveTextQuestion(researcherId, "Unrelated question");
+
+        for (String keyword : List.of("%", "_", "\\")) {
+            List<Question> results = questionRepository.searchQuestions(
+                    researcherId,
+                    null,
+                    keyword,
+                    questionPage(0, 20)
+            ).getContent();
+
+            assertThat(results)
+                    .as("literal search for %s", keyword)
+                    .extracting(Question::getId)
+                    .containsExactly(literal.getId());
+        }
+    }
+
+    @Test
     void deletingQuestionCascadesToQuestionOptions() {
         Question question = Question.create(
                 researcherId,

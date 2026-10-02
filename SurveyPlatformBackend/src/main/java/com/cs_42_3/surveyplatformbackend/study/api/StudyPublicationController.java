@@ -3,6 +3,7 @@ package com.cs_42_3.surveyplatformbackend.study.api;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.api.dto.*;
 import com.cs_42_3.surveyplatformbackend.study.service.*;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,11 +38,14 @@ public class StudyPublicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Published in COLLECTING state.",
                     content = @Content(schema = @Schema(implementation = StudyResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request; framework error bodies are not yet standardized."),
+            @ApiResponse(responseCode = "400", description = "Invalid publication request.",
+                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "Authentication required."),
             @ApiResponse(responseCode = "403", description = "RESEARCHER role required."),
-            @ApiResponse(responseCode = "404", description = "STUDY_NOT_FOUND."),
-            @ApiResponse(responseCode = "409", description = "STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT, FEED_NOT_READY, or QUESTIONNAIRE_PUBLICATION_VALIDATION_ERROR.")
+            @ApiResponse(responseCode = "404", description = "STUDY_NOT_FOUND.",
+                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT, FEED_NOT_READY, or QUESTIONNAIRE_PUBLICATION_VALIDATION_ERROR.",
+                    content = @Content(schema = @Schema(implementation = SurveyErrorResponse.class)))
     })
     public StudyResponse publish(@PathVariable UUID studyId, @Valid @RequestBody PublishStudyRequest request) {
         var study = service.publish(currentResearcher.getId(), studyId, request.version().longValue());

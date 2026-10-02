@@ -62,10 +62,15 @@ public final class QuestionSpecifications {
 
     private static Specification<Question> questionTextContains(String keyword) {
         String requiredKeyword = Objects.requireNonNull(keyword, "Keyword is required");
-        String pattern = "%" + requiredKeyword.toLowerCase(Locale.ROOT) + "%";
+        String escapedKeyword = requiredKeyword.toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        String pattern = "%" + escapedKeyword + "%";
         return (root, query, criteriaBuilder) -> criteriaBuilder.like(
                 criteriaBuilder.lower(root.get("questionText")),
-                pattern
+                pattern,
+                '\\'
         );
     }
 }
