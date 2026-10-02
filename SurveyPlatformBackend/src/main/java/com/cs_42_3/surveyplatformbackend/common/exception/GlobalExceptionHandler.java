@@ -37,6 +37,13 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /** Returns stable preview failures without disclosing remote response bodies. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.linkpreview.exception.LinkPreviewException.class)
+    public ResponseEntity<ErrorResponse> handlePreview(
+            com.cs_42_3.surveyplatformbackend.linkpreview.exception.LinkPreviewException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
 
     /** Reports safe image errors consistently with other business failures. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.asset.exception.AssetException.class)

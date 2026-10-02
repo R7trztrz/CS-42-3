@@ -43,6 +43,18 @@ public class ImageValidator {
         filename = filename.substring(filename.lastIndexOf('/') + 1).replaceAll("[\\p{Cntrl}]", "");
         if (filename.isBlank() || filename.length() > 255) throw AssetException.invalid();
 
+        return decode(bytes, filename);
+    }
+
+    /** Validates downloaded bytes without trusting a remote filename or MIME header. */
+    public ValidatedImage validate(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) throw AssetException.invalid();
+        if (bytes.length > MAX_BYTES) throw AssetException.tooLarge();
+        // Own the validated buffer so callers cannot alter it before storage.
+        return decode(bytes.clone(), null);
+    }
+
+    private ValidatedImage decode(byte[] bytes, String filename) {
         // The client MIME header is advisory; select a decoder from the actual bytes.
         try (var input = new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes))) {
             var readers = ImageIO.getImageReaders(input);
@@ -56,6 +68,7 @@ public class ImageValidator {
                     case "webp" -> "webp";
                     default -> throw AssetException.invalid();
                 };
+                if (filename == null) filename = "image." + extension;
                 String suffix = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
                 if (!(suffix.equals(extension) || extension.equals("jpg") && suffix.equals("jpeg"))) {
                     throw AssetException.invalid();
