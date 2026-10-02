@@ -14,6 +14,12 @@ spring:
   flyway:
     enabled: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      # Allow multipart framing overhead beyond the single-file limit.
+      max-request-size: 6MB
+
 security:
   jwt:
     secret: ${JWT_SECRET}
@@ -23,3 +29,7 @@ turnstile:
 
 app:
   participant-base-url: ${APP_PARTICIPANT_BASE_URL:http://localhost:5173}
+  assets:
+    storage-directory: ${ASSET_STORAGE_DIRECTORY:./data/assets}
+    max-pixels: 20000000
+    max-dimension: 10000

@@ -29,6 +29,7 @@ import java.util.UUID;
 public class StudyFeedServiceImpl implements StudyFeedService {
     private final StudyRepository studies;
     private final StudyFeedRepository feeds;
+    private final com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences assetReferences;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,6 +52,7 @@ public class StudyFeedServiceImpl implements StudyFeedService {
         if (!Objects.equals(feed.getLockVersion(), expectedVersion)) {
             throw new FeedVersionConflictException();
         }
+        assetReferences.validate(studyId, content);
         feed.replaceContent(content);
         try {
             feeds.flush();

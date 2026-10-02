@@ -30,7 +30,7 @@ public class StudyPublicationController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(operationId = "publishStudy", summary = "Publish my draft study",
             description = "Publishes DRAFT exactly once using the numeric study version. Requires a nonempty feed JSON object. "
-                    + "Detailed document validation is deferred. Questionnaire readiness and question snapshots are temporarily bypassed, "
+                    + "Referenced image assets must belong to this study and exist in storage. Other document validation is deferred. Questionnaire readiness and question snapshots are temporarily bypassed, "
                     + "even when questionnaireEnabled is true. Returns the participant page link and refreshed study version.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Published in COLLECTING state."),

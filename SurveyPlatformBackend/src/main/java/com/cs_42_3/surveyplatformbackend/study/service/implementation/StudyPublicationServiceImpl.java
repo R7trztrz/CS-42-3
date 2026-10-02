@@ -29,6 +29,7 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
     private final StudyRepository studies;
     private final StudyFeedRepository feeds;
     private final ObjectMapper mapper;
+    private final com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences assetReferences;
     private final SecureRandom random = new SecureRandom();
 
     @Override
@@ -52,6 +53,7 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
         if (document == null || !document.isObject() || document.isEmpty()) {
             throw new FeedNotReadyException();
         }
+        assetReferences.validate(studyId, feed.getContent());
         if (study.isQuestionnaireEnabled()) {
             // TODO: Validate questionnaire readiness and freeze question content after module integration.
             // Temporarily allow publication without checking or snapshotting the questionnaire.

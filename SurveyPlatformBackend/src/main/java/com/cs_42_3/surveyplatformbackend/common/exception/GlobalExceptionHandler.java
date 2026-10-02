@@ -38,6 +38,20 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** Reports safe image errors consistently with other business failures. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.asset.exception.AssetException.class)
+    public ResponseEntity<ErrorResponse> handleAsset(
+            com.cs_42_3.surveyplatformbackend.asset.exception.AssetException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
+
+    /** Covers multipart rejection before the upload controller is invoked. */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleUploadSize() {
+        return handleAsset(com.cs_42_3.surveyplatformbackend.asset.exception.AssetException.tooLarge());
+    }
+
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
