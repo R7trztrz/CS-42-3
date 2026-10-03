@@ -34,6 +34,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
@@ -1387,6 +1389,93 @@ class StudyPublicationIntegrationTest {
 
         // A failed publication must not create the missing asset.
         assertFalse(studyAssetRepository.existsById(missingAssetId));
+    }
+
+    /** Verifies that independently published studies receive distinct URL-safe participation tokens. */
+    @Test
+    void shouldGenerateDistinctSecureParticipationTokens() throws Exception {
+
+        Set<String> generatedTokens = new HashSet<>();
+
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        // Generate independent participation links for twelve different studies.
+        for (int i = 0; i < 12; i++) {
+
+            Study study = studyRepository.saveAndFlush(
+                    new Study(
+                            researcher.getId(),
+                            "Token Security Study " + i,
+                            "NFR-09 participation token verification"
+                    )
+            );
+
+            UUID studyId = study.getId();
+            long studyVersion = study.getLockVersion();
+
+            // Prepare valid feed content for publication.
+            StudyFeed feed = new StudyFeed(studyId, template);
+
+            feed.replaceContent("""
+                {
+                  "ROOT": {
+                    "type": "div"
+                  }
+                }
+                """);
+
+            studyFeedRepository.saveAndFlush(feed);
+
+            entityManager.clear();
+
+            String requestBody = """
+                {
+                  "version": %d
+                }
+                """.formatted(studyVersion);
+
+            // Publish each study through the real HTTP endpoint.
+            mockMvc.perform(
+                            post("/api/studies/{studyId}/publish", studyId)
+                                    .header(
+                                            "Authorization",
+                                            "Bearer " + researcherToken
+                                    )
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(requestBody)
+                    )
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("COLLECTING"))
+                    .andExpect(jsonPath("$.participationUrl").isNotEmpty());
+
+            // Reload the generated token from PostgreSQL.
+            entityManager.clear();
+
+            Study publishedStudy = studyRepository.findById(studyId)
+                    .orElseThrow();
+
+            String token = publishedStudy.getParticipationToken();
+
+            assertNotNull(token);
+
+            // A 32-byte token encoded with unpadded Base64 URL-safe encoding
+            // must contain exactly 43 characters.
+            assertEquals(43, token.length());
+
+            assertTrue(
+                    token.matches("[A-Za-z0-9_-]{43}"),
+                    "Participation token must use URL-safe characters"
+            );
+
+            // No two independently published studies should share a token.
+            assertTrue(
+                    generatedTokens.add(token),
+                    "Duplicate participation token generated"
+            );
+        }
+
+        assertEquals(12, generatedTokens.size());
     }
 
 }
