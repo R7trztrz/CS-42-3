@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.study;
 
+import com.cs_42_3.surveyplatformbackend.asset.repository.StudyAssetRepository;
 import com.cs_42_3.surveyplatformbackend.feed.domain.StudyFeed;
 import com.cs_42_3.surveyplatformbackend.feed.repository.FeedTemplateRepository;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
@@ -91,6 +92,9 @@ class StudyPublicationIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private StudyAssetRepository studyAssetRepository;
 
     private Researcher researcher;
     private String researcherToken;
@@ -1261,6 +1265,128 @@ class StudyPublicationIntegrationTest {
                 participationToken,
                 unchangedStudy.getParticipationToken()
         );
+    }
+
+    /** Verifies that invalid image references cannot cause a partially published study. */
+    @Test
+    void shouldRejectPublicationWithMissingAssetWithoutPartialChanges() throws Exception {
+
+        // Create an owned draft study.
+        Study study = studyRepository.saveAndFlush(
+                new Study(
+                        researcher.getId(),
+                        "Invalid Asset Publication Study",
+                        "Verify publication atomicity when an image asset is missing"
+                )
+        );
+
+        UUID studyId = study.getId();
+        long originalStudyVersion = study.getLockVersion();
+
+        // Generate an asset ID that does not exist in the database.
+        UUID missingAssetId = UUID.randomUUID();
+
+        assertFalse(studyAssetRepository.existsById(missingAssetId));
+
+        // Prepare a feed containing a validly formatted but nonexistent assetId.
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        StudyFeed feed = new StudyFeed(studyId, template);
+
+        feed.replaceContent("""
+            {
+              "ROOT": {
+                "type": {
+                  "resolvedName": "ImageWidget"
+                },
+                "props": {
+                  "assetId": "%s"
+                }
+              }
+            }
+            """.formatted(missingAssetId));
+
+        // Seed the invalid feed directly to exercise publication-time validation.
+        studyFeedRepository.saveAndFlush(feed);
+
+        entityManager.clear();
+
+        // Capture the persisted state before publication.
+        Study originalStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        StudyFeed originalFeed = studyFeedRepository.findById(studyId)
+                .orElseThrow();
+
+        String originalContent = originalFeed.getContent();
+        long originalFeedVersion = originalFeed.getLockVersion();
+        Instant originalUpdatedAt = originalStudy.getUpdatedAt();
+
+        assertEquals(StudyStatus.DRAFT, originalStudy.getStatus());
+        assertNull(originalStudy.getParticipationToken());
+        assertNull(originalStudy.getPublishedAt());
+
+        entityManager.clear();
+
+        String publishRequest = """
+            {
+              "version": %d
+            }
+            """.formatted(originalStudyVersion);
+
+        // Publication must reject the missing asset reference.
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + researcherToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(publishRequest)
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("ASSET_REFERENCE_INVALID"))
+                .andExpect(jsonPath("$.participationUrl").doesNotExist());
+
+        // Clear the persistence context before inspecting database state.
+        entityManager.clear();
+
+        Study unchangedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        StudyFeed unchangedFeed = studyFeedRepository.findById(studyId)
+                .orElseThrow();
+
+        // Publication failure must not change the study lifecycle.
+        assertEquals(StudyStatus.DRAFT, unchangedStudy.getStatus());
+
+        // No partial publication metadata may remain.
+        assertNull(unchangedStudy.getParticipationToken());
+        assertNull(unchangedStudy.getPublishedAt());
+
+        // The rejected publication must not increment the study version.
+        assertEquals(
+                originalStudyVersion,
+                unchangedStudy.getLockVersion()
+        );
+
+        assertEquals(
+                originalUpdatedAt,
+                unchangedStudy.getUpdatedAt()
+        );
+
+        // The original feed and its version must remain intact.
+        assertEquals(originalContent, unchangedFeed.getContent());
+
+        assertEquals(
+                originalFeedVersion,
+                unchangedFeed.getLockVersion()
+        );
+
+        // A failed publication must not create the missing asset.
+        assertFalse(studyAssetRepository.existsById(missingAssetId));
     }
 
 }
