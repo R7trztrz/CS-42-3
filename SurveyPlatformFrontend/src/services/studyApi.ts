@@ -57,6 +57,30 @@ export type StudyPageResponse = {
   totalPages: number
 }
 
+export type StudyAssetResponse = {
+  assetId: string
+  filename: string
+  contentType: string
+  sizeBytes: number
+  width: number
+  height: number
+  createdAt: string
+  contentUrl: string
+}
+
+export type LinkPreviewWarning = {
+  code: string
+  message: string
+}
+
+export type LinkPreviewResponse = {
+  sourceUrl: string
+  title: string | null
+  description: string | null
+  image: StudyAssetResponse | null
+  warnings: LinkPreviewWarning[]
+}
+
 export async function createStudy(request: CreateStudyRequest) {
   const response = await api.post<StudyResponse>('/api/studies', request)
   return response.data
@@ -101,5 +125,17 @@ export async function publishStudy(studyId: string, version: number) {
 
 export async function getParticipation(token: string) {
   const response = await api.get<ParticipationResponse>(`/api/participation/${token}`)
+  return response.data
+}
+
+export async function generateLinkPreview(
+  studyId: string,
+  url: string,
+) {
+  const response = await api.post<LinkPreviewResponse>(
+    `/api/studies/${studyId}/link-previews`,
+    { url },
+  )
+
   return response.data
 }
