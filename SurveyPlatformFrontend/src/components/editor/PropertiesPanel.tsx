@@ -400,6 +400,25 @@ function PropertiesPanel() {
       (props) => {
         props.imageSrc =
           event.target.value
+        props.assetId =
+          undefined
+      },
+    )
+  }
+
+
+  const handleRemovePostAsset = () => {
+    if (!selectedNodeId) {
+      return
+    }
+
+    actions.setProp(
+      selectedNodeId,
+      (props) => {
+        props.assetId =
+          undefined
+        props.imageSrc =
+          ''
       },
     )
   }
@@ -1261,6 +1280,27 @@ function PropertiesPanel() {
                   {/* Media URL */}
 
                   <div>
+
+                    {selectedNodeProps
+                      ?.assetId && (
+                      <div className="mb-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3">
+                        <p className="text-xs font-semibold uppercase text-emerald-700">
+                          Imported image
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-emerald-900">
+                          This post uses an image stored with the study.
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={handleRemovePostAsset}
+                          className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900"
+                        >
+                          Remove image
+                        </button>
+                      </div>
+                    )}
 
                     <label
                       htmlFor="post-image-src"

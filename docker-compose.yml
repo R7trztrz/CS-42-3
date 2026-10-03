@@ -28,6 +28,9 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-survey_password}
       JWT_SECRET: ${JWT_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
+      ASSET_STORAGE_DIRECTORY: /app/data/assets
+    volumes:
+      - study_assets:/app/data/assets
     ports:
       - "8080:8080"
     depends_on:
@@ -49,3 +52,4 @@ services:
 
 volumes:
   postgres_data:
+  study_assets:

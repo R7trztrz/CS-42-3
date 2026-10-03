@@ -25,6 +25,8 @@ import {
   TextWidget,
 } from '../../components/widgets'
 
+import { AssetImageProvider } from '../../components/widgets/AssetImageContext'
+
 /*
  * Facebook
  */
@@ -340,6 +342,9 @@ function ParticipationPage() {
               {/* Published interface */}
               <section className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm [&_.cursor-move]:cursor-default">
                 <InterfaceErrorBoundary>
+                  <AssetImageProvider
+                    participationToken={token}
+                  >
                   <Editor
                     enabled={false}
                     resolver={{
@@ -424,6 +429,7 @@ function ParticipationPage() {
                       )}
                     />
                   </Editor>
+                  </AssetImageProvider>
                 </InterfaceErrorBoundary>
               </section>
             </>

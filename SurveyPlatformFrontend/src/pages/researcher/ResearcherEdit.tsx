@@ -174,6 +174,8 @@ import {
 
 import type { PlatformStyle } from '../../components/widgets/types'
 
+import { AssetImageProvider } from '../../components/widgets/AssetImageContext'
+
 /*
 
  * Study API
@@ -1808,6 +1810,16 @@ function ResearcherEdit() {
 
       <ResearcherHeader />
 
+      <AssetImageProvider
+
+        studyId={
+
+          study.id
+
+        }
+
+      >
+
       <Editor
 
         enabled={
@@ -2179,6 +2191,12 @@ function ResearcherEdit() {
             {isEditable ? (
 
               <Toolbox
+
+                studyId={
+
+                  study.id
+
+                }
 
                 styleId={
 
@@ -2601,6 +2619,8 @@ function ResearcherEdit() {
         </div>
 
       </Editor>
+
+      </AssetImageProvider>
 
       {/* Unsaved changes */}
 

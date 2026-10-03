@@ -9,9 +9,11 @@ import {
 } from '../widgets'
 
 import type { PlatformStyle } from '../widgets/types'
+import ImportPostDialog from './ImportPostDialog'
 
 
 type ToolboxProps = {
+  studyId?: string
   styleId: PlatformStyle
 }
 
@@ -21,6 +23,7 @@ const toolButtonClass =
 
 
 function Toolbox({
+  studyId,
   styleId,
 }: ToolboxProps) {
   const { connectors } = useEditor()
@@ -41,6 +44,13 @@ function Toolbox({
 
 
       <div className="mt-5 space-y-3">
+
+        {studyId && (
+          <ImportPostDialog
+            studyId={studyId}
+            initialStyleId={styleId}
+          />
+        )}
 
         {/* Full Post Widget */}
         <button

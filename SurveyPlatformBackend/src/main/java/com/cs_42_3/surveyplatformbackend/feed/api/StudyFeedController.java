@@ -46,7 +46,7 @@ public class StudyFeedController {
     @PutMapping(consumes = "application/json")
     @Operation(operationId = "saveStudyFeed", summary = "Replace my draft feed",
             description = "DRAFT only. Supply the complete content and numeric feed version. "
-                    + "Internal document validation is deferred. Template metadata is retained. "
+                    + "Asset references must belong to this study and have stored files. Other document validation is deferred. Template metadata is retained. "
                     + "Use the returned version for the next save; an unchanged document may retain its version.")
     @ApiResponse(responseCode = "409", description = "STUDY_NOT_EDITABLE or FEED_VERSION_CONFLICT.")
     public FeedResponse saveFeed(@PathVariable UUID studyId, @Valid @RequestBody SaveFeedRequest request) {

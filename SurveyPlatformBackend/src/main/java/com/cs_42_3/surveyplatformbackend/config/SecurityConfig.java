@@ -75,7 +75,8 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // Only the public entry read is anonymous; future write APIs need their own rules.
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/participation/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/participation/*", "/api/participation/*/assets/*/content").permitAll()
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",
