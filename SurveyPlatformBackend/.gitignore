@@ -11,8 +11,6 @@
 !.gitignore
 !README.md
 !readme.md
-!docs/
-!docs/**/*.md
 !pom.xml
 !mvnw
 !mvnw.cmd

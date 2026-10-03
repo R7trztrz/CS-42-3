@@ -241,9 +241,9 @@ With Docker available, the full command starts an isolated PostgreSQL container,
 ## M4 question bank and questionnaires
 
 M4 is contained under the top-level `survey` package. The frozen frontend
-integration contract, request and response examples, error envelope, branch
-semantics, and migration notes are documented in
-[`docs/m4-api-contract-v1.md`](docs/m4-api-contract-v1.md).
+integration contract is distributed separately as `m4-api-contract-v1.md`;
+it includes request and response examples, the error envelope, branch
+semantics, and migration notes.
 
 Question-bank APIs are under `/api/questions`. The list endpoint returns the
 stable `QuestionPageResponse` envelope and accepts `page`, `size`, `type`, and
