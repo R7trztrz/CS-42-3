@@ -35,9 +35,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.Instant;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -901,6 +905,362 @@ class StudyPublicationIntegrationTest {
 
         // A rejected publication must not create a feed automatically.
         assertFalse(studyFeedRepository.existsById(studyId));
+    }
+
+    /** Verifies that publishing a study freezes its feed and prevents subsequent changes. */
+    @Test
+    void shouldRejectFeedUpdateAfterStudyPublication() throws Exception {
+
+        // Create an owned draft study.
+        Study study = studyRepository.saveAndFlush(
+                new Study(
+                        researcher.getId(),
+                        "Feed Freeze Test Study",
+                        "Verify feed immutability after publication"
+                )
+        );
+
+        UUID studyId = study.getId();
+        long originalStudyVersion = study.getLockVersion();
+
+        // Prepare valid feed content.
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        StudyFeed feed = new StudyFeed(studyId, template);
+
+        feed.replaceContent("""
+            {
+              "ROOT": {
+                "type": "div"
+              }
+            }
+            """);
+
+        studyFeedRepository.saveAndFlush(feed);
+
+        entityManager.clear();
+
+        // Publish the study successfully.
+        String publishRequest = """
+            {
+              "version": %d
+            }
+            """.formatted(originalStudyVersion);
+
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + researcherToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(publishRequest)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"));
+
+        // Capture the persisted publication and feed state.
+        entityManager.clear();
+
+        Study publishedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        StudyFeed publishedFeed = studyFeedRepository.findById(studyId)
+                .orElseThrow();
+
+        long publishedStudyVersion = publishedStudy.getLockVersion();
+        long currentFeedVersion = publishedFeed.getLockVersion();
+
+        String originalContent = publishedFeed.getContent();
+        String originalToken = publishedStudy.getParticipationToken();
+        Instant originalPublishedAt = publishedStudy.getPublishedAt();
+
+        assertEquals(StudyStatus.COLLECTING, publishedStudy.getStatus());
+
+        // Attempt to replace the feed using its CURRENT version.
+        String updateRequest = """
+            {
+              "version": %d,
+              "content": {
+                "ROOT": {
+                  "type": "ModifiedAfterPublication"
+                }
+              }
+            }
+            """.formatted(currentFeedVersion);
+
+        mockMvc.perform(
+                        put("/api/studies/{studyId}/feed", studyId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + researcherToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(updateRequest)
+                )
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code")
+                        .value("STUDY_NOT_EDITABLE"));
+
+        // Reload the database state after the rejected update.
+        entityManager.clear();
+
+        Study unchangedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        StudyFeed unchangedFeed = studyFeedRepository.findById(studyId)
+                .orElseThrow();
+
+        // The original feed must remain unchanged.
+        assertEquals(originalContent, unchangedFeed.getContent());
+
+        assertEquals(
+                currentFeedVersion,
+                unchangedFeed.getLockVersion()
+        );
+
+        // Publication metadata must also remain unchanged.
+        assertEquals(StudyStatus.COLLECTING, unchangedStudy.getStatus());
+
+        assertEquals(
+                originalToken,
+                unchangedStudy.getParticipationToken()
+        );
+
+        assertEquals(
+                originalPublishedAt,
+                unchangedStudy.getPublishedAt()
+        );
+
+        assertEquals(
+                publishedStudyVersion,
+                unchangedStudy.getLockVersion()
+        );
+    }
+
+    /** Verifies that a published participation link exposes public configuration without researcher credentials. */
+    @Test
+    void shouldAllowPublicParticipationAccessAfterPublication() throws Exception {
+
+        // Create an owned draft study.
+        Study study = studyRepository.saveAndFlush(
+                new Study(
+                        researcher.getId(),
+                        "Public Participation Study",
+                        "Verify public access after publication"
+                )
+        );
+
+        UUID studyId = study.getId();
+        long originalVersion = study.getLockVersion();
+
+        // Prepare valid feed content.
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        StudyFeed feed = new StudyFeed(studyId, template);
+
+        feed.replaceContent("""
+            {
+              "ROOT": {
+                "type": "div"
+              }
+            }
+            """);
+
+        studyFeedRepository.saveAndFlush(feed);
+
+        entityManager.clear();
+
+        // Publish the study through the authenticated endpoint.
+        String publishRequest = """
+            {
+              "version": %d
+            }
+            """.formatted(originalVersion);
+
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + researcherToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(publishRequest)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"));
+
+        // Retrieve the generated participation token from PostgreSQL.
+        entityManager.clear();
+
+        Study publishedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        String participationToken = publishedStudy.getParticipationToken();
+
+        assertNotNull(participationToken);
+        assertEquals(43, participationToken.length());
+
+        // Access the public participation API WITHOUT a researcher JWT.
+        mockMvc.perform(
+                        get("/api/participation/{token}", participationToken)
+                )
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        "Cache-Control",
+                        containsString("no-store")
+                ))
+                .andExpect(jsonPath("$.title")
+                        .value("Public Participation Study"))
+                .andExpect(jsonPath("$.description")
+                        .value("Verify public access after publication"))
+                .andExpect(jsonPath("$.eyeTrackingEnabled").value(false))
+                .andExpect(jsonPath("$.questionnaireEnabled").value(false))
+                .andExpect(jsonPath("$.content.ROOT.type").value("div"))
+
+                // Researcher management metadata must not be exposed.
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.ownerId").doesNotExist())
+                .andExpect(jsonPath("$.participationToken").doesNotExist())
+                .andExpect(jsonPath("$.version").doesNotExist());
+    }
+
+    /** Verifies that malformed and unknown participation tokens return the same safe 404 response. */
+    @Test
+    void shouldRejectInvalidAndUnknownParticipationTokens() throws Exception {
+
+        // A malformed token does not satisfy the required 43-character format.
+        String malformedToken = "invalid-token";
+
+        // This token has the correct format but does not exist in the database.
+        String unknownToken = "A".repeat(43);
+
+        assertTrue(
+                studyRepository.findByParticipationToken(unknownToken).isEmpty()
+        );
+
+        // Reject the malformed token without exposing study information.
+        String malformedResponse = mockMvc.perform(
+                        get("/api/participation/{token}", malformedToken)
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code")
+                        .value("PARTICIPATION_NOT_FOUND"))
+                .andExpect(jsonPath("$.title").doesNotExist())
+                .andExpect(jsonPath("$.content").doesNotExist())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Reject a correctly formatted token that has no matching study.
+        String unknownResponse = mockMvc.perform(
+                        get("/api/participation/{token}", unknownToken)
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code")
+                        .value("PARTICIPATION_NOT_FOUND"))
+                .andExpect(jsonPath("$.title").doesNotExist())
+                .andExpect(jsonPath("$.content").doesNotExist())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Both failure cases must expose the same response.
+        assertEquals(malformedResponse, unknownResponse);
+    }
+
+    /** Verifies that a published participation link fails safely if its feed record is missing. */
+    @Test
+    void shouldRejectPublicParticipationWhenPublishedFeedIsMissing() throws Exception {
+
+        // Create a draft study with valid feed content.
+        Study study = studyRepository.saveAndFlush(
+                new Study(
+                        researcher.getId(),
+                        "Missing Published Feed Study",
+                        "Verify safe public access when published content is unavailable"
+                )
+        );
+
+        UUID studyId = study.getId();
+        long originalVersion = study.getLockVersion();
+
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        StudyFeed feed = new StudyFeed(studyId, template);
+
+        feed.replaceContent("""
+            {
+              "ROOT": {
+                "type": "div"
+              }
+            }
+            """);
+
+        studyFeedRepository.saveAndFlush(feed);
+
+        entityManager.clear();
+
+        // Publish successfully before simulating the missing-feed condition.
+        String publishRequest = """
+            {
+              "version": %d
+            }
+            """.formatted(originalVersion);
+
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + researcherToken
+                                )
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(publishRequest)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"));
+
+        entityManager.clear();
+
+        Study publishedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        String participationToken = publishedStudy.getParticipationToken();
+
+        assertNotNull(participationToken);
+
+        // Simulate an abnormal loss of the feed record after publication.
+        studyFeedRepository.deleteById(studyId);
+        studyFeedRepository.flush();
+
+        entityManager.clear();
+
+        assertFalse(studyFeedRepository.existsById(studyId));
+
+        // A valid token must not expose missing or inconsistent content.
+        mockMvc.perform(
+                        get("/api/participation/{token}", participationToken)
+                )
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("FEED_NOT_READY"))
+                .andExpect(jsonPath("$.content").doesNotExist())
+                .andExpect(jsonPath("$.title").doesNotExist());
+
+        // Verify that the study itself remains published.
+        entityManager.clear();
+
+        Study unchangedStudy = studyRepository.findById(studyId)
+                .orElseThrow();
+
+        assertEquals(StudyStatus.COLLECTING, unchangedStudy.getStatus());
+
+        assertEquals(
+                participationToken,
+                unchangedStudy.getParticipationToken()
+        );
     }
 
 }
