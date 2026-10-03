@@ -7,6 +7,7 @@ import {
 } from 'react'
 
 import type { PlatformStyle } from './types'
+import { useAssetImage } from './AssetImageContext'
 
 
 type PostWidgetProps = {
@@ -17,6 +18,7 @@ type PostWidgetProps = {
   time?: string
 
   avatarSrc?: string
+  assetId?: string
   imageSrc?: string
 
   caption?: string
@@ -607,6 +609,7 @@ function PostWidget({
   time = '2h ago',
 
   avatarSrc = '',
+  assetId,
   imageSrc = '',
 
   caption =
@@ -621,6 +624,11 @@ function PostWidget({
   sound =
     'Original Sound · Emma Wilson',
 }: PostWidgetProps) {
+  const assetImageSrc =
+    useAssetImage(assetId)
+  const displayedImageSrc =
+    imageSrc || assetImageSrc
+
   const {
     connectors: {
       connect,
@@ -820,9 +828,9 @@ function PostWidget({
 
         <article className="relative h-[630px] w-[355px] shrink-0 overflow-hidden rounded-[18px] bg-[#181818] shadow-2xl">
 
-          {imageSrc ? (
+          {displayedImageSrc ? (
             <img
-              src={imageSrc}
+              src={displayedImageSrc}
               alt="TikTok post"
               className="absolute inset-0 h-full w-full object-cover"
             />
@@ -1181,9 +1189,9 @@ function PostWidget({
 
         <div className="aspect-square w-full overflow-hidden bg-[#f4f5f7]">
 
-          {imageSrc ? (
+          {displayedImageSrc ? (
             <img
-              src={imageSrc}
+              src={displayedImageSrc}
               alt="Post"
               className="h-full w-full object-cover"
             />
@@ -1363,9 +1371,9 @@ function PostWidget({
 
         <div className="w-full overflow-hidden bg-[#e9edf2]">
 
-          {imageSrc ? (
+          {displayedImageSrc ? (
             <img
-              src={imageSrc}
+              src={displayedImageSrc}
               alt="Post"
               className="max-h-[420px] w-full object-cover"
             />
@@ -1511,6 +1519,14 @@ function PostWidget({
       <p className="mt-3 text-sm">
         {caption}
       </p>
+
+      {displayedImageSrc && (
+        <img
+          src={displayedImageSrc}
+          alt="Post"
+          className="mt-4 max-h-[420px] w-full rounded object-cover"
+        />
+      )}
     </article>
   )
 }
@@ -1535,6 +1551,9 @@ PostWidget.craft = {
 
     avatarSrc:
       '',
+
+    assetId:
+      undefined,
 
     imageSrc:
       '',

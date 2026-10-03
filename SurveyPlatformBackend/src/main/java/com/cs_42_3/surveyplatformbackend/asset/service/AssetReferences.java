@@ -43,7 +43,7 @@ public class AssetReferences {
             if (assetId.isMissingNode() || assetId.isNull()) continue;
             String widget = node.path("type").path("resolvedName").asString("");
 
-            if (!Set.of("ImageWidget", "AvatarWidget").contains(widget)
+            if (!Set.of("ImageWidget", "AvatarWidget", "PostWidget").contains(widget)
                     || !assetId.isString() || src.isString() && !src.asString().isBlank()) {
                 throw AssetException.reference();
             }

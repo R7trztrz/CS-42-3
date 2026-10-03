@@ -40,7 +40,7 @@ public class StudyAssetController {
     @SecurityRequirement(name = "bearerAuth")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Image stored; use assetId in feed props.")
     @Operation(summary = "Upload an image to my draft study",
-            description = "Use multipart field file. Returns assetId for ImageWidget or AvatarWidget props; does not edit the feed or study timestamp.")
+            description = "Use multipart field file. Returns assetId for ImageWidget, AvatarWidget or PostWidget props; does not edit the feed or study timestamp.")
     public ResponseEntity<AssetResponse> upload(@PathVariable UUID studyId,
             @Parameter(description = "JPG, PNG or WebP image", schema = @Schema(type = "string", format = "binary"))
             @RequestPart("file") MultipartFile file) {
