@@ -283,10 +283,27 @@ class StudyFeedIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
+        // Compare content without relying on timestamp precision.
+        Object originalContent =
+                JsonPath.read(originalFeed, "$.content");
+
+        Object contentAfterAttempt =
+                JsonPath.read(feedAfterAttempt, "$.content");
+
         org.junit.jupiter.api.Assertions.assertEquals(
-                originalFeed,
-                feedAfterAttempt,
-                "A foreign researcher's request must not modify the feed."
+                originalContent,
+                contentAfterAttempt,
+                "Rejected requests must not modify the stored feed content."
+        );
+
+        // Verify that the feed version remains unchanged.
+        Number versionAfterAttempt =
+                JsonPath.read(feedAfterAttempt, "$.version");
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                originalVersion.longValue(),
+                versionAfterAttempt.longValue(),
+                "Rejected requests must not change the feed version."
         );
     }
 
@@ -603,10 +620,27 @@ class StudyFeedIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
+        // Compare content without relying on timestamp precision.
+        Object originalContent =
+                JsonPath.read(originalFeed, "$.content");
+
+        Object contentAfterAttempt =
+                JsonPath.read(feedAfterAttempt, "$.content");
+
         org.junit.jupiter.api.Assertions.assertEquals(
-                originalFeed,
-                feedAfterAttempt,
-                "Unauthenticated requests must not modify stored feed data."
+                originalContent,
+                contentAfterAttempt,
+                "Rejected requests must not modify the stored feed content."
+        );
+
+        // Verify that the feed version remains unchanged.
+        Number versionAfterAttempt =
+                JsonPath.read(feedAfterAttempt, "$.version");
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                originalVersion.longValue(),
+                versionAfterAttempt.longValue(),
+                "Rejected requests must not change the feed version."
         );
     }
 
