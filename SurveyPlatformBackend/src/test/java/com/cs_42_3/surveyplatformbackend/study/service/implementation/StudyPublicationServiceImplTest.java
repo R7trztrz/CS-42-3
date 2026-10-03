@@ -4,6 +4,8 @@ import com.cs_42_3.surveyplatformbackend.asset.exception.AssetException;
 import com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences;
 import com.cs_42_3.surveyplatformbackend.feed.domain.StudyFeed;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
+import com.cs_42_3.surveyplatformbackend.participation.service.ConsentDocument;
+import com.cs_42_3.surveyplatformbackend.participation.service.ConsentDocumentProvider;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
 import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
@@ -19,6 +21,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,13 +53,26 @@ class StudyPublicationServiceImplTest {
     private AssetReferences assetReferences;
     @Mock
     private StudyFeed feed;
+    @Mock
+    private ConsentDocumentProvider consentDocuments;
 
     private StudyPublicationServiceImpl service;
     private Study study;
 
     @BeforeEach
     void setUp() {
-        service = new StudyPublicationServiceImpl(studies, feeds, snapshots, new ObjectMapper(), assetReferences);
+        lenient().when(consentDocuments.currentDocument()).thenReturn(new ConsentDocument(
+                "platform-default-v1", "Test", "Test fixture", false
+        ));
+        service = new StudyPublicationServiceImpl(
+                studies,
+                feeds,
+                snapshots,
+                new ObjectMapper(),
+                assetReferences,
+                consentDocuments,
+                Clock.fixed(Instant.parse("2026-10-03T00:00:00Z"), ZoneOffset.UTC)
+        );
         study = new Study(OWNER_ID, "Study", null);
         ReflectionTestUtils.setField(study, "id", STUDY_ID);
         ReflectionTestUtils.setField(study, "lockVersion", 2L);
@@ -69,6 +87,7 @@ class StudyPublicationServiceImplTest {
 
         assertThat(result.getStatus()).isEqualTo(StudyStatus.COLLECTING);
         assertThat(result.getPublishedAt()).isNotNull();
+        assertThat(result.getConsentDocumentVersion()).isEqualTo("platform-default-v1");
         assertThat(result.getParticipationToken()).hasSize(43);
         verify(assetReferences).validate(STUDY_ID, "{\"ROOT\":{}}");
         verifyNoInteractions(snapshots);

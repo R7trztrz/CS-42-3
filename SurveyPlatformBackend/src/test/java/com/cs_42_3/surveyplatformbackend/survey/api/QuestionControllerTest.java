@@ -1,6 +1,8 @@
 package com.cs_42_3.surveyplatformbackend.survey.api;
 
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionOptionResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionPageResponse;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.QuestionResponse;
@@ -44,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * MockMvc tests for the FR32-FR35 question-bank HTTP contract.
  */
 @WebMvcTest(QuestionController.class)
-@Import({SecurityConfig.class, SurveyExceptionHandler.class})
+@Import({SecurityConfig.class, ParticipantSessionAuthenticationFilter.class,
+        SurveyExceptionHandler.class})
 @TestPropertySource(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
@@ -65,6 +68,9 @@ class QuestionControllerTest {
 
     @MockitoBean
     private QuestionService questionService;
+
+    @MockitoBean
+    private ParticipantSessionTokenService participantSessionTokens;
 
     @Test
     void listQuestionsReturnsSummaryResponseAndPassesFilters() throws Exception {

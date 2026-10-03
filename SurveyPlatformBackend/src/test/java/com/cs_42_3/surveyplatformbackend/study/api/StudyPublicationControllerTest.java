@@ -1,6 +1,8 @@
 package com.cs_42_3.surveyplatformbackend.study.api;
 
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.security.CurrentResearcher;
 import com.cs_42_3.surveyplatformbackend.study.exception.FeedNotReadyException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
@@ -34,7 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Verifies the publication endpoint's stable success-independent error envelope. */
 @WebMvcTest(StudyPublicationController.class)
-@Import({SecurityConfig.class, StudyPublicationExceptionHandler.class})
+@Import({SecurityConfig.class, ParticipantSessionAuthenticationFilter.class,
+        StudyPublicationExceptionHandler.class})
 @TestPropertySource(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
@@ -56,6 +59,9 @@ class StudyPublicationControllerTest {
 
     @MockitoBean
     private ParticipationLinks participationLinks;
+
+    @MockitoBean
+    private ParticipantSessionTokenService participantSessionTokens;
 
     @BeforeEach
     void setUp() {

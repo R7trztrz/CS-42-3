@@ -1,6 +1,8 @@
 package com.cs_42_3.surveyplatformbackend.survey.questionnaire.api;
 
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorDetail;
 import com.cs_42_3.surveyplatformbackend.survey.exception.SurveyExceptionHandler;
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.api.dto.QuestionnaireResponse;
@@ -43,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** HTTP contract coverage for study questionnaire reads and whole-draft saves. */
 @WebMvcTest(QuestionnaireController.class)
-@Import({SecurityConfig.class, SurveyExceptionHandler.class})
+@Import({SecurityConfig.class, ParticipantSessionAuthenticationFilter.class,
+        SurveyExceptionHandler.class})
 @TestPropertySource(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
@@ -63,6 +66,9 @@ class QuestionnaireControllerTest {
 
     @MockitoBean
     private QuestionnaireService questionnaireService;
+
+    @MockitoBean
+    private ParticipantSessionTokenService participantSessionTokens;
 
     @Test
     void getReturnsQuestionnaire() throws Exception {
