@@ -40,8 +40,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @Testcontainers
@@ -437,7 +439,6 @@ class StudyPublicationConcurrencyIntegrationTest {
                 // Observe PostgreSQL until the Feed request is waiting for a lock.
                 boolean lockWaitObserved = false;
 
-
                 for (int attempt = 0; attempt < 200; attempt++) {
 
                     // Refresh PostgreSQL activity statistics inside the long-running transaction.
@@ -466,7 +467,6 @@ class StudyPublicationConcurrencyIntegrationTest {
                         throw new IllegalStateException(exception);
                     }
                 }
-
 
                 assertTrue(
                         lockWaitObserved,
@@ -547,6 +547,242 @@ class StudyPublicationConcurrencyIntegrationTest {
                     feedVersion,
                     unchangedFeed.getLockVersion()
             );
+
+        } finally {
+
+            executor.shutdownNow();
+        }
+    }
+
+    /** Verifies that publication waits for an earlier feed save and uses its committed content. */
+    @Test
+    void shouldPublishUpdatedFeedAfterWaitingForFeedSaveLock() throws Exception {
+
+        // Prepare a researcher and committed draft data.
+        Researcher researcher = researcherRepository.saveAndFlush(
+                new Researcher(
+                        "feed-first-lock-" + UUID.randomUUID() + "@example.com",
+                        "test-password-hash"
+                )
+        );
+
+        Instant now = Instant.now();
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .subject(researcher.getId().toString())
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(3600))
+                .claim("userId", researcher.getId().toString())
+                .claim("role", "RESEARCHER")
+                .build();
+
+        String token = jwtEncoder
+                .encode(JwtEncoderParameters.from(claims))
+                .getTokenValue();
+
+        Study study = studyRepository.saveAndFlush(
+                new Study(
+                        researcher.getId(),
+                        "Feed First Concurrency Study",
+                        "Publication must wait for the committed feed"
+                )
+        );
+
+        UUID studyId = study.getId();
+        long studyVersion = study.getLockVersion();
+
+        var template = feedTemplateRepository.findById("blank")
+                .orElseThrow();
+
+        StudyFeed feed = new StudyFeed(studyId, template);
+
+        feed.replaceContent("""
+            {
+              "ROOT": {
+                "type": "ORIGINAL"
+              }
+            }
+            """);
+
+        studyFeedRepository.saveAndFlush(feed);
+
+        long feedVersion = feed.getLockVersion();
+
+        String saveRequest = """
+            {
+              "version": %d,
+              "content": {
+                "ROOT": {
+                  "type": "UPDATED"
+                }
+              }
+            }
+            """.formatted(feedVersion);
+
+        String publishRequest = """
+            {
+              "version": %d
+            }
+            """.formatted(studyVersion);
+
+        TransactionTemplate transaction =
+                new TransactionTemplate(transactionManager);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        CountDownLatch workerStarted = new CountDownLatch(1);
+
+        AtomicReference<Future<MvcResult>> publicationFuture =
+                new AtomicReference<>();
+
+        try {
+
+            // Hold the Study lock while saving the Feed in the same transaction.
+            transaction.executeWithoutResult(tx -> {
+
+                studyRepository.findOwnedByIdForUpdate(
+                        studyId,
+                        researcher.getId()
+                ).orElseThrow();
+
+                // Save the updated Feed before committing this transaction.
+                try {
+                    mockMvc.perform(
+                                    put("/api/studies/{studyId}/feed", studyId)
+                                            .header(
+                                                    "Authorization",
+                                                    "Bearer " + token
+                                            )
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(saveRequest)
+                            )
+                            .andExpect(status().isOk());
+
+                } catch (Exception exception) {
+                    throw new IllegalStateException(exception);
+                }
+
+                // A separate thread now attempts to publish the same Study.
+                Future<MvcResult> future = executor.submit(() -> {
+
+                    workerStarted.countDown();
+
+                    return mockMvc.perform(
+                                    post("/api/studies/{studyId}/publish", studyId)
+                                            .header(
+                                                    "Authorization",
+                                                    "Bearer " + token
+                                            )
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content(publishRequest)
+                            )
+                            .andReturn();
+                });
+
+                publicationFuture.set(future);
+
+                try {
+                    assertTrue(
+                            workerStarted.await(5, TimeUnit.SECONDS),
+                            "Publication worker did not start"
+                    );
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+
+                // Observe an actual PostgreSQL lock wait.
+                boolean lockWaitObserved = false;
+
+                for (int attempt = 0; attempt < 200; attempt++) {
+
+                    jdbcTemplate.execute("SELECT pg_stat_clear_snapshot()");
+
+                    Boolean waiting = jdbcTemplate.queryForObject("""
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM pg_stat_activity a
+                            WHERE a.datname = current_database()
+                              AND a.pid <> pg_backend_pid()
+                              AND pg_backend_pid() = ANY(pg_blocking_pids(a.pid))
+                        )
+                        """, Boolean.class);
+
+                    if (Boolean.TRUE.equals(waiting)) {
+                        lockWaitObserved = true;
+                        break;
+                    }
+
+                    try {
+                        Thread.sleep(50);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(exception);
+                    }
+                }
+
+                assertTrue(
+                        lockWaitObserved,
+                        "Publication should wait for the Feed save transaction"
+                );
+
+                assertFalse(
+                        future.isDone(),
+                        "Publication must not finish before the Feed transaction commits"
+                );
+
+                // Leaving this callback commits the Feed and releases the Study lock.
+            });
+
+            // Publication should now continue successfully.
+            MvcResult publicationResult = publicationFuture.get()
+                    .get(15, TimeUnit.SECONDS);
+
+            assertEquals(
+                    200,
+                    publicationResult.getResponse().getStatus(),
+                    publicationResult.getResponse().getContentAsString()
+            );
+
+            // Inspect the committed database state.
+            Study publishedStudy = studyRepository.findById(studyId)
+                    .orElseThrow();
+
+            StudyFeed updatedFeed = studyFeedRepository.findById(studyId)
+                    .orElseThrow();
+
+            assertEquals(
+                    StudyStatus.COLLECTING,
+                    publishedStudy.getStatus()
+            );
+
+            assertNotNull(publishedStudy.getParticipationToken());
+            assertNotNull(publishedStudy.getPublishedAt());
+
+            assertEquals(
+                    studyVersion + 1,
+                    publishedStudy.getLockVersion()
+            );
+
+            assertEquals(
+                    feedVersion + 1,
+                    updatedFeed.getLockVersion()
+            );
+
+            assertEquals(
+                    "UPDATED",
+                    JsonPath.read(updatedFeed.getContent(), "$.ROOT.type")
+            );
+
+            // Verify the public participation API exposes the committed updated Feed.
+            mockMvc.perform(
+                            get(
+                                    "/api/participation/{token}",
+                                    publishedStudy.getParticipationToken()
+                            )
+                    )
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.ROOT.type").value("UPDATED"));
 
         } finally {
 
