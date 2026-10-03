@@ -437,19 +437,22 @@ class StudyPublicationConcurrencyIntegrationTest {
                 // Observe PostgreSQL until the Feed request is waiting for a lock.
                 boolean lockWaitObserved = false;
 
+
                 for (int attempt = 0; attempt < 200; attempt++) {
 
+                    // Refresh PostgreSQL activity statistics inside the long-running transaction.
+                    jdbcTemplate.execute("SELECT pg_stat_clear_snapshot()");
+
+                    // Check whether this transaction is blocking another database session.
                     Boolean waiting = jdbcTemplate.queryForObject("""
-                        SELECT EXISTS (
-                            SELECT 1
-                            FROM pg_stat_activity
-                            WHERE datname = current_database()
-                              AND pid <> pg_backend_pid()
-                              AND state = 'active'
-                              AND wait_event_type = 'Lock'
-                              AND query ILIKE '%studies%'
-                        )
-                        """, Boolean.class);
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_stat_activity a
+                WHERE a.datname = current_database()
+                  AND a.pid <> pg_backend_pid()
+                  AND pg_backend_pid() = ANY(pg_blocking_pids(a.pid))
+            )
+            """, Boolean.class);
 
                     if (Boolean.TRUE.equals(waiting)) {
                         lockWaitObserved = true;
@@ -463,6 +466,7 @@ class StudyPublicationConcurrencyIntegrationTest {
                         throw new IllegalStateException(exception);
                     }
                 }
+
 
                 assertTrue(
                         lockWaitObserved,
