@@ -2,6 +2,7 @@ package com.cs_42_3.surveyplatformbackend.study.service.implementation;
 
 import com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
+import com.cs_42_3.surveyplatformbackend.participation.service.ConsentDocumentProvider;
 import com.cs_42_3.surveyplatformbackend.study.domain.*;
 import com.cs_42_3.surveyplatformbackend.study.exception.*;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
@@ -15,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.UUID;
@@ -33,6 +36,8 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
     private final QuestionnaireSnapshotPublicationService questionnaireSnapshots;
     private final ObjectMapper mapper;
     private final AssetReferences assetReferences;
+    private final ConsentDocumentProvider consentDocuments;
+    private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     @Override
@@ -57,13 +62,18 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
             throw new FeedNotReadyException();
         }
         assetReferences.validate(studyId, feed.getContent());
-        Instant publicationTime = Instant.now();
+        Instant publicationTime = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        String consentDocumentVersion = consentDocuments.currentDocument().version();
         if (study.isQuestionnaireEnabled()) {
             questionnaireSnapshots.createSnapshot(study, publicationTime);
         }
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
-        study.publish(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), publicationTime);
+        study.publish(
+                Base64.getUrlEncoder().withoutPadding().encodeToString(bytes),
+                publicationTime,
+                consentDocumentVersion
+        );
         try {
             studies.flush();
         } catch (OptimisticLockingFailureException | OptimisticLockException exception) {

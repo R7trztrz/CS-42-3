@@ -25,6 +25,20 @@ public interface StudyRepository extends JpaRepository<Study, UUID> {
     /** Looks up the unguessable public entry token without exposing owner identity. */
     Optional<Study> findByParticipationToken(String token);
 
+    /** Holds a shared lifecycle lock while a participant session is created. */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select s from Study s where s.participationToken = :token")
+    Optional<Study> findByParticipationTokenForParticipation(
+            @Param("token") String token
+    );
+
+    /** Uses the same Study-before-session lock order for participant writes. */
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select s from Study s where s.id = :studyId")
+    Optional<Study> findByIdForParticipation(
+            @Param("studyId") UUID studyId
+    );
+
     /** Serializes feed saves with study lifecycle changes in the same transaction. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Study s where s.id = :id and s.ownerId = :ownerId")

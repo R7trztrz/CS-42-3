@@ -42,6 +42,13 @@ import java.time.Instant;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException.class)
+    public ResponseEntity<ErrorResponse> handleParticipation(
+            com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
+
     /** Returns stable preview failures without disclosing remote response bodies. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.linkpreview.exception.LinkPreviewException.class)
     public ResponseEntity<ErrorResponse> handlePreview(

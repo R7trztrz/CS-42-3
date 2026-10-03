@@ -74,13 +74,17 @@ public class Study {
     @Column(name = "published_at", columnDefinition = "timestamptz")
     private Instant publishedAt;
 
+    @Column(name = "consent_document_version", length = 64)
+    private String consentDocumentVersion;
+
     /** Freezes configuration through the irreversible draft-to-collecting transition. */
-    public void publish(String token, Instant time) {
+    public void publish(String token, Instant time, String consentVersion) {
         if (status != StudyStatus.DRAFT) {
             throw new com.cs_42_3.surveyplatformbackend.study.exception.StudyNotPublishableException();
         }
         participationToken = java.util.Objects.requireNonNull(token);
         publishedAt = java.util.Objects.requireNonNull(time);
+        consentDocumentVersion = java.util.Objects.requireNonNull(consentVersion);
         status = StudyStatus.COLLECTING;
     }
 

@@ -29,6 +29,11 @@ turnstile:
 
 app:
   participant-base-url: ${APP_PARTICIPANT_BASE_URL:http://localhost:5173}
+  participation:
+    inactivity-timeout: ${PARTICIPANT_INACTIVITY_TIMEOUT:30m}
+    timeout-scan-interval: ${PARTICIPANT_TIMEOUT_SCAN_INTERVAL:1m}
+    max-device-info-bytes: ${PARTICIPANT_MAX_DEVICE_INFO_BYTES:4096}
+    consent-document-version: ${PARTICIPANT_CONSENT_DOCUMENT_VERSION:platform-default-v1}
   assets:
     storage-directory: ${ASSET_STORAGE_DIRECTORY:./data/assets}
     max-pixels: 20000000
