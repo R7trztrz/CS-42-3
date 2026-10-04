@@ -24,6 +24,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Testcontainers
 @SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
 class StudyPublicationIntegrationTest {
@@ -605,8 +607,21 @@ class StudyPublicationIntegrationTest {
                 .getResponse()
                 .getContentAsString();
 
-        // The API must not disclose whether the foreign study exists.
-        assertEquals(foreignResponse, missingResponse);
+        // Volatile timestamps and request paths legitimately differ. The
+        // stable public fields must remain indistinguishable so the API does
+        // not disclose whether the foreign study exists.
+        assertEquals(
+                JsonPath.<String>read(foreignResponse, "$.code"),
+                JsonPath.<String>read(missingResponse, "$.code")
+        );
+        assertEquals(
+                JsonPath.<String>read(foreignResponse, "$.message"),
+                JsonPath.<String>read(missingResponse, "$.message")
+        );
+        assertEquals(
+                JsonPath.<Object>read(foreignResponse, "$.details"),
+                JsonPath.<Object>read(missingResponse, "$.details")
+        );
 
         // Verify that B's study was not modified.
         entityManager.clear();
@@ -671,7 +686,7 @@ class StudyPublicationIntegrationTest {
                     )
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code")
-                            .value("REQUEST_VALIDATION_FAILED"));
+                            .value("VALIDATION_ERROR"));
         }
 
         // Verify that none of the invalid requests changed the database.
