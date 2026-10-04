@@ -18,6 +18,8 @@ import axios from 'axios'
 
 import {
 
+  Link,
+
   useBlocker,
 
   useParams,
@@ -2067,6 +2069,22 @@ function ResearcherEdit() {
                 {study.status}
 
               </span>
+
+              {study.questionnaireEnabled && !isTemplatePreview && (
+
+                <Link
+
+                  to={`/studies/${study.id}/questionnaire`}
+
+                  className="rounded-sm border border-emerald-700 bg-white px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+
+                >
+
+                  {study.status === 'DRAFT' ? 'Edit questionnaire' : 'View questionnaire'}
+
+                </Link>
+
+              )}
 
               <div className="rounded-md border border-sky-200 bg-sky-50 px-4 py-2.5">
 

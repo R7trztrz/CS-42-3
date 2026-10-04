@@ -1,12 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom'
 
 type ResearcherHeaderProps = {
-  activePage?: 'dashboard' | 'studies'
+  activePage?: 'dashboard' | 'studies' | 'questions'
 }
 
 const navigationItems = [
   { label: 'Dashboard', page: 'dashboard', to: '/researcher-dashboard' },
   { label: 'Study List', page: 'studies', to: '/studies' },
+  { label: 'Question Bank', page: 'questions', to: '/questions' },
 ] as const
 
 function ResearcherHeader({ activePage }: ResearcherHeaderProps) {
