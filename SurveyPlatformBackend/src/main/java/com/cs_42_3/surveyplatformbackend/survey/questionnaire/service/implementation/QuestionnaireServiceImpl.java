@@ -134,6 +134,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         .map(item -> new Questionnaire.ItemPlacement(null, item.questionId()))
                         .toList()
                 : resolvePlacements(questionnaire, request.items());
+        boolean addsNewItems = itemPlacements.stream().anyMatch(placement -> placement.itemId() == null);
         List<List<Questionnaire.BranchRulePlacement>> rulesByPosition = buildRulePlans(
                 request.items(),
                 lockedQuestions
@@ -158,6 +159,12 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                 questionnaireRepository.flush();
             }
             questionnaire.synchronizeItems(itemPlacements);
+            if (addsNewItems) {
+                // Persist newly added sibling items before branch rules refer to them. Otherwise,
+                // merging the final aggregate can treat a transient rule-to-target graph as
+                // detached and fail while resolving an identifier that has not been stored yet.
+                questionnaireRepository.flush();
+            }
             questionnaire.replaceBranchRules(rulesByPosition);
             questionnaire.markModified();
             Questionnaire saved = questionnaireRepository.saveAndFlush(questionnaire);
