@@ -134,6 +134,7 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                         .map(item -> new Questionnaire.ItemPlacement(null, item.questionId()))
                         .toList()
                 : resolvePlacements(questionnaire, request.items());
+        boolean addsNewItems = itemPlacements.stream().anyMatch(placement -> placement.itemId() == null);
         List<List<Questionnaire.BranchRulePlacement>> rulesByPosition = buildRulePlans(
                 request.items(),
                 lockedQuestions
@@ -158,19 +159,23 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
                 questionnaireRepository.flush();
             }
             questionnaire.synchronizeItems(itemPlacements);
+            if (addsNewItems) {
+                // A brand-new QuestionnaireItem has no identifier until Hibernate assigns
+                // one at persist time. If replaceBranchRules() below creates a rule whose
+                // targetItem is one of these new siblings, the rule and its target would
+                // both still be transient when the aggregate is later saved. Merging that
+                // graph (see saveAndFlush below) can then misidentify the new, transient
+                // rule as detached and try to load it by its never-persisted id, failing
+                // with org.hibernate.ObjectNotFoundException. Flushing here first persists
+                // the new items - via the managed, cascade=ALL items collection, with no
+                // merge() involved - so every branch-rule target already has a real,
+                // managed identity by the time the final save runs.
+                questionnaireRepository.flush();
+            }
             questionnaire.replaceBranchRules(rulesByPosition);
             questionnaire.markModified();
-            // questionnaire is already managed in this transaction (it was loaded via
-            // the repository above, not detached), so saving it is purely a matter of
-            // flushing the pending changes. Calling saveAndFlush()/save() here instead
-            // routes through EntityManager.merge(), which - for a newly added
-            // QuestionnaireBranchRule whose targetItem is itself a sibling item added
-            // in this same save - can misidentify the new, transient rule as detached
-            // and try to load it by its (never persisted) id, failing with
-            // org.hibernate.ObjectNotFoundException. flush() has no such ambiguity:
-            // it persists exactly the dirty state Hibernate is already tracking.
-            questionnaireRepository.flush();
-            return new QuestionnaireSaveResult(toResponse(questionnaire, lockedQuestions), false);
+            Questionnaire saved = questionnaireRepository.saveAndFlush(questionnaire);
+            return new QuestionnaireSaveResult(toResponse(saved, lockedQuestions), false);
         }
 
         Questionnaire created = Questionnaire.create(studyId);
