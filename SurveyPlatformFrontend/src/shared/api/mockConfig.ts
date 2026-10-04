@@ -1,17 +1,14 @@
-// The M4/M5 backend endpoints aren't wired up yet (teammates are still
-// building them), so every api/*Api.ts file in researcher/ and
-// participant/ branches on USE_MOCK_API: same function signatures, but the
-// mock branch returns in-memory fixtures instead of calling the network.
-//
-// To switch a module over once its real endpoint exists, delete that
-// module's mock branch and mock data file; nothing else needs to change,
-// since callers only ever import the *Api.ts functions, never the mocks
-// directly.
-export const USE_MOCK_API = true
+// M4 (question bank + questionnaire) now calls the real backend directly -
+// see researcher/questionBank/api/questionBankApi.ts and
+// researcher/questionnaire/api/questionnaireApi.ts. M5 (participant
+// session) has no backend yet (SurveyPlatformBackend/docs/m4-api-contract-v1.md
+// section 6: "There is no public participant questionnaire/session
+// endpoint in M4 v1"), so participant/session/api/sessionApi.ts stays on
+// the in-memory mock below unconditionally until an M5 contract exists.
 
 // Small helper so mock responses feel like a real network call (loading
 // states, skeletons, etc. behave the same in mock mode as they will once
-// wired to the backend).
+// wired to a real M5 backend).
 export function mockDelay(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../state/SessionContext'
+import type { QuestionResponse } from '../../../shared/types/question'
 import type { QuestionnaireItemResponse } from '../../../shared/types/questionnaire'
 import type { AnswerSubmission } from '../types'
 
 // UC-31: renders the current item and, on submit, hands the answer to
 // SessionContext, which resolves the next item via resolveNextItem (the
-// FR-38 jump-table lookup) and advances - or, if there's no next item,
-// marks the session complete.
+// contract 7.3 default/branch lookup) and advances - or, if there's no
+// next item, marks the session complete.
 export default function QuestionnairePage() {
   const { questionnaire, currentItem, isComplete, submitCurrentAnswer } = useSession()
   const navigate = useNavigate()
@@ -30,7 +31,7 @@ export default function QuestionnairePage() {
     return null
   }
 
-  const answeredCount = questionnaire.items.findIndex((i) => i.id === currentItem.id)
+  const answeredCount = questionnaire.items.findIndex((i) => i.itemId === currentItem.itemId)
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8">
@@ -42,7 +43,7 @@ export default function QuestionnairePage() {
           starts each answer input fresh, instead of an effect resetting
           state after the fact. */}
       <QuestionAnswerForm
-        key={currentItem.id}
+        key={currentItem.itemId}
         item={currentItem}
         onSubmit={submitCurrentAnswer}
       />
@@ -56,8 +57,26 @@ interface QuestionAnswerFormProps {
 }
 
 function QuestionAnswerForm({ item, onSubmit }: QuestionAnswerFormProps) {
-  const { question } = item
+  if (!item.question) {
+    // A published snapshot freezes its question content, so this shouldn't
+    // happen for a real session - only reachable if the mock fixture is
+    // misconfigured.
+    return (
+      <p className="text-sm text-red-600">
+        This question is no longer available. Contact the researcher.
+      </p>
+    )
+  }
 
+  return <AnswerFields question={item.question} onSubmit={onSubmit} />
+}
+
+interface AnswerFieldsProps {
+  question: QuestionResponse
+  onSubmit: (answer: Omit<AnswerSubmission, 'itemId'>) => Promise<void>
+}
+
+function AnswerFields({ question, onSubmit }: AnswerFieldsProps) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([])
   const [scaleValue, setScaleValue] = useState<number | null>(question.scaleMin ?? null)
@@ -99,14 +118,14 @@ function QuestionAnswerForm({ item, onSubmit }: QuestionAnswerFormProps) {
         <div className="space-y-2">
           {question.options.map((option) => (
             <label
-              key={option.id}
+              key={option.optionId}
               className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm hover:border-blue-400"
             >
               <input
                 type="radio"
                 name="single-choice"
-                checked={selectedOptionId === option.id}
-                onChange={() => setSelectedOptionId(option.id)}
+                checked={selectedOptionId === option.optionId}
+                onChange={() => setSelectedOptionId(option.optionId)}
               />
               {option.optionText}
             </label>
@@ -118,17 +137,17 @@ function QuestionAnswerForm({ item, onSubmit }: QuestionAnswerFormProps) {
         <div className="space-y-2">
           {question.options.map((option) => (
             <label
-              key={option.id}
+              key={option.optionId}
               className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm hover:border-blue-400"
             >
               <input
                 type="checkbox"
-                checked={selectedOptionIds.includes(option.id)}
+                checked={selectedOptionIds.includes(option.optionId)}
                 onChange={(event) =>
                   setSelectedOptionIds((prev) =>
                     event.target.checked
-                      ? [...prev, option.id]
-                      : prev.filter((id) => id !== option.id),
+                      ? [...prev, option.optionId]
+                      : prev.filter((id) => id !== option.optionId),
                   )
                 }
               />

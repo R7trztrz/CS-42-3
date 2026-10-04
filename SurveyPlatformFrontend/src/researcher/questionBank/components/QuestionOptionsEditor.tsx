@@ -1,17 +1,20 @@
-import type { QuestionOptionRequest } from '../../../shared/types/question'
+import type { QuestionOptionFormValue } from '../../../shared/types/question'
 
 interface QuestionOptionsEditorProps {
-  options: QuestionOptionRequest[]
-  onChange: (options: QuestionOptionRequest[]) => void
+  options: QuestionOptionFormValue[]
+  onChange: (options: QuestionOptionFormValue[]) => void
 }
 
+// Edits option text in place while preserving each row's optionId (contract
+// 5.4: retaining an existing optionId is how the backend tells a rename
+// apart from a replace). Only a brand-new row has optionId: null.
 export default function QuestionOptionsEditor({
   options,
   onChange,
 }: QuestionOptionsEditorProps) {
-  function updateOption(index: number, text: string) {
+  function updateOptionText(index: number, text: string) {
     const next = options.slice()
-    next[index] = { optionText: text }
+    next[index] = { ...next[index], optionText: text }
     onChange(next)
   }
 
@@ -20,7 +23,7 @@ export default function QuestionOptionsEditor({
   }
 
   function addOption() {
-    onChange([...options, { optionText: '' }])
+    onChange([...options, { optionId: null, optionText: '' }])
   }
 
   return (
@@ -28,12 +31,12 @@ export default function QuestionOptionsEditor({
       <label className="block text-sm font-medium text-gray-700">Options</label>
 
       {options.map((option, index) => (
-        <div key={index} className="flex items-center gap-2">
+        <div key={option.optionId ?? `new-${index}`} className="flex items-center gap-2">
           <span className="w-5 text-sm text-gray-400">{index + 1}</span>
           <input
             type="text"
             value={option.optionText}
-            onChange={(event) => updateOption(index, event.target.value)}
+            onChange={(event) => updateOptionText(index, event.target.value)}
             placeholder={`Option ${index + 1}`}
             className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
           />

@@ -11,15 +11,19 @@ interface BranchRuleEditorProps {
   onChange: (branchRules: QuestionnaireEditorBranchRule[]) => void
 }
 
-// Only SINGLE_CHOICE/SCALE questions can carry branch rules (see FR-38
-// design doc: MULTI_CHOICE would let one answer select several options with
-// conflicting targets, which breaks NFR-15 determinism).
+// Only SINGLE_CHOICE/SCALE questions can carry branch rules (contract
+// section 7.1 / 7.4: MULTI_CHOICE and TEXT are rejected outright, since one
+// answer could otherwise select several options with conflicting targets).
 export default function BranchRuleEditor({
   question,
   branchRules,
   otherItems,
   onChange,
 }: BranchRuleEditorProps) {
+  // Only an item whose question is still resolvable can be a jump target;
+  // a missing-reference item has nowhere meaningful to land on.
+  const availableTargets = otherItems.filter((item) => item.question !== null)
+
   if (question.type !== 'SINGLE_CHOICE' && question.type !== 'SCALE') {
     return (
       <p className="text-xs text-gray-400">
@@ -29,13 +33,13 @@ export default function BranchRuleEditor({
     )
   }
 
-  if (otherItems.length === 0) {
+  if (availableTargets.length === 0) {
     return <p className="text-xs text-gray-400">Add another item to configure a jump target.</p>
   }
 
   const triggerOptions =
     question.type === 'SINGLE_CHOICE'
-      ? question.options.map((o) => ({ value: o.id, label: o.optionText }))
+      ? question.options.map((o) => ({ value: o.optionId, label: o.optionText }))
       : Array.from(
           { length: (question.scaleMax ?? 0) - (question.scaleMin ?? 0) + 1 },
           (_, i) => (question.scaleMin ?? 0) + i,
@@ -49,8 +53,8 @@ export default function BranchRuleEditor({
     if (!first) return
     const rule: QuestionnaireEditorBranchRule =
       question.type === 'SINGLE_CHOICE'
-        ? { sourceOptionId: String(first.value), sourceScaleValue: null, targetClientId: otherItems[0].clientId }
-        : { sourceOptionId: null, sourceScaleValue: Number(first.value), targetClientId: otherItems[0].clientId }
+        ? { sourceOptionId: String(first.value), sourceScaleValue: null, targetClientId: availableTargets[0].clientId }
+        : { sourceOptionId: null, sourceScaleValue: Number(first.value), targetClientId: availableTargets[0].clientId }
     onChange([...branchRules, rule])
   }
 
@@ -97,9 +101,9 @@ export default function BranchRuleEditor({
             onChange={(event) => updateRule(index, { targetClientId: event.target.value })}
             className="rounded border border-gray-300 px-2 py-1"
           >
-            {otherItems.map((item, i) => (
+            {availableTargets.map((item, i) => (
               <option key={item.clientId} value={item.clientId}>
-                Q{i + 1}: {item.question.questionText.slice(0, 30)}
+                Q{i + 1}: {item.question?.questionText.slice(0, 30)}
               </option>
             ))}
           </select>

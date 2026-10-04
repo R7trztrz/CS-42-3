@@ -1,12 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 
 type ResearcherHeaderProps = {
-  activePage?: 'dashboard' | 'studies'
+  activePage?: 'dashboard' | 'studies' | 'questions'
 }
 
 const navigationItems = [
   { label: 'Dashboard', page: 'dashboard', to: '/researcher-dashboard' },
   { label: 'Study List', page: 'studies', to: '/studies' },
+  // Question bank is owned by the researcher, not any single study (FR-32~35).
+  { label: 'Question Bank', page: 'questions', to: '/questions' },
 ] as const
 
 function ResearcherHeader({ activePage }: ResearcherHeaderProps) {

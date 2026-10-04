@@ -2,13 +2,17 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import QuestionOptionsEditor from '../components/QuestionOptionsEditor'
 import { createQuestion, getQuestion, updateQuestion } from '../api/questionBankApi'
+import { describeError } from '../../../shared/types/apiError'
 import type { QuestionFormValues, QuestionType } from '../../../shared/types/question'
 
 const EMPTY_FORM: QuestionFormValues = {
   type: 'SINGLE_CHOICE',
   questionText: '',
   required: true,
-  options: [{ optionText: '' }, { optionText: '' }],
+  options: [
+    { optionId: null, optionText: '' },
+    { optionId: null, optionText: '' },
+  ],
   scaleMin: 1,
   scaleMax: 10,
   scaleMinLabel: '',
@@ -36,15 +40,18 @@ export default function QuestionFormPage() {
           questionText: question.questionText,
           required: question.required,
           options: question.options.length
-            ? question.options.map((o) => ({ optionText: o.optionText }))
-            : [{ optionText: '' }, { optionText: '' }],
+            ? question.options.map((o) => ({ optionId: o.optionId, optionText: o.optionText }))
+            : [
+                { optionId: null, optionText: '' },
+                { optionId: null, optionText: '' },
+              ],
           scaleMin: question.scaleMin,
           scaleMax: question.scaleMax,
           scaleMinLabel: question.scaleMinLabel,
           scaleMaxLabel: question.scaleMaxLabel,
         }),
       )
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load question.'))
+      .catch((err) => setError(describeError(err, 'Failed to load question.')))
       .finally(() => setIsLoading(false))
   }, [questionId])
 
@@ -52,7 +59,6 @@ export default function QuestionFormPage() {
     setForm((prev) => ({
       ...prev,
       type,
-      options: type === 'SCALE' || type === 'TEXT' ? prev.options : prev.options,
       scaleMin: type === 'SCALE' ? (prev.scaleMin ?? 1) : null,
       scaleMax: type === 'SCALE' ? (prev.scaleMax ?? 10) : null,
     }))
@@ -68,9 +74,9 @@ export default function QuestionFormPage() {
       } else {
         await createQuestion(form)
       }
-      navigate('/researcher/questions')
+      navigate('/questions')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save question.')
+      setError(describeError(err, 'Failed to save question.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -103,8 +109,9 @@ export default function QuestionFormPage() {
           </select>
           {isEditing && (
             <p className="mt-1 text-xs text-amber-600">
-              Changing the type is blocked by the backend while this question is enabled in a
-              questionnaire (see QuestionInUseException).
+              A questionnaire draft that already enables this question reads it live, so
+              changing its type or options here takes effect immediately for any draft, but
+              never for a questionnaire that has already been published.
             </p>
           )}
         </div>
@@ -193,7 +200,7 @@ export default function QuestionFormPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/researcher/questions')}
+            onClick={() => navigate('/questions')}
             className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
           >
             Cancel

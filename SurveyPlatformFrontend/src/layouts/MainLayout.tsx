@@ -28,15 +28,6 @@ function MainLayout() {
               Logout
           </button>
         </nav>
-
-        {/* M4 researcher entry points; no study-list UI exists yet so the
-            questionnaire editor links to a fallback demo study id. */}
-        <nav>
-          <Link to="/researcher/questions">Question bank</Link>{' | '}
-          <Link to="/researcher/studies/demo-study/questionnaire">Questionnaire editor</Link>
-          {' | '}
-          <Link to="/participate/demo-study">Preview participant flow (M5)</Link>
-        </nav>
       </header>
 
       <main>

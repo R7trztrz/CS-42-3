@@ -80,7 +80,7 @@ export function SessionProvider({ studyId, children }: { studyId: string; childr
           studyId,
           consentGivenAt: null,
           hasSeenFeed: false,
-          currentItemId: questionnaireResponse.items[0]?.id ?? null,
+          currentItemId: questionnaireResponse.items[0]?.itemId ?? null,
           answeredItemIds: [],
         }
 
@@ -106,7 +106,7 @@ export function SessionProvider({ studyId, children }: { studyId: string; childr
 
   const currentItem = useMemo(() => {
     if (!questionnaire || !progress?.currentItemId) return null
-    return questionnaire.items.find((item) => item.id === progress.currentItemId) ?? null
+    return questionnaire.items.find((item) => item.itemId === progress.currentItemId) ?? null
   }, [questionnaire, progress])
 
   const recordConsent = useCallback(async () => {
@@ -133,15 +133,15 @@ export function SessionProvider({ studyId, children }: { studyId: string; childr
     async (answer: Omit<AnswerSubmission, 'itemId'>) => {
       if (!session || !questionnaire || !currentItem) return
 
-      await submitAnswer(session.id, { itemId: currentItem.id, ...answer })
+      await submitAnswer(session.id, { itemId: currentItem.itemId, ...answer })
 
       const next = resolveNextItem(questionnaire.items, currentItem, answer)
       setProgress((prev) => {
         if (!prev) return prev
         const updated: SessionProgress = {
           ...prev,
-          currentItemId: next ? next.id : null,
-          answeredItemIds: [...prev.answeredItemIds, currentItem.id],
+          currentItemId: next ? next.itemId : null,
+          answeredItemIds: [...prev.answeredItemIds, currentItem.itemId],
         }
         saveProgress(updated)
         return updated

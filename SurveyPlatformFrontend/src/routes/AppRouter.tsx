@@ -111,33 +111,35 @@ const router = createBrowserRouter([
         ],
       },
 
-      // M4 researcher UI: question bank (FR-32~35) and questionnaire
-      // editor (FR-36~39). No study-list UI exists yet, so
-      // /researcher/questions and the questionnaire editor's studyId
-      // fall back to a demo id - see QuestionnaireEditorPage.
+      // M4 researcher UI: question bank (FR-32~35), owned by the
+      // researcher rather than any single study, and the per-study
+      // questionnaire editor (FR-36~39), linked to from ResearcherEdit.
       {
-        path: 'researcher/questions',
+        path: '/questions',
         element: <QuestionBankListPage />,
       },
       {
-        path: 'researcher/questions/new',
+        path: '/questions/new',
         element: <QuestionFormPage />,
       },
       {
-        path: 'researcher/questions/:questionId/edit',
+        path: '/questions/:questionId/edit',
         element: <QuestionFormPage />,
       },
       {
-        path: 'researcher/studies/:studyId/questionnaire',
+        path: '/studies/:studyId/questionnaire',
         element: <QuestionnaireEditorPage />,
       },
     ],
   },
 
-  // M5 participant UI: a self-contained flow outside MainLayout's chrome,
-  // since participants shouldn't see the researcher nav.
+  // M5 participant UI preview (mock-backed, no real backend yet - see
+  // participant/session/api/sessionApi.ts). Kept under /preview to avoid
+  // colliding with the real tokenized /participate/:token entry route
+  // above; this is a researcher-facing dev tool, not something a
+  // participant would ever reach.
   {
-    path: 'participate/:studyId',
+    path: '/preview/participate/:studyId',
     element: <ParticipantSessionLayout />,
     children: [
       { index: true, element: <SessionEntryPage /> },
