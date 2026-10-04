@@ -8,6 +8,7 @@ import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionPr
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.participation.config.ParticipationProperties;
 import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSession;
+import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSessionPhase;
 import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSessionStatus;
 import com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException;
 import com.cs_42_3.surveyplatformbackend.participation.repository.ParticipantSessionRepository;
@@ -20,6 +21,7 @@ import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.domain.Qu
 import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.service.QuestionnaireSnapshotReadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
@@ -40,6 +42,7 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
     private final ConsentDocumentProvider consentDocuments;
     private final QuestionnaireSnapshotReadService questionnaireSnapshots;
     private final ParticipantQuestionnaireService questionnaire;
+    private final CollectionCompletionGate completionGate;
     private final ParticipationProperties properties;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -108,11 +111,11 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void completeCalibration(UUID sessionId) {
-        ParticipantSession identity = sessions.findById(sessionId)
+        UUID studyId = sessions.findStudyIdById(sessionId)
                 .orElseThrow(ParticipationException::sessionNotFound);
-        Study study = lockCollectingStudy(identity.getStudyId());
+        Study study = lockCollectingStudy(studyId);
         ParticipantSession session = sessions.findByIdForUpdate(sessionId)
                 .orElseThrow(ParticipationException::sessionNotFound);
         if (!session.getStudyId().equals(study.getId()) || !study.isEyeTrackingEnabled()) {
@@ -125,10 +128,16 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
     public ParticipantSessionResponse completeBrowsing(ParticipantSessionPrincipal principal) {
         Study study = lockCollectingStudy(principal.studyId());
         ParticipantSession session = lockOwnedSession(principal);
+        if (session.getBrowsingCompletedAt() == null) {
+            assertActivePhase(session, ParticipantSessionPhase.BROWSING);
+            completionGate.assertReadyForBrowsingCompletion(session.getId());
+            if (!study.isQuestionnaireEnabled()) {
+                completionGate.assertReadyForSessionCompletion(session.getId());
+            }
+        }
         UUID firstItemId = study.isQuestionnaireEnabled()
                 ? firstQuestionItem(study.getId())
                 : null;
-        // CollectionCompletionGate is intentionally wired in phase three with the M6 adapter.
         session.completeBrowsing(study.isQuestionnaireEnabled(), firstItemId, now());
         return response(session, study);
     }
@@ -151,7 +160,7 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
             throw ParticipationException.questionnaireNotReady();
         }
         questionnaire.assertCompletedPath(session.getId(), study.getId());
-        // The M6 CollectionCompletionGate is wired and enforced in phase three.
+        completionGate.assertReadyForSessionCompletion(session.getId());
         session.completeQuestionnaire(now());
         return response(session, study);
     }
@@ -178,6 +187,18 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
 
     private Instant now() {
         return clock.instant().truncatedTo(ChronoUnit.MICROS);
+    }
+
+    private void assertActivePhase(
+            ParticipantSession session,
+            ParticipantSessionPhase phase
+    ) {
+        if (session.getStatus() != ParticipantSessionStatus.IN_PROGRESS) {
+            throw ParticipationException.terminated();
+        }
+        if (session.getPhase() != phase) {
+            throw ParticipationException.invalidState();
+        }
     }
 
     private ParticipantSession lockOwnedSession(ParticipantSessionPrincipal principal) {

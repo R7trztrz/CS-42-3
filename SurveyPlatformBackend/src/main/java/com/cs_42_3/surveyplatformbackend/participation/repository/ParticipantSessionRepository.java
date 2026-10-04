@@ -17,6 +17,9 @@ import java.util.UUID;
 public interface ParticipantSessionRepository extends JpaRepository<ParticipantSession, UUID> {
     Optional<ParticipantSession> findBySessionTokenHash(String sessionTokenHash);
 
+    @Query("select s.studyId from ParticipantSession s where s.id = :sessionId")
+    Optional<UUID> findStudyIdById(@Param("sessionId") UUID sessionId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from ParticipantSession s where s.id = :sessionId")
     Optional<ParticipantSession> findByIdForUpdate(@Param("sessionId") UUID sessionId);

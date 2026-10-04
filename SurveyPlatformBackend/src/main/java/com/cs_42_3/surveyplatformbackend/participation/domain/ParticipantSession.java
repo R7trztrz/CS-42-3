@@ -158,6 +158,22 @@ public class ParticipantSession {
         return true;
     }
 
+    /** Updates inactivity tracking once for a successfully accepted M6 batch. */
+    public void recordCollectionActivity(Instant now) {
+        if (status != ParticipantSessionStatus.IN_PROGRESS) {
+            throw ParticipationException.terminated();
+        }
+        if (consentedAt == null
+                || (phase != ParticipantSessionPhase.BROWSING
+                && phase != ParticipantSessionPhase.QUESTIONNAIRE)) {
+            throw ParticipationException.invalidState();
+        }
+        Instant observedAt = Objects.requireNonNull(now);
+        if (observedAt.isAfter(lastActivityAt)) {
+            touch(observedAt);
+        }
+    }
+
     /** Completes browsing, either finishing the study or exposing the first published item. */
     public boolean completeBrowsing(boolean questionnaireEnabled, UUID firstQuestionItemId, Instant now) {
         if (browsingCompletedAt != null) {
