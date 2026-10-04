@@ -160,8 +160,17 @@ public class QuestionnaireServiceImpl implements QuestionnaireService {
             questionnaire.synchronizeItems(itemPlacements);
             questionnaire.replaceBranchRules(rulesByPosition);
             questionnaire.markModified();
-            Questionnaire saved = questionnaireRepository.saveAndFlush(questionnaire);
-            return new QuestionnaireSaveResult(toResponse(saved, lockedQuestions), false);
+            // questionnaire is already managed in this transaction (it was loaded via
+            // the repository above, not detached), so saving it is purely a matter of
+            // flushing the pending changes. Calling saveAndFlush()/save() here instead
+            // routes through EntityManager.merge(), which - for a newly added
+            // QuestionnaireBranchRule whose targetItem is itself a sibling item added
+            // in this same save - can misidentify the new, transient rule as detached
+            // and try to load it by its (never persisted) id, failing with
+            // org.hibernate.ObjectNotFoundException. flush() has no such ambiguity:
+            // it persists exactly the dirty state Hibernate is already tracking.
+            questionnaireRepository.flush();
+            return new QuestionnaireSaveResult(toResponse(questionnaire, lockedQuestions), false);
         }
 
         Questionnaire created = Questionnaire.create(studyId);
