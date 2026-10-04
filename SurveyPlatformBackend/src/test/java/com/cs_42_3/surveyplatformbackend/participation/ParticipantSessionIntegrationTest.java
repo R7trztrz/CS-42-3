@@ -11,18 +11,26 @@ import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSession
 import com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException;
 import com.cs_42_3.surveyplatformbackend.participation.repository.ParticipantSessionRepository;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantCalibrationLifecyclePort;
+import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantCollectionActivityPort;
+import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantCollectionPolicy;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionService;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyClosedException;
 import com.cs_42_3.surveyplatformbackend.study.exception.FeedNotReadyException;
 import com.cs_42_3.surveyplatformbackend.study.exception.ParticipationNotFoundException;
+import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.IllegalTransactionStateException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
@@ -30,6 +38,11 @@ import java.time.Instant;
 import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,7 +50,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, ParticipationGateTestConfiguration.class})
+@ActiveProfiles("test")
 @Testcontainers
 class ParticipantSessionIntegrationTest {
     @Autowired
@@ -45,13 +59,28 @@ class ParticipantSessionIntegrationTest {
     @Autowired
     private ParticipantCalibrationLifecyclePort calibrationLifecycle;
     @Autowired
+    private ParticipantCollectionPolicy collectionPolicy;
+    @Autowired
+    private ParticipantCollectionActivityPort collectionActivity;
+    @Autowired
     private ParticipantSessionRepository sessions;
+    @Autowired
+    private StudyRepository studies;
     @Autowired
     private ParticipantSessionTokenService tokens;
     @Autowired
     private JdbcTemplate jdbc;
     @Autowired
     private DataSource dataSource;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+    @Autowired
+    private ParticipationGateTestConfiguration.RecordingCollectionCompletionGate completionGate;
+
+    @BeforeEach
+    void resetCompletionGate() {
+        completionGate.reset();
+    }
 
     @Test
     void createsAuthenticatesRestoresAndCompletesAStudyWithoutQuestionnaire() {
@@ -84,6 +113,8 @@ class ParticipantSessionIntegrationTest {
         assertThat(completed.phase()).isEqualTo(ParticipantSessionPhase.FINISHED);
         Instant completedAt = completed.completedAt();
         assertThat(sessionService.completeBrowsing(principal).completedAt()).isEqualTo(completedAt);
+        assertThat(completionGate.browsingChecks()).isOne();
+        assertThat(completionGate.sessionChecks()).isOne();
         assertThat(sessionService.getCurrent(principal).status())
                 .isEqualTo(ParticipantSessionStatus.COMPLETED);
     }
@@ -102,6 +133,14 @@ class ParticipantSessionIntegrationTest {
         var persisted = sessions.findById(created.sessionId()).orElseThrow();
         assertThat(persisted.getDeviceInfo()).isNull();
         assertThat(persisted.getConsentedAt()).isNull();
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM participant_questionnaire_steps WHERE session_id = ?",
+                Integer.class,
+                created.sessionId()
+        )).isZero();
+        assertThatThrownBy(() -> inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        ))).isInstanceOf(ParticipationException.class);
         assertThat(sessionService.decideConsent(principal, false).abandonedAt())
                 .isEqualTo(declined.abandonedAt());
         assertThatThrownBy(() -> sessionService.decideConsent(principal, true))
@@ -116,14 +155,138 @@ class ParticipantSessionIntegrationTest {
 
         assertThat(sessionService.decideConsent(principal, true).phase())
                 .isEqualTo(ParticipantSessionPhase.CALIBRATION);
-        calibrationLifecycle.completeCalibration(created.sessionId());
+        assertThatThrownBy(() -> calibrationLifecycle.completeCalibration(created.sessionId()))
+                .isInstanceOf(IllegalTransactionStateException.class);
+
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.executeWithoutResult(status -> {
+            calibrationLifecycle.completeCalibration(created.sessionId());
+            status.setRollbackOnly();
+        });
+        assertThat(sessions.findById(created.sessionId()).orElseThrow().getPhase())
+                .isEqualTo(ParticipantSessionPhase.CALIBRATION);
+
+        transaction.executeWithoutResult(status ->
+                calibrationLifecycle.completeCalibration(created.sessionId()));
         Instant completedAt = sessions.findById(created.sessionId()).orElseThrow()
                 .getCalibrationCompletedAt();
-        calibrationLifecycle.completeCalibration(created.sessionId());
+        transaction.executeWithoutResult(status ->
+                calibrationLifecycle.completeCalibration(created.sessionId()));
 
         var restored = sessionService.getCurrent(principal);
         assertThat(restored.phase()).isEqualTo(ParticipantSessionPhase.BROWSING);
         assertThat(restored.calibrationCompletedAt()).isEqualTo(completedAt);
+    }
+
+    @Test
+    void collectionPolicyEnforcesConsentPhaseEyeTrackingAndCallerTransactions() {
+        Fixture eyeTracked = fixture(true, false, true);
+        var eyeSession = sessionService.create(eyeTracked.token(), request());
+        ParticipantSessionPrincipal eyePrincipal = tokens.authenticate(
+                eyeSession.sessionToken()
+        ).orElseThrow();
+
+        assertThatThrownBy(() -> collectionPolicy.assertCollectionAllowed(
+                eyeSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        )).isInstanceOf(IllegalTransactionStateException.class);
+        assertThatThrownBy(() -> inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                eyeSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        ))).isInstanceOf(ParticipationException.class);
+
+        sessionService.decideConsent(eyePrincipal, true);
+        assertThatThrownBy(() -> inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                eyeSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.GAZE
+        ))).isInstanceOf(ParticipationException.class);
+        inTransaction(() -> calibrationLifecycle.completeCalibration(eyeSession.sessionId()));
+        inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                eyeSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        ));
+        inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                eyeSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.GAZE
+        ));
+
+        Fixture behaviorOnly = fixture(false, false, true);
+        var behaviorSession = sessionService.create(behaviorOnly.token(), request());
+        ParticipantSessionPrincipal behaviorPrincipal = tokens.authenticate(
+                behaviorSession.sessionToken()
+        ).orElseThrow();
+        sessionService.decideConsent(behaviorPrincipal, true);
+        inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                behaviorSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        ));
+        assertThatThrownBy(() -> inTransaction(() -> collectionPolicy.assertCollectionAllowed(
+                behaviorSession.sessionId(), ParticipantCollectionPolicy.CollectionKind.GAZE
+        ))).isInstanceOf(ParticipationException.class);
+    }
+
+    @Test
+    void acceptedBatchActivityCommitsAndRollsBackWithTheCallingTransaction() {
+        Fixture fixture = fixture(false, false, true);
+        var created = sessionService.create(fixture.token(), request());
+        ParticipantSessionPrincipal principal = tokens.authenticate(created.sessionToken()).orElseThrow();
+        sessionService.decideConsent(principal, true);
+        Instant oldActivity = Instant.parse("2026-01-01T00:00:00Z");
+        jdbc.update(
+                "UPDATE participant_sessions SET last_activity_at = ?, updated_at = ? WHERE id = ?",
+                Timestamp.from(oldActivity),
+                Timestamp.from(oldActivity),
+                created.sessionId()
+        );
+
+        assertThatThrownBy(() -> collectionActivity.recordAcceptedBatch(
+                created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+        )).isInstanceOf(IllegalTransactionStateException.class);
+
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.executeWithoutResult(status -> {
+            collectionPolicy.assertCollectionAllowed(
+                    created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+            );
+            collectionActivity.recordAcceptedBatch(
+                    created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+            );
+            assertThat(sessions.findById(created.sessionId()).orElseThrow().getLastActivityAt())
+                    .isAfter(oldActivity);
+            status.setRollbackOnly();
+        });
+        assertThat(sessions.findById(created.sessionId()).orElseThrow().getLastActivityAt())
+                .isEqualTo(oldActivity);
+
+        inTransaction(() -> {
+            collectionPolicy.assertCollectionAllowed(
+                    created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+            );
+            collectionActivity.recordAcceptedBatch(
+                    created.sessionId(), ParticipantCollectionPolicy.CollectionKind.BEHAVIOR
+            );
+        });
+        assertThat(sessions.findById(created.sessionId()).orElseThrow().getLastActivityAt())
+                .isAfter(oldActivity);
+    }
+
+    @Test
+    void completionGateFailuresLeaveBrowsingStateUnchanged() {
+        Fixture fixture = fixture(false, false, true);
+        var created = sessionService.create(fixture.token(), request());
+        ParticipantSessionPrincipal principal = tokens.authenticate(created.sessionToken()).orElseThrow();
+        sessionService.decideConsent(principal, true);
+
+        completionGate.rejectBrowsing();
+        assertThatThrownBy(() -> sessionService.completeBrowsing(principal))
+                .isInstanceOf(ParticipationException.class);
+        assertThat(sessionService.getCurrent(principal).phase())
+                .isEqualTo(ParticipantSessionPhase.BROWSING);
+        assertThat(completionGate.browsingChecks()).isOne();
+        assertThat(completionGate.sessionChecks()).isZero();
+
+        completionGate.reset();
+        completionGate.rejectSession();
+        assertThatThrownBy(() -> sessionService.completeBrowsing(principal))
+                .isInstanceOf(ParticipationException.class);
+        assertThat(sessionService.getCurrent(principal).phase())
+                .isEqualTo(ParticipantSessionPhase.BROWSING);
+        assertThat(completionGate.browsingChecks()).isOne();
+        assertThat(completionGate.sessionChecks()).isOne();
     }
 
     @Test
@@ -138,6 +301,8 @@ class ParticipantSessionIntegrationTest {
         assertThat(questionnaire.phase()).isEqualTo(ParticipantSessionPhase.QUESTIONNAIRE);
         assertThat(questionnaire.currentQuestionItemId()).isEqualTo(fixture.firstItemId());
         assertThat(questionnaire.status()).isEqualTo(ParticipantSessionStatus.IN_PROGRESS);
+        assertThat(completionGate.browsingChecks()).isOne();
+        assertThat(completionGate.sessionChecks()).isZero();
     }
 
     @Test
@@ -221,6 +386,52 @@ class ParticipantSessionIntegrationTest {
                 .isInstanceOf(ParticipationException.class)
                 .extracting(exception -> ((ParticipationException) exception).getCode().code())
                 .isEqualTo("PARTICIPANT_SESSION_NOT_FOUND");
+        assertThatThrownBy(() -> sessionService.decideConsent(forged, true))
+                .isInstanceOf(ParticipationException.class)
+                .extracting(exception -> ((ParticipationException) exception).getCode().code())
+                .isEqualTo("PARTICIPANT_SESSION_NOT_FOUND");
+        assertThat(sessions.findById(first.sessionId()).orElseThrow().getPhase())
+                .isEqualTo(ParticipantSessionPhase.CONSENT);
+    }
+
+    @Test
+    void differentSessionsInOneStudyCanHoldWriteTransactionsConcurrently() throws Exception {
+        Fixture fixture = fixture(false, false, true);
+        var first = sessionService.create(fixture.token(), request());
+        var second = sessionService.create(fixture.token(), request());
+        CountDownLatch firstLocked = new CountDownLatch(1);
+        CountDownLatch secondLocked = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> firstWrite = executor.submit(() ->
+                    new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                        studies.findByIdForParticipation(fixture.studyId()).orElseThrow();
+                        var session = sessions.findByIdForUpdate(first.sessionId()).orElseThrow();
+                        firstLocked.countDown();
+                        await(secondLocked);
+                        session.decideConsent(true, false, Instant.now());
+                    })
+            );
+            Future<?> secondWrite = executor.submit(() -> {
+                await(firstLocked);
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    studies.findByIdForParticipation(fixture.studyId()).orElseThrow();
+                    var session = sessions.findByIdForUpdate(second.sessionId()).orElseThrow();
+                    session.decideConsent(true, false, Instant.now());
+                    secondLocked.countDown();
+                });
+            });
+
+            firstWrite.get(10, TimeUnit.SECONDS);
+            secondWrite.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(sessions.findById(first.sessionId()).orElseThrow().getPhase())
+                .isEqualTo(ParticipantSessionPhase.BROWSING);
+        assertThat(sessions.findById(second.sessionId()).orElseThrow().getPhase())
+                .isEqualTo(ParticipantSessionPhase.BROWSING);
     }
 
     @Test
@@ -297,6 +508,19 @@ class ParticipantSessionIntegrationTest {
                 1080,
                 "Australia/Sydney"
         ));
+    }
+
+    private void inTransaction(Runnable action) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> action.run());
+    }
+
+    private void await(CountDownLatch latch) {
+        try {
+            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while coordinating lock test", exception);
+        }
     }
 
     private Fixture fixture(

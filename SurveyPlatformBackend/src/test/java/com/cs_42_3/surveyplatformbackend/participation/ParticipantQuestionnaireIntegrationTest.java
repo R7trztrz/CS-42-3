@@ -18,6 +18,7 @@ import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessio
 import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +28,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Timestamp;
@@ -48,7 +50,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "app.participation.timeout-scheduler-enabled=false"
 })
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, ParticipationGateTestConfiguration.class})
+@ActiveProfiles("test")
 @Testcontainers
 class ParticipantQuestionnaireIntegrationTest {
     @Autowired
@@ -73,11 +76,20 @@ class ParticipantQuestionnaireIntegrationTest {
     private EntityManager entityManager;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private ParticipationGateTestConfiguration.RecordingCollectionCompletionGate completionGate;
+
+    @BeforeEach
+    void resetCompletionGate() {
+        completionGate.reset();
+    }
 
     @Test
     void traversesAllQuestionTypesReplaysIdempotentlyAndCompletes() {
         Fixture fixture = fixture(false);
         SessionContext context = startQuestionnaire(fixture);
+        assertThat(completionGate.browsingChecks()).isOne();
+        assertThat(completionGate.sessionChecks()).isZero();
 
         assertThat(questionnaire.current(context.principal()).currentQuestion().itemId())
                 .isEqualTo(fixture.singleItemId());
@@ -85,6 +97,7 @@ class ParticipantQuestionnaireIntegrationTest {
                 .isInstanceOf(ParticipationException.class)
                 .extracting(error -> ((ParticipationException) error).getCode().code())
                 .isEqualTo("PARTICIPANT_QUESTIONNAIRE_NOT_READY");
+        assertThat(completionGate.sessionChecks()).isZero();
 
         UUID firstKey = UUID.randomUUID();
         SubmitQuestionnaireAnswerRequest firstRequest = request(
@@ -161,6 +174,7 @@ class ParticipantQuestionnaireIntegrationTest {
         assertThat(completed.phase()).isEqualTo(ParticipantSessionPhase.FINISHED);
         assertThat(sessionService.completeQuestionnaire(context.principal()).completedAt())
                 .isEqualTo(completedAt);
+        assertThat(completionGate.sessionChecks()).isOne();
         assertThatThrownBy(() -> questionnaire.answer(
                 context.principal(), fixture.textItemId(), UUID.randomUUID(),
                 request(null, null, null, "late", false)

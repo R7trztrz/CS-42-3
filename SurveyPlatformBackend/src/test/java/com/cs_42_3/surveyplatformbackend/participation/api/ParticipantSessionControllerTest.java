@@ -100,6 +100,9 @@ class ParticipantSessionControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Cache-Control",
                         org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
                 .andExpect(jsonPath("$.sessionToken").value(SESSION_TOKEN))
                 .andExpect(jsonPath("$.phase").value("CONSENT"));
 
@@ -112,6 +115,9 @@ class ParticipantSessionControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string("Cache-Control",
                         org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
                 .andExpect(jsonPath("$.code").value("PARTICIPANT_SESSION_UNAUTHORIZED"));
     }
 

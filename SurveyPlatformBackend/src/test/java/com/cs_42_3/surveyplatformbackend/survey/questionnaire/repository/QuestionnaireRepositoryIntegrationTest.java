@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @Import(TestcontainersConfiguration.class)
+@ActiveProfiles("test")
 @Transactional
 @Testcontainers
 class QuestionnaireRepositoryIntegrationTest {

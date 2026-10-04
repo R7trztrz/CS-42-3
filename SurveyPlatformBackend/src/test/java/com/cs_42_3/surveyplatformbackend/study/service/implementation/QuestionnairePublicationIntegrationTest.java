@@ -34,6 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.concurrent.DelegatingSecurityContextExecutorService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
@@ -55,6 +56,7 @@ import static org.mockito.Mockito.when;
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 })
 @Import(TestcontainersConfiguration.class)
+@ActiveProfiles("test")
 @Testcontainers
 @WithMockUser(roles = "RESEARCHER")
 class QuestionnairePublicationIntegrationTest {
