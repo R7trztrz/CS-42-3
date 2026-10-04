@@ -21,8 +21,10 @@ function AvatarWidget({
   const {
     connectors: { connect, drag },
     selected,
+    nodeId,
   } = useNode((node) => ({
     selected: node.events.selected,
+    nodeId: node.id,
   }))
 
   const initials = alt
@@ -38,6 +40,8 @@ function AvatarWidget({
         ref={(ref) => {
           if (ref) connect(drag(ref))
         }}
+        data-component-id={nodeId}
+        data-component-type="AvatarWidget"
         className={`flex w-full cursor-move items-center justify-between py-2 ${
           selected
             ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
@@ -99,6 +103,8 @@ function AvatarWidget({
       ref={(ref) => {
         if (ref) connect(drag(ref))
       }}
+      data-component-id={nodeId}
+      data-component-type="AvatarWidget"
       className={`inline-flex shrink-0 cursor-move items-center justify-center rounded-full ${
         selected
           ? 'ring-2 ring-emerald-400 ring-offset-2'
