@@ -12,6 +12,7 @@ import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantQuesti
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -39,8 +40,9 @@ public class ParticipantSessionController {
     @Operation(operationId = "createParticipantSession", summary = "Create an anonymous participant session")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Session created; token is returned once."),
+            @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED."),
             @ApiResponse(responseCode = "404", description = "PARTICIPATION_NOT_FOUND."),
-            @ApiResponse(responseCode = "409", description = "Feed or questionnaire is not ready."),
+            @ApiResponse(responseCode = "409", description = "FEED_NOT_READY or PARTICIPANT_QUESTIONNAIRE_NOT_READY."),
             @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
     })
     public ResponseEntity<CreateParticipantSessionResponse> create(
@@ -54,6 +56,14 @@ public class ParticipantSessionController {
 
     @GetMapping("/participant-session")
     @Operation(operationId = "getCurrentParticipantSession", summary = "Restore the authenticated session")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Current session restored."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_SESSION_STATE_INVALID."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantSessionResponse> current(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal
     ) {
@@ -62,6 +72,15 @@ public class ParticipantSessionController {
 
     @PutMapping("/participant-session/consent")
     @Operation(operationId = "decideParticipantConsent", summary = "Accept or decline informed consent")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consent decision recorded or replayed."),
+            @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_SESSION_STATE_INVALID or PARTICIPANT_SESSION_TERMINATED."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantSessionResponse> consent(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal,
             @Valid @RequestBody ConsentDecisionRequest request
@@ -71,6 +90,14 @@ public class ParticipantSessionController {
 
     @PostMapping("/participant-session/browsing-completion")
     @Operation(operationId = "completeParticipantBrowsing", summary = "Manually complete the browsing phase")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Browsing completed or an identical completion replayed."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_SESSION_STATE_INVALID, PARTICIPANT_SESSION_TERMINATED, or collection completion rejected."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantSessionResponse> completeBrowsing(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal
     ) {
@@ -79,6 +106,14 @@ public class ParticipantSessionController {
 
     @GetMapping("/participant-session/questionnaire/current")
     @Operation(operationId = "getCurrentParticipantQuestion", summary = "Get the current published question")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Current questionnaire state returned."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_QUESTIONNAIRE_DISABLED, PARTICIPANT_QUESTIONNAIRE_NOT_READY, PARTICIPANT_SESSION_STATE_INVALID, or PARTICIPANT_SESSION_TERMINATED."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantQuestionnaireStateResponse> currentQuestion(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal
     ) {
@@ -87,10 +122,14 @@ public class ParticipantSessionController {
 
     @PutMapping("/participant-session/questionnaire/answers/{itemId}")
     @Operation(operationId = "submitParticipantAnswer", summary = "Submit the current questionnaire item")
+    @SecurityRequirement(name = "participantSessionToken")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Answer saved or an identical request replayed."),
             @ApiResponse(responseCode = "400", description = "PARTICIPANT_ANSWER_INVALID."),
-            @ApiResponse(responseCode = "409", description = "State, current-item, or idempotency conflict.")
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_IDEMPOTENCY_CONFLICT, PARTICIPANT_QUESTION_NOT_CURRENT, PARTICIPANT_QUESTIONNAIRE_DISABLED, PARTICIPANT_SESSION_STATE_INVALID, or PARTICIPANT_SESSION_TERMINATED."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
     })
     public ResponseEntity<ParticipantQuestionnaireStateResponse> answer(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal,
@@ -103,6 +142,14 @@ public class ParticipantSessionController {
 
     @PostMapping("/participant-session/questionnaire/submission")
     @Operation(operationId = "submitParticipantQuestionnaire", summary = "Complete a questionnaire whose path reached END")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Questionnaire submitted or an identical submission replayed."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_QUESTIONNAIRE_DISABLED, PARTICIPANT_QUESTIONNAIRE_NOT_READY, PARTICIPANT_SESSION_STATE_INVALID, PARTICIPANT_SESSION_TERMINATED, or collection completion rejected."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantSessionResponse> submitQuestionnaire(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal
     ) {
@@ -111,6 +158,14 @@ public class ParticipantSessionController {
 
     @PostMapping("/participant-session/abandonment")
     @Operation(operationId = "abandonParticipantSession", summary = "Explicitly leave the study")
+    @SecurityRequirement(name = "participantSessionToken")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Session abandoned or an identical abandonment replayed."),
+            @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
+            @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
+            @ApiResponse(responseCode = "409", description = "PARTICIPANT_SESSION_STATE_INVALID or PARTICIPANT_SESSION_TERMINATED."),
+            @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
+    })
     public ResponseEntity<ParticipantSessionResponse> abandon(
             @AuthenticationPrincipal ParticipantSessionPrincipal principal
     ) {
