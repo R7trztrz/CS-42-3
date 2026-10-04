@@ -39,6 +39,7 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
     private final ParticipantSessionTokenService tokens;
     private final ConsentDocumentProvider consentDocuments;
     private final QuestionnaireSnapshotReadService questionnaireSnapshots;
+    private final ParticipantQuestionnaireService questionnaire;
     private final ParticipationProperties properties;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -129,6 +130,37 @@ public class ParticipantSessionService implements ParticipantCalibrationLifecycl
                 : null;
         // CollectionCompletionGate is intentionally wired in phase three with the M6 adapter.
         session.completeBrowsing(study.isQuestionnaireEnabled(), firstItemId, now());
+        return response(session, study);
+    }
+
+    @Transactional
+    public ParticipantSessionResponse completeQuestionnaire(ParticipantSessionPrincipal principal) {
+        Study study = lockCollectingStudy(principal.studyId());
+        ParticipantSession session = lockOwnedSession(principal);
+        if (session.getStatus() == ParticipantSessionStatus.COMPLETED) {
+            return response(session, study);
+        }
+        if (session.getStatus() == ParticipantSessionStatus.ABANDONED) {
+            throw ParticipationException.terminated();
+        }
+        if (!study.isQuestionnaireEnabled()) {
+            throw ParticipationException.questionnaireDisabled();
+        }
+        if (session.getCurrentQuestionItemId() != null
+                || session.getQuestionnaireReadyAt() == null) {
+            throw ParticipationException.questionnaireNotReady();
+        }
+        questionnaire.assertCompletedPath(session.getId(), study.getId());
+        // The M6 CollectionCompletionGate is wired and enforced in phase three.
+        session.completeQuestionnaire(now());
+        return response(session, study);
+    }
+
+    @Transactional
+    public ParticipantSessionResponse abandon(ParticipantSessionPrincipal principal) {
+        Study study = lockCollectingStudy(principal.studyId());
+        ParticipantSession session = lockOwnedSession(principal);
+        session.abandonByParticipant(now());
         return response(session, study);
     }
 

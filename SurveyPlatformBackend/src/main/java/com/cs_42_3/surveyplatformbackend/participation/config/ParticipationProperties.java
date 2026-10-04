@@ -13,6 +13,7 @@ import java.time.Duration;
 public record ParticipationProperties(
         @NotNull Duration inactivityTimeout,
         @NotNull Duration timeoutScanInterval,
+        boolean timeoutSchedulerEnabled,
         @Min(256) int maxDeviceInfoBytes,
         @NotBlank String consentDocumentVersion
 ) {

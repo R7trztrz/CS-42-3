@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import tools.jackson.databind.ObjectMapper;
@@ -12,6 +13,7 @@ import java.time.Clock;
 
 @Configuration
 @EnableConfigurationProperties(ParticipationProperties.class)
+@EnableScheduling
 public class ParticipationConfiguration {
 
     @Bean

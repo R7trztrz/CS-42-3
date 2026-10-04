@@ -55,6 +55,30 @@ public class ParticipationException extends RuntimeException {
         );
     }
 
+    public static ParticipationException idempotencyConflict() {
+        return new ParticipationException(
+                ErrorCode.PARTICIPANT_IDEMPOTENCY_CONFLICT,
+                HttpStatus.CONFLICT,
+                "The idempotency key was already used for a different request."
+        );
+    }
+
+    public static ParticipationException questionNotCurrent() {
+        return new ParticipationException(
+                ErrorCode.PARTICIPANT_QUESTION_NOT_CURRENT,
+                HttpStatus.CONFLICT,
+                "The submitted questionnaire item is not the current item."
+        );
+    }
+
+    public static ParticipationException answerInvalid() {
+        return new ParticipationException(
+                ErrorCode.PARTICIPANT_ANSWER_INVALID,
+                HttpStatus.BAD_REQUEST,
+                "The questionnaire answer is invalid for the published item."
+        );
+    }
+
     public static ParticipationException deviceInfoInvalid() {
         return new ParticipationException(
                 ErrorCode.REQUEST_VALIDATION_FAILED,

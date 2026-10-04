@@ -177,6 +177,65 @@ public class ParticipantSession {
         return true;
     }
 
+    /** Advances exactly one published questionnaire item in the same answer transaction. */
+    public void advanceQuestionnaire(UUID expectedItemId, UUID nextItemId, Instant now) {
+        requireInProgress(ParticipantSessionPhase.QUESTIONNAIRE);
+        if (!Objects.equals(currentQuestionItemId, expectedItemId)) {
+            throw ParticipationException.questionNotCurrent();
+        }
+        currentQuestionItemId = nextItemId;
+        questionnaireReadyAt = nextItemId == null ? Objects.requireNonNull(now) : null;
+        touch(now);
+    }
+
+    /** Completes a questionnaire only after its saved path has reached END. */
+    public boolean completeQuestionnaire(Instant now) {
+        if (status == ParticipantSessionStatus.COMPLETED) {
+            return false;
+        }
+        requireInProgress(ParticipantSessionPhase.QUESTIONNAIRE);
+        if (currentQuestionItemId != null || questionnaireReadyAt == null) {
+            throw ParticipationException.questionnaireNotReady();
+        }
+        status = ParticipantSessionStatus.COMPLETED;
+        phase = ParticipantSessionPhase.FINISHED;
+        completedAt = Objects.requireNonNull(now);
+        questionnaireReadyAt = null;
+        touch(now);
+        return true;
+    }
+
+    /** Applies an explicit participant exit without overwriting an existing terminal outcome. */
+    public boolean abandonByParticipant(Instant now) {
+        if (status == ParticipantSessionStatus.ABANDONED) {
+            return false;
+        }
+        if (status == ParticipantSessionStatus.COMPLETED) {
+            throw ParticipationException.terminated();
+        }
+        finishAsAbandoned(ParticipantAbandonmentReason.PARTICIPANT_EXIT, now);
+        return true;
+    }
+
+    /** Times out only the still-inactive state observed while holding the session lock. */
+    public boolean abandonIfInactive(Instant cutoff, Instant now) {
+        if (status != ParticipantSessionStatus.IN_PROGRESS
+                || !lastActivityAt.isBefore(Objects.requireNonNull(cutoff))) {
+            return false;
+        }
+        finishAsAbandoned(ParticipantAbandonmentReason.INACTIVITY_TIMEOUT, now);
+        return true;
+    }
+
+    /** Used by the M5 lifecycle adapter inside the Study-close transaction. */
+    public boolean abandonForStudyClosure(Instant now) {
+        if (status != ParticipantSessionStatus.IN_PROGRESS) {
+            return false;
+        }
+        finishAsAbandoned(ParticipantAbandonmentReason.STUDY_CLOSED, now);
+        return true;
+    }
+
     private void requireInProgress(ParticipantSessionPhase requiredPhase) {
         if (status != ParticipantSessionStatus.IN_PROGRESS) {
             throw ParticipationException.terminated();
@@ -184,6 +243,16 @@ public class ParticipantSession {
         if (phase != requiredPhase) {
             throw ParticipationException.invalidState();
         }
+    }
+
+    private void finishAsAbandoned(ParticipantAbandonmentReason reason, Instant now) {
+        status = ParticipantSessionStatus.ABANDONED;
+        phase = ParticipantSessionPhase.FINISHED;
+        abandonmentReason = Objects.requireNonNull(reason);
+        abandonedAt = Objects.requireNonNull(now);
+        currentQuestionItemId = null;
+        questionnaireReadyAt = null;
+        touch(now);
     }
 
     private void touch(Instant now) {

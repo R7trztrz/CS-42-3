@@ -4,8 +4,11 @@ import com.cs_42_3.surveyplatformbackend.participation.api.dto.ConsentDecisionRe
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.CreateParticipantSessionRequest;
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.CreateParticipantSessionResponse;
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.ParticipantSessionResponse;
+import com.cs_42_3.surveyplatformbackend.participation.api.dto.ParticipantQuestionnaireStateResponse;
+import com.cs_42_3.surveyplatformbackend.participation.api.dto.SubmitQuestionnaireAnswerRequest;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionPrincipal;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionService;
+import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantQuestionnaireService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Participant sessions")
 public class ParticipantSessionController {
     private final ParticipantSessionService sessions;
+    private final ParticipantQuestionnaireService questionnaire;
 
     @PostMapping("/participation/{studyToken}/sessions")
     @Operation(operationId = "createParticipantSession", summary = "Create an anonymous participant session")
@@ -72,7 +77,47 @@ public class ParticipantSessionController {
         return noStore(sessions.completeBrowsing(principal));
     }
 
-    private ResponseEntity<ParticipantSessionResponse> noStore(ParticipantSessionResponse body) {
+    @GetMapping("/participant-session/questionnaire/current")
+    @Operation(operationId = "getCurrentParticipantQuestion", summary = "Get the current published question")
+    public ResponseEntity<ParticipantQuestionnaireStateResponse> currentQuestion(
+            @AuthenticationPrincipal ParticipantSessionPrincipal principal
+    ) {
+        return noStore(questionnaire.current(principal));
+    }
+
+    @PutMapping("/participant-session/questionnaire/answers/{itemId}")
+    @Operation(operationId = "submitParticipantAnswer", summary = "Submit the current questionnaire item")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Answer saved or an identical request replayed."),
+            @ApiResponse(responseCode = "400", description = "PARTICIPANT_ANSWER_INVALID."),
+            @ApiResponse(responseCode = "409", description = "State, current-item, or idempotency conflict.")
+    })
+    public ResponseEntity<ParticipantQuestionnaireStateResponse> answer(
+            @AuthenticationPrincipal ParticipantSessionPrincipal principal,
+            @PathVariable java.util.UUID itemId,
+            @RequestHeader("Idempotency-Key") java.util.UUID idempotencyKey,
+            @RequestBody SubmitQuestionnaireAnswerRequest request
+    ) {
+        return noStore(questionnaire.answer(principal, itemId, idempotencyKey, request));
+    }
+
+    @PostMapping("/participant-session/questionnaire/submission")
+    @Operation(operationId = "submitParticipantQuestionnaire", summary = "Complete a questionnaire whose path reached END")
+    public ResponseEntity<ParticipantSessionResponse> submitQuestionnaire(
+            @AuthenticationPrincipal ParticipantSessionPrincipal principal
+    ) {
+        return noStore(sessions.completeQuestionnaire(principal));
+    }
+
+    @PostMapping("/participant-session/abandonment")
+    @Operation(operationId = "abandonParticipantSession", summary = "Explicitly leave the study")
+    public ResponseEntity<ParticipantSessionResponse> abandon(
+            @AuthenticationPrincipal ParticipantSessionPrincipal principal
+    ) {
+        return noStore(sessions.abandon(principal));
+    }
+
+    private <T> ResponseEntity<T> noStore(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
 }
