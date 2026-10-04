@@ -86,6 +86,54 @@ class ParticipantSessionTest {
         assertThat(session.getPhase()).isEqualTo(ParticipantSessionPhase.CONSENT);
     }
 
+    @Test
+    void questionnaireAdvancesToReadyAndCompletesIrreversibly() {
+        ParticipantSession session = session(null);
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        session.decideConsent(true, false, ENTERED);
+        session.completeBrowsing(true, first, LATER);
+
+        session.advanceQuestionnaire(first, second, LATER.plusSeconds(1));
+        assertThat(session.getCurrentQuestionItemId()).isEqualTo(second);
+        assertThat(session.getQuestionnaireReadyAt()).isNull();
+
+        session.advanceQuestionnaire(second, null, LATER.plusSeconds(2));
+        assertThat(session.getCurrentQuestionItemId()).isNull();
+        assertThat(session.getQuestionnaireReadyAt()).isEqualTo(LATER.plusSeconds(2));
+        assertThat(session.completeQuestionnaire(LATER.plusSeconds(3))).isTrue();
+        assertThat(session.getStatus()).isEqualTo(ParticipantSessionStatus.COMPLETED);
+        assertThat(session.getPhase()).isEqualTo(ParticipantSessionPhase.FINISHED);
+        assertThat(session.completeQuestionnaire(LATER.plusSeconds(4))).isFalse();
+        assertThatThrownBy(() -> session.abandonByParticipant(LATER.plusSeconds(4)))
+                .isInstanceOf(ParticipationException.class);
+    }
+
+    @Test
+    void explicitAbandonmentIsIdempotentAndPreservesTheFirstReason() {
+        ParticipantSession session = session(null);
+        session.decideConsent(true, false, ENTERED);
+
+        assertThat(session.abandonByParticipant(LATER)).isTrue();
+        assertThat(session.abandonByParticipant(LATER.plusSeconds(1))).isFalse();
+        assertThat(session.getAbandonmentReason())
+                .isEqualTo(ParticipantAbandonmentReason.PARTICIPANT_EXIT);
+        assertThat(session.getAbandonedAt()).isEqualTo(LATER);
+    }
+
+    @Test
+    void timeoutUsesAStrictCutoffAndDoesNotOverwriteTerminalState() {
+        ParticipantSession session = session(null);
+
+        assertThat(session.abandonIfInactive(ENTERED, LATER)).isFalse();
+        assertThat(session.abandonIfInactive(ENTERED.plusNanos(1), LATER)).isTrue();
+        assertThat(session.getAbandonmentReason())
+                .isEqualTo(ParticipantAbandonmentReason.INACTIVITY_TIMEOUT);
+        assertThat(session.abandonForStudyClosure(LATER.plusSeconds(1))).isFalse();
+        assertThat(session.getAbandonmentReason())
+                .isEqualTo(ParticipantAbandonmentReason.INACTIVITY_TIMEOUT);
+    }
+
     private ParticipantSession session(String deviceInfo) {
         return ParticipantSession.create(
                 UUID.randomUUID(),

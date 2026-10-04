@@ -6,13 +6,18 @@ import com.cs_42_3.surveyplatformbackend.participation.api.dto.ConsentDocumentRe
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.CreateParticipantSessionRequest;
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.CreateParticipantSessionResponse;
 import com.cs_42_3.surveyplatformbackend.participation.api.dto.ParticipantSessionResponse;
+import com.cs_42_3.surveyplatformbackend.participation.api.dto.ParticipantQuestionResponse;
+import com.cs_42_3.surveyplatformbackend.participation.api.dto.ParticipantQuestionnaireStateResponse;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantNoStoreFilter;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionPrincipal;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.participation.config.ParticipationConfiguration;
 import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSessionPhase;
 import com.cs_42_3.surveyplatformbackend.participation.domain.ParticipantSessionStatus;
+import com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionService;
+import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantQuestionnaireService;
+import com.cs_42_3.surveyplatformbackend.survey.domain.QuestionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +41,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,6 +69,8 @@ class ParticipantSessionControllerTest {
     private JwtEncoder jwtEncoder;
     @MockitoBean
     private ParticipantSessionService sessions;
+    @MockitoBean
+    private ParticipantQuestionnaireService questionnaire;
     @MockitoBean
     private ParticipantSessionTokenService tokens;
 
@@ -149,6 +157,100 @@ class ParticipantSessionControllerTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
                 .andExpect(header().string("Access-Control-Allow-Headers",
                         org.hamcrest.Matchers.containsString("X-Participant-Session-Token")));
+    }
+
+    @Test
+    void getsAndAnswersOnlyTheServerSelectedQuestion() throws Exception {
+        UUID itemId = UUID.randomUUID();
+        UUID key = UUID.randomUUID();
+        ParticipantQuestionnaireStateResponse state = new ParticipantQuestionnaireStateResponse(
+                new ParticipantQuestionResponse(
+                        itemId, 1, QuestionType.TEXT, "Question", true,
+                        java.util.List.of(), null, null, null, null
+                ),
+                false
+        );
+        when(questionnaire.current(PRINCIPAL)).thenReturn(state);
+        when(questionnaire.answer(any(), any(), any(), any()))
+                .thenReturn(new ParticipantQuestionnaireStateResponse(null, true));
+
+        mockMvc.perform(get("/api/participant-session/questionnaire/current")
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentQuestion.itemId").value(itemId.toString()))
+                .andExpect(jsonPath("$.currentQuestion.questionType").value("TEXT"));
+
+        mockMvc.perform(put("/api/participant-session/questionnaire/answers/{itemId}", itemId)
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"answer\"}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control",
+                        org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(jsonPath("$.readyToSubmit").value(true));
+
+        verify(questionnaire).current(PRINCIPAL);
+        verify(questionnaire).answer(
+                org.mockito.ArgumentMatchers.eq(PRINCIPAL),
+                org.mockito.ArgumentMatchers.eq(itemId),
+                org.mockito.ArgumentMatchers.eq(key),
+                any()
+        );
+    }
+
+    @Test
+    void finalSubmissionAndExplicitAbandonmentUseAuthenticatedSession() throws Exception {
+        when(sessions.completeQuestionnaire(PRINCIPAL)).thenReturn(state(PRINCIPAL.sessionId()));
+        when(sessions.abandon(PRINCIPAL)).thenReturn(state(PRINCIPAL.sessionId()));
+
+        mockMvc.perform(post("/api/participant-session/questionnaire/submission")
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/participant-session/abandonment")
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN))
+                .andExpect(status().isOk());
+
+        verify(sessions).completeQuestionnaire(PRINCIPAL);
+        verify(sessions).abandon(PRINCIPAL);
+    }
+
+    @Test
+    void answerFailuresExposeStableCodesWithoutEchoingTheAnswer() throws Exception {
+        UUID itemId = UUID.randomUUID();
+        UUID key = UUID.randomUUID();
+        when(questionnaire.answer(any(), any(), any(), any()))
+                .thenThrow(ParticipationException.answerInvalid());
+
+        mockMvc.perform(put("/api/participant-session/questionnaire/answers/{itemId}", itemId)
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"private participant answer\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PARTICIPANT_ANSWER_INVALID"))
+                .andExpect(jsonPath("$.error").value(
+                        org.hamcrest.Matchers.not(
+                                org.hamcrest.Matchers.containsString("private participant answer")
+                        )
+                ));
+    }
+
+    @Test
+    void idempotencyConflictUsesConflictStatusAndStableCode() throws Exception {
+        when(questionnaire.answer(any(), any(), any(), any()))
+                .thenThrow(ParticipationException.idempotencyConflict());
+
+        mockMvc.perform(put(
+                        "/api/participant-session/questionnaire/answers/{itemId}",
+                        UUID.randomUUID()
+                )
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .header("Idempotency-Key", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"different\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PARTICIPANT_IDEMPOTENCY_CONFLICT"));
     }
 
     private ParticipantSessionResponse state(UUID sessionId) {

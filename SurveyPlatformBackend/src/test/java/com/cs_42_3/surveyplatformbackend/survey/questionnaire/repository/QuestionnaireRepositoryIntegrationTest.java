@@ -77,7 +77,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV14() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV15() {
         List<String> versions = jdbcTemplate.queryForList(
                 """
                         SELECT version
@@ -90,7 +90,7 @@ class QuestionnaireRepositoryIntegrationTest {
         );
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"
         );
     }
 
