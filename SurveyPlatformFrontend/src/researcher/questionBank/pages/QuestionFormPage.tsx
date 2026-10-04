@@ -4,6 +4,7 @@ import QuestionOptionsEditor from '../components/QuestionOptionsEditor'
 import { createQuestion, getQuestion, updateQuestion } from '../api/questionBankApi'
 import { describeError } from '../../../shared/types/apiError'
 import type { QuestionFormValues, QuestionType } from '../../../shared/types/question'
+import { validateQuestionForm } from '../model/questionFormValidation'
 
 const EMPTY_FORM: QuestionFormValues = {
   type: 'SINGLE_CHOICE',
@@ -67,6 +68,11 @@ export default function QuestionFormPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
+    const validationErrors = validateQuestionForm(form)
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(' '))
+      return
+    }
     setIsSubmitting(true)
     try {
       if (isEditing && questionId) {
@@ -151,8 +157,13 @@ export default function QuestionFormPage() {
                 type="number"
                 value={form.scaleMin ?? ''}
                 onChange={(event) =>
-                  setForm({ ...form, scaleMin: Number(event.target.value) })
+                  setForm({
+                    ...form,
+                    scaleMin: event.target.value === '' ? null : Number(event.target.value),
+                  })
                 }
+                step={1}
+                required
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
               <input
@@ -169,8 +180,13 @@ export default function QuestionFormPage() {
                 type="number"
                 value={form.scaleMax ?? ''}
                 onChange={(event) =>
-                  setForm({ ...form, scaleMax: Number(event.target.value) })
+                  setForm({
+                    ...form,
+                    scaleMax: event.target.value === '' ? null : Number(event.target.value),
+                  })
                 }
+                step={1}
+                required
                 className="w-full rounded-lg border border-gray-300 px-3 py-2"
               />
               <input

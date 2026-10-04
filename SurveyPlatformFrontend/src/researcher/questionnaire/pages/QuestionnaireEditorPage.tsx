@@ -1,179 +1,305 @@
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useReducer, useState, type FormEvent } from 'react'
+import { useBlocker, useParams } from 'react-router-dom'
+import UnsavedChangesDialogTemplate from '../../../components/studies/UnsavedChangesDialogTemplate'
 import BranchRuleEditor from '../components/BranchRuleEditor'
 import { getQuestionnaire, saveQuestionnaire } from '../api/questionnaireApi'
 import { getQuestion, listQuestions } from '../../questionBank/api/questionBankApi'
 import { asApiError, describeError } from '../../../shared/types/apiError'
-import type { QuestionSummaryResponse } from '../../../shared/types/question'
+import {
+  QUESTION_TYPE_LABELS,
+  type QuestionSummaryResponse,
+  type QuestionType,
+} from '../../../shared/types/question'
 import type {
   QuestionnaireContentSource,
   QuestionnaireEditorItem,
-  QuestionnaireValidationIssue,
-  SaveQuestionnaireRequest,
 } from '../../../shared/types/questionnaire'
+import {
+  apiErrorDetailToView,
+  buildSaveQuestionnaireRequest,
+  hydrateQuestionnaireItems,
+  questionnaireEditorReducer,
+  questionnaireIssueLocation,
+  questionnaireItemsFingerprint,
+  validationIssueToView,
+  type QuestionnaireIssueView,
+} from '../model/questionnaireEditorModel'
 
 let clientIdSeq = 1
 function newClientId(): string {
   return `client-${clientIdSeq++}`
 }
 
-// Large enough that the picker rarely needs real pagination for a single
-// researcher's bank; a bank past this size would need a proper paged/
-// searchable picker instead of this flat list.
-const BANK_PICKER_PAGE_SIZE = 100
+const BANK_PICKER_PAGE_SIZE = 20
 
 export default function QuestionnaireEditorPage() {
   const { studyId } = useParams<{ studyId: string }>()
+  const [editor, dispatch] = useReducer(questionnaireEditorReducer, {
+    items: [],
+    past: [],
+  })
+  const items = editor.items
 
-  const [items, setItems] = useState<QuestionnaireEditorItem[]>([])
+  const [savedFingerprint, setSavedFingerprint] = useState(
+    questionnaireItemsFingerprint([]),
+  )
   const [bankQuestions, setBankQuestions] = useState<QuestionSummaryResponse[]>([])
+  const [bankPage, setBankPage] = useState(0)
+  const [bankTotalPages, setBankTotalPages] = useState(0)
+  const [bankType, setBankType] = useState<QuestionType | ''>('')
+  const [bankSearchInput, setBankSearchInput] = useState('')
+  const [bankSearch, setBankSearch] = useState('')
+  const [isBankLoading, setIsBankLoading] = useState(false)
+  const [bankError, setBankError] = useState('')
+  const [addingQuestionId, setAddingQuestionId] = useState<string | null>(null)
+
   const [expectedVersion, setExpectedVersion] = useState<number | null>(null)
-  const [contentSource, setContentSource] = useState<QuestionnaireContentSource>('LIVE_DRAFT')
-  const [validationIssues, setValidationIssues] = useState<QuestionnaireValidationIssue[]>([])
+  const [contentSource, setContentSource] =
+    useState<QuestionnaireContentSource>('LIVE_DRAFT')
+  const [validationIssues, setValidationIssues] = useState<QuestionnaireIssueView[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
   const isReadOnly = contentSource === 'PUBLISHED_SNAPSHOT'
+  const isDirty = questionnaireItemsFingerprint(items) !== savedFingerprint
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty &&
+      !isReadOnly &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        currentLocation.search !== nextLocation.search),
+  )
 
   useEffect(() => {
     if (!studyId) return
 
-    Promise.all([
-      getQuestionnaire(studyId),
-      listQuestions({ size: BANK_PICKER_PAGE_SIZE }),
-    ])
-      .then(([questionnaire, questionPage]) => {
-        setBankQuestions(questionPage.content)
+    let cancelled = false
+    setIsLoading(true)
+    setError('')
+    getQuestionnaire(studyId)
+      .then((questionnaire) => {
+        if (cancelled) return
 
         if (!questionnaire) {
-          // Contract 6.1: QUESTIONNAIRE_NOT_FOUND means no draft has been
-          // saved yet, not an error - start from an empty, unsaved editor.
-          setItems([])
+          const emptyItems: QuestionnaireEditorItem[] = []
+          dispatch({ type: 'reset', items: emptyItems })
+          setSavedFingerprint(questionnaireItemsFingerprint(emptyItems))
           setExpectedVersion(null)
           setContentSource('LIVE_DRAFT')
           setValidationIssues([])
           return
         }
 
-        // Give every loaded item a stable clientId first, then resolve each
-        // branch rule's targetItemId against that same mapping - two
-        // passes, same reason as the backend's own two-pass build.
-        const clientIdByItemId = new Map(
-          questionnaire.items.map((item) => [item.itemId, newClientId()]),
+        const loadedItems = hydrateQuestionnaireItems(
+          questionnaire.items,
+          [],
+          newClientId,
         )
-        setItems(
-          questionnaire.items.map((item) => ({
-            clientId: clientIdByItemId.get(item.itemId)!,
-            itemId: item.itemId,
-            questionId: item.question?.questionId ?? '',
-            question: item.question,
-            missing: item.missing,
-            branchRules: item.branchRules.map((rule) => ({
-              sourceOptionId: rule.sourceOptionId,
-              sourceScaleValue: rule.sourceScaleValue,
-              targetClientId:
-                clientIdByItemId.get(rule.targetItemId) ?? clientIdByItemId.get(item.itemId)!,
-            })),
-          })),
-        )
+        dispatch({ type: 'reset', items: loadedItems })
+        setSavedFingerprint(questionnaireItemsFingerprint(loadedItems))
         setExpectedVersion(questionnaire.version)
         setContentSource(questionnaire.contentSource)
-        setValidationIssues(questionnaire.validationIssues)
+        setValidationIssues(questionnaire.validationIssues.map(validationIssueToView))
       })
-      .catch((err) => setError(describeError(err, 'Failed to load questionnaire.')))
-      .finally(() => setIsLoading(false))
+      .catch((loadError) => {
+        if (!cancelled) {
+          setError(describeError(loadError, 'Failed to load questionnaire.'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [studyId])
+
+  useEffect(() => {
+    if (!studyId) return
+
+    let cancelled = false
+    setIsBankLoading(true)
+    setBankError('')
+    setBankQuestions([])
+    listQuestions({
+      page: 0,
+      size: BANK_PICKER_PAGE_SIZE,
+      type: bankType || undefined,
+      search: bankSearch || undefined,
+    })
+      .then((questionPage) => {
+        if (cancelled) return
+        setBankQuestions(questionPage.content)
+        setBankPage(questionPage.page)
+        setBankTotalPages(questionPage.totalPages)
+      })
+      .catch((loadError) => {
+        if (!cancelled) {
+          setBankError(describeError(loadError, 'Failed to load the question bank.'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsBankLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [bankSearch, bankType, studyId])
+
+  useEffect(() => {
+    if (!isDirty || isReadOnly) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty, isReadOnly])
 
   if (!studyId) {
     return (
-      <p className="mx-auto max-w-4xl px-4 py-8 text-sm text-red-600">Missing study identifier.</p>
+      <p className="mx-auto max-w-4xl px-4 py-8 text-sm text-red-600">
+        Missing study identifier.
+      </p>
     )
   }
 
-  const enabledQuestionIds = new Set(items.map((i) => i.questionId))
-  const availableToAdd = bankQuestions.filter((q) => !enabledQuestionIds.has(q.questionId))
+  const enabledQuestionIds = new Set(items.map((item) => item.questionId))
+  const availableToAdd = bankQuestions.filter(
+    (question) => !enabledQuestionIds.has(question.questionId),
+  )
+
+  function clearEditFeedback() {
+    setError('')
+    setMessage('')
+    setValidationIssues([])
+  }
+
+  async function loadMoreBankQuestions() {
+    if (isBankLoading || bankPage + 1 >= bankTotalPages) return
+
+    setIsBankLoading(true)
+    setBankError('')
+    try {
+      const questionPage = await listQuestions({
+        page: bankPage + 1,
+        size: BANK_PICKER_PAGE_SIZE,
+        type: bankType || undefined,
+        search: bankSearch || undefined,
+      })
+      setBankQuestions((previous) => {
+        const byId = new Map(previous.map((question) => [question.questionId, question]))
+        questionPage.content.forEach((question) => byId.set(question.questionId, question))
+        return [...byId.values()]
+      })
+      setBankPage(questionPage.page)
+      setBankTotalPages(questionPage.totalPages)
+    } catch (loadError) {
+      setBankError(describeError(loadError, 'Failed to load more questions.'))
+    } finally {
+      setIsBankLoading(false)
+    }
+  }
 
   async function addQuestion(questionId: string) {
-    // The list endpoint returns summaries; refetch full detail (options/
-    // scale bounds) so branch-rule triggers have something to offer.
-    const question = await getQuestion(questionId)
-    setItems((prev) => [
-      ...prev,
-      {
-        clientId: newClientId(),
-        itemId: null,
-        questionId: question.questionId,
-        question,
-        missing: false,
-        branchRules: [],
-      },
-    ])
+    setAddingQuestionId(questionId)
+    setBankError('')
+    try {
+      // The list endpoint returns summaries; refetch full detail so branch
+      // triggers have the current option IDs and scale bounds.
+      const question = await getQuestion(questionId)
+      dispatch({
+        type: 'append',
+        item: {
+          clientId: newClientId(),
+          itemId: null,
+          questionId: question.questionId,
+          question,
+          missing: false,
+          branchRules: [],
+        },
+      })
+      clearEditFeedback()
+    } catch (loadError) {
+      setBankError(describeError(loadError, 'Failed to add the question.'))
+    } finally {
+      setAddingQuestionId(null)
+    }
   }
 
   function removeItem(clientId: string) {
-    setItems((prev) =>
-      prev
-        .filter((item) => item.clientId !== clientId)
-        // Dropping an item also drops any rule that targeted it, matching
-        // the backend's full-replace save semantics.
-        .map((item) => ({
-          ...item,
-          branchRules: item.branchRules.filter((r) => r.targetClientId !== clientId),
-        })),
-    )
+    dispatch({ type: 'remove', clientId })
+    clearEditFeedback()
   }
 
   function moveItem(index: number, direction: -1 | 1) {
-    const target = index + direction
-    if (target < 0 || target >= items.length) return
-    const next = items.slice()
-    ;[next[index], next[target]] = [next[target], next[index]]
-    setItems(next)
+    dispatch({ type: 'move', index, direction })
+    clearEditFeedback()
   }
 
-  async function handleSave() {
-    // Redundant with the component-level guard above: TypeScript doesn't
-    // carry that narrowing into this closure, and this button only renders
-    // once studyId is known to be defined anyway.
-    if (!studyId) return
+  function undoLastChange() {
+    dispatch({ type: 'undo' })
+    clearEditFeedback()
+  }
+
+  async function handleSave(): Promise<boolean> {
+    if (!studyId) return false
 
     setError('')
     setMessage('')
     setIsSaving(true)
     try {
-      const positionByClientId = new Map(items.map((item, index) => [item.clientId, index]))
-      const request: SaveQuestionnaireRequest = {
-        expectedVersion,
-        items: items.map((item) => ({
-          itemId: item.itemId,
-          questionId: item.questionId,
-          branchRules: item.branchRules.map((rule) => ({
-            sourceOptionId: rule.sourceOptionId,
-            sourceScaleValue: rule.sourceScaleValue,
-            targetPosition: positionByClientId.get(rule.targetClientId) ?? 0,
-          })),
-        })),
-      }
-      const saved = await saveQuestionnaire(studyId, request)
+      const requestItems = items
+      const saved = await saveQuestionnaire(
+        studyId,
+        buildSaveQuestionnaireRequest(requestItems, expectedVersion),
+      )
+      const savedItems = hydrateQuestionnaireItems(
+        saved.items,
+        requestItems,
+        newClientId,
+      )
+      dispatch({ type: 'reset', items: savedItems })
+      setSavedFingerprint(questionnaireItemsFingerprint(savedItems))
       setExpectedVersion(saved.version)
       setContentSource(saved.contentSource)
-      setValidationIssues(saved.validationIssues)
+      setValidationIssues(saved.validationIssues.map(validationIssueToView))
       setMessage('Questionnaire saved.')
-    } catch (err) {
-      const apiError = asApiError(err)
+      return true
+    } catch (saveError) {
+      const apiError = asApiError(saveError)
+      if (apiError?.details?.length) {
+        setValidationIssues(apiError.details.map(apiErrorDetailToView))
+      }
       if (apiError?.code === 'QUESTIONNAIRE_VERSION_CONFLICT') {
         setError('Someone else changed this questionnaire. Reload the page before saving again.')
       } else if (apiError?.code === 'QUESTIONNAIRE_LOCKED') {
         setError('This study is no longer a draft, so its questionnaire cannot be edited.')
         setContentSource('PUBLISHED_SNAPSHOT')
       } else {
-        setError(describeError(err, 'Failed to save questionnaire.'))
+        setError(describeError(saveError, 'Failed to save questionnaire.'))
       }
+      return false
     } finally {
       setIsSaving(false)
     }
+  }
+
+  async function handleSaveAndLeave() {
+    const didSave = await handleSave()
+    if (didSave && blocker.state === 'blocked') {
+      blocker.proceed()
+    }
+  }
+
+  function handleBankSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBankSearch(bankSearchInput.trim())
   }
 
   if (isLoading) {
@@ -182,21 +308,36 @@ export default function QuestionnaireEditorPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Questionnaire editor</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Questionnaire editor</h1>
+          {isDirty && !isReadOnly && (
+            <p className="mt-1 text-xs font-medium text-amber-700">Unsaved changes</p>
+          )}
+        </div>
         {isReadOnly ? (
           <span className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800">
             Published - read only
           </span>
         ) : (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? 'Saving...' : 'Save questionnaire'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={undoLastChange}
+              disabled={isSaving || editor.past.length === 0}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save questionnaire'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -219,10 +360,15 @@ export default function QuestionnaireEditorPage() {
       )}
       {validationIssues.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="mb-1 font-medium">This questionnaire can't be published yet:</p>
-          <ul className="list-inside list-disc">
+          <p className="mb-2 font-medium">Questionnaire validation details:</p>
+          <ul className="space-y-2">
             {validationIssues.map((issue, index) => (
-              <li key={index}>{issue.message}</li>
+              <li key={`${issue.code}-${index}`} className="rounded bg-white/60 px-3 py-2">
+                <p>{issue.message}</p>
+                <p className="mt-1 break-all font-mono text-xs text-amber-900">
+                  {questionnaireIssueLocation(issue).join(' · ')}
+                </p>
+              </li>
             ))}
           </ul>
         </div>
@@ -253,7 +399,8 @@ export default function QuestionnaireEditorPage() {
                   <button
                     type="button"
                     onClick={() => moveItem(index, -1)}
-                    disabled={index === 0}
+                    disabled={isSaving || index === 0}
+                    aria-label={`Move question ${index + 1} up`}
                     className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
                   >
                     ↑
@@ -261,7 +408,8 @@ export default function QuestionnaireEditorPage() {
                   <button
                     type="button"
                     onClick={() => moveItem(index, 1)}
-                    disabled={index === items.length - 1}
+                    disabled={isSaving || index === items.length - 1}
+                    aria-label={`Move question ${index + 1} down`}
                     className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
                   >
                     ↓
@@ -269,7 +417,8 @@ export default function QuestionnaireEditorPage() {
                   <button
                     type="button"
                     onClick={() => removeItem(item.clientId)}
-                    className="rounded px-2 py-1 text-red-600 hover:bg-red-50"
+                    disabled={isSaving}
+                    className="rounded px-2 py-1 text-red-600 hover:bg-red-50 disabled:opacity-40"
                   >
                     Remove
                   </button>
@@ -281,12 +430,17 @@ export default function QuestionnaireEditorPage() {
               <BranchRuleEditor
                 question={item.question}
                 branchRules={item.branchRules}
-                otherItems={items.filter((i) => i.clientId !== item.clientId)}
-                onChange={(branchRules) =>
-                  setItems((prev) =>
-                    prev.map((i) => (i.clientId === item.clientId ? { ...i, branchRules } : i)),
-                  )
-                }
+                items={items}
+                sourceClientId={item.clientId}
+                disabled={isSaving}
+                onChange={(branchRules) => {
+                  dispatch({
+                    type: 'replace-branch-rules',
+                    clientId: item.clientId,
+                    branchRules,
+                  })
+                  clearEditFeedback()
+                }}
               />
             )}
           </div>
@@ -296,27 +450,91 @@ export default function QuestionnaireEditorPage() {
       {!isReadOnly && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <p className="mb-3 text-sm font-medium text-gray-700">Add from question bank</p>
-          {availableToAdd.length === 0 ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <select
+              value={bankType}
+              onChange={(event) => setBankType(event.target.value as QuestionType | '')}
+              disabled={isBankLoading}
+              aria-label="Filter question bank by type"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+            >
+              <option value="">All types</option>
+              {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <form onSubmit={handleBankSearch} className="flex min-w-64 flex-1 gap-2">
+              <input
+                type="search"
+                value={bankSearchInput}
+                onChange={(event) => setBankSearchInput(event.target.value)}
+                placeholder="Search question text..."
+                aria-label="Search question bank"
+                className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={isBankLoading}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+
+          {bankError && (
+            <div role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              {bankError}
+            </div>
+          )}
+
+          {availableToAdd.length === 0 && !isBankLoading ? (
             <p className="text-sm text-gray-500">
-              Every question in your bank is already enabled, or your bank is empty.
+              No matching questions are available to add on the loaded pages.
             </p>
           ) : (
             <ul className="space-y-2">
-              {availableToAdd.map((q) => (
-                <li key={q.questionId} className="flex items-center justify-between text-sm">
-                  <span>{q.questionText}</span>
+              {availableToAdd.map((question) => (
+                <li key={question.questionId} className="flex items-center justify-between gap-4 text-sm">
+                  <span>{question.questionText}</span>
                   <button
                     type="button"
-                    onClick={() => addQuestion(q.questionId)}
-                    className="text-blue-600 hover:underline"
+                    onClick={() => void addQuestion(question.questionId)}
+                    disabled={isSaving || addingQuestionId !== null}
+                    className="shrink-0 text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    + Add
+                    {addingQuestionId === question.questionId ? 'Adding...' : '+ Add'}
                   </button>
                 </li>
               ))}
             </ul>
           )}
+
+          {isBankLoading && (
+            <p role="status" className="mt-3 text-sm text-gray-500">Loading questions...</p>
+          )}
+          {bankPage + 1 < bankTotalPages && (
+            <button
+              type="button"
+              onClick={() => void loadMoreBankQuestions()}
+              disabled={isBankLoading}
+              className="mt-4 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              Load more questions
+            </button>
+          )}
         </div>
+      )}
+
+      {blocker.state === 'blocked' && (
+        <UnsavedChangesDialogTemplate
+          isSaving={isSaving}
+          onStay={() => blocker.reset()}
+          onLeave={() => blocker.proceed()}
+          onSaveAndLeave={() => void handleSaveAndLeave()}
+        />
       )}
     </div>
   )

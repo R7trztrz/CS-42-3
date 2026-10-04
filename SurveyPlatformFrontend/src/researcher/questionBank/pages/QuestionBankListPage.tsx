@@ -133,7 +133,14 @@ export default function QuestionBankListPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-gray-900">{question.questionText}</p>
-                    <p className="text-xs text-gray-500">{QUESTION_TYPE_LABELS[question.type]}</p>
+                    <p className="text-xs text-gray-500">
+                      {QUESTION_TYPE_LABELS[question.type]}
+                      {' · '}
+                      Updated{' '}
+                      <time dateTime={question.updatedAt}>
+                        {new Date(question.updatedAt).toLocaleString()}
+                      </time>
+                    </p>
                   </div>
                   <div className="flex gap-3 text-sm">
                     <Link

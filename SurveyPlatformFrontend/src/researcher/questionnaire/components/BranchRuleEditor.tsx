@@ -3,11 +3,14 @@ import type {
   QuestionnaireEditorBranchRule,
   QuestionnaireEditorItem,
 } from '../../../shared/types/questionnaire'
+import { getBranchTargetOptions } from '../model/questionnaireEditorModel'
 
 interface BranchRuleEditorProps {
   question: QuestionResponse
   branchRules: QuestionnaireEditorBranchRule[]
-  otherItems: QuestionnaireEditorItem[]
+  items: QuestionnaireEditorItem[]
+  sourceClientId: string
+  disabled?: boolean
   onChange: (branchRules: QuestionnaireEditorBranchRule[]) => void
 }
 
@@ -17,12 +20,15 @@ interface BranchRuleEditorProps {
 export default function BranchRuleEditor({
   question,
   branchRules,
-  otherItems,
+  items,
+  sourceClientId,
+  disabled = false,
   onChange,
 }: BranchRuleEditorProps) {
   // Only an item whose question is still resolvable can be a jump target;
-  // a missing-reference item has nowhere meaningful to land on.
-  const availableTargets = otherItems.filter((item) => item.question !== null)
+  // a missing-reference item has nowhere meaningful to land on. Keep each
+  // target's absolute questionnaire position so filtering cannot renumber it.
+  const availableTargets = getBranchTargetOptions(items, sourceClientId)
 
   if (question.type !== 'SINGLE_CHOICE' && question.type !== 'SCALE') {
     return (
@@ -53,8 +59,16 @@ export default function BranchRuleEditor({
     if (!first) return
     const rule: QuestionnaireEditorBranchRule =
       question.type === 'SINGLE_CHOICE'
-        ? { sourceOptionId: String(first.value), sourceScaleValue: null, targetClientId: availableTargets[0].clientId }
-        : { sourceOptionId: null, sourceScaleValue: Number(first.value), targetClientId: availableTargets[0].clientId }
+        ? {
+            sourceOptionId: String(first.value),
+            sourceScaleValue: null,
+            targetClientId: availableTargets[0].item.clientId,
+          }
+        : {
+            sourceOptionId: null,
+            sourceScaleValue: Number(first.value),
+            targetClientId: availableTargets[0].item.clientId,
+          }
     onChange([...branchRules, rule])
   }
 
@@ -79,6 +93,7 @@ export default function BranchRuleEditor({
           <span className="text-gray-500">If answer is</span>
           <select
             value={rule.sourceOptionId ?? String(rule.sourceScaleValue)}
+            disabled={disabled}
             onChange={(event) =>
               updateRule(
                 index,
@@ -98,18 +113,20 @@ export default function BranchRuleEditor({
           <span className="text-gray-500">jump to</span>
           <select
             value={rule.targetClientId}
+            disabled={disabled}
             onChange={(event) => updateRule(index, { targetClientId: event.target.value })}
             className="rounded border border-gray-300 px-2 py-1"
           >
-            {availableTargets.map((item, i) => (
+            {availableTargets.map(({ item, position }) => (
               <option key={item.clientId} value={item.clientId}>
-                Q{i + 1}: {item.question?.questionText.slice(0, 30)}
+                Q{position + 1}: {item.question?.questionText.slice(0, 30)}
               </option>
             ))}
           </select>
           <button
             type="button"
             onClick={() => removeRule(index)}
+            disabled={disabled}
             className="text-red-600 hover:underline"
           >
             Remove
@@ -120,7 +137,7 @@ export default function BranchRuleEditor({
       <button
         type="button"
         onClick={addRule}
-        disabled={availableTriggers.length === 0}
+        disabled={disabled || availableTriggers.length === 0}
         className="rounded border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-600 hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
       >
         + Add jump rule
