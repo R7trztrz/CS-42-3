@@ -21,9 +21,13 @@ function ImageWidget({
       drag,
     },
     selected,
+    nodeId,
   } = useNode((node) => ({
     selected:
       node.events.selected,
+
+    nodeId:
+      node.id,
   }))
 
 
@@ -43,6 +47,8 @@ function ImageWidget({
             )
           }
         }}
+        data-component-id={nodeId}
+        data-component-type="ImageWidget"
         className={`aspect-square w-full cursor-move overflow-hidden bg-[#f4f5f7] ${
           selected
             ? 'ring-2 ring-emerald-400 ring-inset'
@@ -98,6 +104,8 @@ function ImageWidget({
             )
           }
         }}
+        data-component-id={nodeId}
+        data-component-type="ImageWidget"
         className={`w-full cursor-move overflow-hidden bg-[#e9edf2] ${
           selected
             ? 'ring-2 ring-emerald-400 ring-inset'
@@ -149,6 +157,8 @@ function ImageWidget({
           )
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="ImageWidget"
       className={`w-full cursor-move ${
         selected
           ? 'ring-2 ring-emerald-400 ring-inset'

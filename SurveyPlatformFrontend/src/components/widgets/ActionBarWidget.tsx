@@ -73,18 +73,32 @@ function ActionBarWidget({
   styleId = 'facebook',
 }: ActionBarWidgetProps) {
   const {
-    connectors: { connect, drag },
+    connectors: {
+      connect,
+      drag,
+    },
     selected,
+    nodeId,
   } = useNode((node) => ({
-    selected: node.events.selected,
+    selected:
+      node.events.selected,
+
+    nodeId:
+      node.id,
   }))
 
   if (styleId === 'facebook') {
     return (
       <div
         ref={(ref) => {
-          if (ref) connect(drag(ref))
+          if (ref) {
+            connect(
+              drag(ref),
+            )
+          }
         }}
+        data-component-id={nodeId}
+        data-component-type="ActionBarWidget"
         className={`w-full cursor-move ${
           selected
             ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
@@ -128,8 +142,14 @@ function ActionBarWidget({
     return (
       <div
         ref={(ref) => {
-          if (ref) connect(drag(ref))
+          if (ref) {
+            connect(
+              drag(ref),
+            )
+          }
         }}
+        data-component-id={nodeId}
+        data-component-type="ActionBarWidget"
         className={`w-full cursor-move text-[#262626] ${
           selected
             ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
@@ -137,7 +157,9 @@ function ActionBarWidget({
         }`}
       >
         <div className="flex items-center justify-between">
+
           <div className="flex items-center gap-4">
+
             <ActionIcon
               name="heart"
               size={25}
@@ -152,12 +174,14 @@ function ActionBarWidget({
               name="send"
               size={24}
             />
+
           </div>
 
           <ActionIcon
             name="bookmark"
             size={24}
           />
+
         </div>
 
         <p className="mt-2 text-[13px] font-semibold">
@@ -180,8 +204,14 @@ function ActionBarWidget({
   return (
     <div
       ref={(ref) => {
-        if (ref) connect(drag(ref))
+        if (ref) {
+          connect(
+            drag(ref),
+          )
+        }
       }}
+      data-component-id={nodeId}
+      data-component-type="ActionBarWidget"
       className={`flex cursor-move gap-5 text-sm text-gray-600 ${
         selected
           ? 'rounded ring-2 ring-emerald-400 ring-offset-2'
@@ -204,13 +234,24 @@ function ActionBarWidget({
 }
 
 ActionBarWidget.craft = {
-  displayName: 'Action Bar Widget',
+  displayName:
+    'Action Bar Widget',
+
   props: {
-    likes: 0,
-    comments: 0,
-    shares: 0,
-    caption: '@username New post caption',
-    styleId: 'facebook',
+    likes:
+      0,
+
+    comments:
+      0,
+
+    shares:
+      0,
+
+    caption:
+      '@username New post caption',
+
+    styleId:
+      'facebook',
   },
 }
 
