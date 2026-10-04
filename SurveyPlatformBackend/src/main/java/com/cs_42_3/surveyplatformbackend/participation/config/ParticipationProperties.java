@@ -17,4 +17,14 @@ public record ParticipationProperties(
         @Min(256) int maxDeviceInfoBytes,
         @NotBlank String consentDocumentVersion
 ) {
+    public ParticipationProperties {
+        requirePositive(inactivityTimeout, "inactivity-timeout");
+        requirePositive(timeoutScanInterval, "timeout-scan-interval");
+    }
+
+    private static void requirePositive(Duration value, String property) {
+        if (value != null && (value.isZero() || value.isNegative())) {
+            throw new IllegalArgumentException(property + " must be greater than zero");
+        }
+    }
 }

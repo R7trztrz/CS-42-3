@@ -15,6 +15,8 @@ import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessio
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyClosedException;
 import com.cs_42_3.surveyplatformbackend.study.exception.FeedNotReadyException;
 import com.cs_42_3.surveyplatformbackend.study.exception.ParticipationNotFoundException;
+import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,6 +25,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import javax.sql.DataSource;
 import java.time.Instant;
 import java.sql.Timestamp;
 import java.util.Base64;
@@ -47,6 +50,8 @@ class ParticipantSessionIntegrationTest {
     private ParticipantSessionTokenService tokens;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private DataSource dataSource;
 
     @Test
     void createsAuthenticatesRestoresAndCompletesAStudyWithoutQuestionnaire() {
@@ -216,6 +221,71 @@ class ParticipantSessionIntegrationTest {
                 .isInstanceOf(ParticipationException.class)
                 .extracting(exception -> ((ParticipationException) exception).getCode().code())
                 .isEqualTo("PARTICIPANT_SESSION_NOT_FOUND");
+    }
+
+    @Test
+    void v14UpgradesSchemaValidLegacyLifecycleRowsWithoutInventingPublicationData() {
+        String schema = "m5_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+        jdbc.execute("CREATE SCHEMA " + schema);
+        try {
+            Flyway.configure()
+                    .dataSource(dataSource)
+                    .schemas(schema)
+                    .defaultSchema(schema)
+                    .locations("classpath:db/migration")
+                    .target(MigrationVersion.fromVersion("13"))
+                    .load()
+                    .migrate();
+
+            UUID ownerId = UUID.randomUUID();
+            UUID legacyStudyId = UUID.randomUUID();
+            UUID publishedStudyId = UUID.randomUUID();
+            jdbc.update(
+                    "INSERT INTO " + schema + ".researchers "
+                            + "(id, email, password_hash, role) VALUES (?, ?, 'hash', 'RESEARCHER')",
+                    ownerId,
+                    ownerId + "@migration-test.invalid"
+            );
+            jdbc.update(
+                    "INSERT INTO " + schema + ".studies "
+                            + "(id, owner_id, title, status) VALUES (?, ?, 'Legacy', 'COLLECTING')",
+                    legacyStudyId,
+                    ownerId
+            );
+            jdbc.update(
+                    "INSERT INTO " + schema + ".studies "
+                            + "(id, owner_id, title, status, participation_token, published_at) "
+                            + "VALUES (?, ?, 'Published', 'COLLECTING', ?, ?)",
+                    publishedStudyId,
+                    ownerId,
+                    "p".repeat(43),
+                    Timestamp.from(Instant.parse("2026-10-03T00:00:00Z"))
+            );
+
+            Flyway.configure()
+                    .dataSource(dataSource)
+                    .schemas(schema)
+                    .defaultSchema(schema)
+                    .locations("classpath:db/migration")
+                    .load()
+                    .migrate();
+
+            assertThat(jdbc.queryForObject(
+                    "SELECT participation_token IS NULL "
+                            + "AND published_at IS NULL "
+                            + "AND consent_document_version IS NULL "
+                            + "FROM " + schema + ".studies WHERE id = ?",
+                    Boolean.class,
+                    legacyStudyId
+            )).isTrue();
+            assertThat(jdbc.queryForObject(
+                    "SELECT consent_document_version FROM " + schema + ".studies WHERE id = ?",
+                    String.class,
+                    publishedStudyId
+            )).isEqualTo("platform-default-v1");
+        } finally {
+            jdbc.execute("DROP SCHEMA " + schema + " CASCADE");
+        }
     }
 
     private CreateParticipantSessionRequest request() {

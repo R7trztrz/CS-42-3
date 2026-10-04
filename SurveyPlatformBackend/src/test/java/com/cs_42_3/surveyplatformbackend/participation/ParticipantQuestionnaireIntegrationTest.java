@@ -15,6 +15,7 @@ import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantQuesti
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionLifecyclePort;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionService;
 import com.cs_42_3.surveyplatformbackend.participation.service.ParticipantSessionTimeoutService;
+import com.cs_42_3.surveyplatformbackend.study.domain.StudyStatus;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Timestamp;
@@ -335,11 +337,12 @@ class ParticipantQuestionnaireIntegrationTest {
                 .isEqualTo(ParticipantSessionStatus.IN_PROGRESS);
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            studies.findOwnedByIdForUpdate(fixture.studyId(), fixture.ownerId()).orElseThrow();
+            var study = studies.findOwnedByIdForUpdate(
+                    fixture.studyId(), fixture.ownerId()
+            ).orElseThrow();
             lifecycle.abandonActiveSessionsForStudy(fixture.studyId(), Instant.now());
-            entityManager.createNativeQuery("UPDATE studies SET status = 'CLOSED' WHERE id = :studyId")
-                    .setParameter("studyId", fixture.studyId())
-                    .executeUpdate();
+            assertThat(entityManager.contains(study)).isTrue();
+            ReflectionTestUtils.setField(study, "status", StudyStatus.CLOSED);
         });
         assertThat(sessions.findById(active.sessionId()).orElseThrow().getAbandonmentReason())
                 .isEqualTo(ParticipantAbandonmentReason.STUDY_CLOSED);
@@ -460,17 +463,14 @@ class ParticipantQuestionnaireIntegrationTest {
             CountDownLatch allowCloseCommit = new CountDownLatch(1);
             Future<?> close = executor.submit(() ->
                     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-                        studies.findOwnedByIdForUpdate(
+                        var study = studies.findOwnedByIdForUpdate(
                                 closeWinsFixture.studyId(), closeWinsFixture.ownerId()
                         ).orElseThrow();
                         lifecycle.abandonActiveSessionsForStudy(
                                 closeWinsFixture.studyId(), Instant.now()
                         );
-                        entityManager.createNativeQuery(
-                                        "UPDATE studies SET status = 'CLOSED' WHERE id = :studyId"
-                                )
-                                .setParameter("studyId", closeWinsFixture.studyId())
-                                .executeUpdate();
+                        assertThat(entityManager.contains(study)).isTrue();
+                        ReflectionTestUtils.setField(study, "status", StudyStatus.CLOSED);
                         closed.countDown();
                         await(allowCloseCommit);
                     })
@@ -512,11 +512,12 @@ class ParticipantQuestionnaireIntegrationTest {
 
     private void closeStudy(Fixture fixture) {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            studies.findOwnedByIdForUpdate(fixture.studyId(), fixture.ownerId()).orElseThrow();
+            var study = studies.findOwnedByIdForUpdate(
+                    fixture.studyId(), fixture.ownerId()
+            ).orElseThrow();
             lifecycle.abandonActiveSessionsForStudy(fixture.studyId(), Instant.now());
-            entityManager.createNativeQuery("UPDATE studies SET status = 'CLOSED' WHERE id = :studyId")
-                    .setParameter("studyId", fixture.studyId())
-                    .executeUpdate();
+            assertThat(entityManager.contains(study)).isTrue();
+            ReflectionTestUtils.setField(study, "status", StudyStatus.CLOSED);
         });
     }
 

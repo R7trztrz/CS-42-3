@@ -33,7 +33,7 @@ public interface ParticipantSessionRepository extends JpaRepository<ParticipantS
             Pageable pageable
     );
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query(value = """
             UPDATE participant_sessions
             SET status = 'ABANDONED',

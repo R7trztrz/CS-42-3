@@ -4,7 +4,9 @@ ALTER TABLE studies
 
 UPDATE studies
 SET consent_document_version = 'platform-default-v1'
-WHERE status IN ('COLLECTING', 'CLOSED');
+WHERE status IN ('COLLECTING', 'CLOSED')
+  AND participation_token IS NOT NULL
+  AND published_at IS NOT NULL;
 
 ALTER TABLE studies
     ADD CONSTRAINT ck_studies_publication_metadata
@@ -18,6 +20,13 @@ ALTER TABLE studies
                 AND participation_token IS NOT NULL
                 AND published_at IS NOT NULL
                 AND consent_document_version IS NOT NULL)
+            OR
+            -- V7 deliberately retained pre-publication lifecycle rows. Keep those
+            -- schema-valid legacy rows inaccessible rather than inventing tokens.
+            (status IN ('COLLECTING', 'CLOSED')
+                AND participation_token IS NULL
+                AND published_at IS NULL
+                AND consent_document_version IS NULL)
         );
 
 CREATE TABLE participant_sessions (
