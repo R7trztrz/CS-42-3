@@ -182,6 +182,33 @@ class ParticipantQuestionnaireIntegrationTest {
     }
 
     @Test
+    void existingIdempotencyKeyWinsOverInvalidItemAndPayloadValidation() {
+        Fixture fixture = fixture(false);
+        SessionContext context = startQuestionnaire(fixture);
+        UUID key = UUID.randomUUID();
+        SubmitQuestionnaireAnswerRequest accepted = request(
+                fixture.defaultOptionId(), null, null, null, false
+        );
+
+        questionnaire.answer(
+                context.principal(), fixture.singleItemId(), key, accepted
+        );
+
+        assertThatThrownBy(() -> questionnaire.answer(
+                context.principal(), UUID.randomUUID(), key, accepted
+        )).isInstanceOf(ParticipationException.class)
+                .extracting(error -> ((ParticipationException) error).getCode().code())
+                .isEqualTo("PARTICIPANT_IDEMPOTENCY_CONFLICT");
+        assertThatThrownBy(() -> questionnaire.answer(
+                context.principal(), fixture.singleItemId(), key,
+                request(null, null, null, null, false)
+        )).isInstanceOf(ParticipationException.class)
+                .extracting(error -> ((ParticipationException) error).getCode().code())
+                .isEqualTo("PARTICIPANT_IDEMPOTENCY_CONFLICT");
+        assertThat(steps.countBySessionId(context.sessionId())).isOne();
+    }
+
+    @Test
     void conditionalBranchSkipsAnItemAndOptionalUnansweredHasOnlyAStep() {
         Fixture fixture = fixture(false);
         SessionContext context = startQuestionnaire(fixture);

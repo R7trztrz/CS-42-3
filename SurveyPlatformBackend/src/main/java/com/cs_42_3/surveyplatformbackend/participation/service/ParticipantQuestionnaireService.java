@@ -85,16 +85,27 @@ public class ParticipantQuestionnaireService {
         if (!study.isQuestionnaireEnabled()) {
             throw ParticipationException.questionnaireDisabled();
         }
+        var existing = steps.findBySessionIdAndIdempotencyKey(session.getId(), idempotencyKey);
+        if (existing.isPresent() && !existing.get().getItemId().equals(itemId)) {
+            throw ParticipationException.idempotencyConflict();
+        }
         QuestionnaireSnapshotPayload snapshot = snapshot(study.getId());
         Map<UUID, QuestionnaireSnapshotPayload.Item> items = items(snapshot);
         QuestionnaireSnapshotPayload.Item item = items.get(itemId);
         if (item == null) {
             throw ParticipationException.questionNotCurrent();
         }
-        ParticipantAnswerNormalizer.NormalizedAnswer normalized = normalizer.normalize(item, request);
+        ParticipantAnswerNormalizer.NormalizedAnswer normalized;
+        try {
+            normalized = normalizer.normalize(item, request);
+        } catch (ParticipationException exception) {
+            if (existing.isPresent()) {
+                throw ParticipationException.idempotencyConflict();
+            }
+            throw exception;
+        }
         String requestHash = normalizer.requestHash(itemId, normalized);
 
-        var existing = steps.findBySessionIdAndIdempotencyKey(session.getId(), idempotencyKey);
         if (existing.isPresent()) {
             ParticipantQuestionnaireStep step = existing.get();
             if (!step.getItemId().equals(itemId) || !step.getRequestHash().equals(requestHash)) {
