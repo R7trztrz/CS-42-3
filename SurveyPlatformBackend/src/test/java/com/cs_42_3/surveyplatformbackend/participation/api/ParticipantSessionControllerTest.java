@@ -110,6 +110,95 @@ class ParticipantSessionControllerTest {
     }
 
     @Test
+    void ignoresUnknownFieldsForForwardCompatibleParticipantRequests() throws Exception {
+        when(sessions.create(any(), any())).thenReturn(new CreateParticipantSessionResponse(
+                PRINCIPAL.sessionId(),
+                SESSION_TOKEN,
+                ParticipantSessionStatus.IN_PROGRESS,
+                ParticipantSessionPhase.CONSENT,
+                "Study",
+                "Description",
+                false,
+                false,
+                consent(),
+                NOW
+        ));
+        when(sessions.decideConsent(PRINCIPAL, true)).thenReturn(state(PRINCIPAL.sessionId()));
+        when(questionnaire.answer(any(), any(), any(), any()))
+                .thenReturn(new ParticipantQuestionnaireStateResponse(null, true));
+
+        mockMvc.perform(post("/api/participation/{token}/sessions", STUDY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "deviceInfo": {
+                                    "browser": "Chrome",
+                                    "futureDeviceField": "accepted"
+                                  },
+                                  "futureSessionField": "accepted"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/api/participant-session/consent")
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accepted\":true,\"futureConsentField\":\"accepted\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put(
+                        "/api/participant-session/questionnaire/answers/{itemId}",
+                        UUID.randomUUID()
+                )
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .header("Idempotency-Key", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"answer\",\"futureAnswerField\":\"accepted\"}"))
+                .andExpect(status().isOk());
+
+        verify(sessions).create(any(String.class), any(CreateParticipantSessionRequest.class));
+        verify(sessions).decideConsent(PRINCIPAL, true);
+        verify(questionnaire).answer(any(), any(), any(), any());
+    }
+
+    @Test
+    void participantRequestParsingFailuresExposeDocumentedCodes() throws Exception {
+        mockMvc.perform(post("/api/participation/{token}/sessions", STUDY_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceInfo\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_BODY_INVALID"));
+
+        mockMvc.perform(put("/api/participant-session/consent")
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"accepted\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_VALIDATION_FAILED"));
+
+        mockMvc.perform(put(
+                        "/api/participant-session/questionnaire/answers/{itemId}",
+                        "not-a-uuid"
+                )
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .header("Idempotency-Key", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"answer\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("ARGUMENT_TYPE_MISMATCH"));
+
+        mockMvc.perform(put(
+                        "/api/participant-session/questionnaire/answers/{itemId}",
+                        UUID.randomUUID()
+                )
+                        .header(ParticipantSessionTokenService.HEADER_NAME, SESSION_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"textValue\":\"answer\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_FAILED"));
+    }
+
+    @Test
     void rejectsMissingParticipantTokenWithParticipantSpecific401AndNoStore() throws Exception {
         mockMvc.perform(get("/api/participant-session"))
                 .andExpect(status().isUnauthorized())

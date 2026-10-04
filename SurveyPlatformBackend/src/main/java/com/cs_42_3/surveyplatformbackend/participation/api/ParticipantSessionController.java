@@ -40,7 +40,7 @@ public class ParticipantSessionController {
     @Operation(operationId = "createParticipantSession", summary = "Create an anonymous participant session")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Session created; token is returned once."),
-            @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED."),
+            @ApiResponse(responseCode = "400", description = "REQUEST_BODY_INVALID or REQUEST_VALIDATION_FAILED."),
             @ApiResponse(responseCode = "404", description = "PARTICIPATION_NOT_FOUND."),
             @ApiResponse(responseCode = "409", description = "FEED_NOT_READY or PARTICIPANT_QUESTIONNAIRE_NOT_READY."),
             @ApiResponse(responseCode = "410", description = "STUDY_CLOSED.")
@@ -75,7 +75,7 @@ public class ParticipantSessionController {
     @SecurityRequirement(name = "participantSessionToken")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consent decision recorded or replayed."),
-            @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED."),
+            @ApiResponse(responseCode = "400", description = "REQUEST_BODY_INVALID or REQUEST_VALIDATION_FAILED."),
             @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
             @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
             @ApiResponse(responseCode = "409", description = "PARTICIPANT_SESSION_STATE_INVALID or PARTICIPANT_SESSION_TERMINATED."),
@@ -125,7 +125,7 @@ public class ParticipantSessionController {
     @SecurityRequirement(name = "participantSessionToken")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Answer saved or an identical request replayed."),
-            @ApiResponse(responseCode = "400", description = "PARTICIPANT_ANSWER_INVALID."),
+            @ApiResponse(responseCode = "400", description = "PARTICIPANT_ANSWER_INVALID, REQUEST_BODY_INVALID, ARGUMENT_TYPE_MISMATCH, or REQUEST_FAILED."),
             @ApiResponse(responseCode = "401", description = "PARTICIPANT_SESSION_UNAUTHORIZED."),
             @ApiResponse(responseCode = "404", description = "PARTICIPANT_SESSION_NOT_FOUND."),
             @ApiResponse(responseCode = "409", description = "PARTICIPANT_IDEMPOTENCY_CONFLICT, PARTICIPANT_QUESTION_NOT_CURRENT, PARTICIPANT_QUESTIONNAIRE_DISABLED, PARTICIPANT_SESSION_STATE_INVALID, or PARTICIPANT_SESSION_TERMINATED."),
