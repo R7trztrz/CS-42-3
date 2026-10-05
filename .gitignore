@@ -15,3 +15,10 @@
 !/.github/
 !/.github/workflows/
 !/.github/workflows/*.yml
+
+# Track server deployment configuration and environment template
+!/docker-compose.server.yml
+!/.env.server.example
+
+# Track the server deployment guide
+!/Server_Deployment_Guide.md
