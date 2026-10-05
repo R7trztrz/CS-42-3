@@ -19,9 +19,13 @@ function TextWidget({
       drag,
     },
     selected,
+    nodeId,
   } = useNode((node) => ({
     selected:
       node.events.selected,
+
+    nodeId:
+      node.id,
   }))
 
 
@@ -129,6 +133,8 @@ function TextWidget({
           )
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="TextWidget"
       className={`cursor-move rounded-sm ${
         selected
           ? 'ring-2 ring-emerald-400 ring-offset-2'

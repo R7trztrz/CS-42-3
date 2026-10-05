@@ -10,10 +10,10 @@
     "hidden": false,
     "nodes": [],
     "linkedNodes": {
-      "instagram-root": "hsWxC1sAYD"
+      "instagram-root": "T0uNQLfJRK"
     }
   },
-  "hsWxC1sAYD": {
+  "T0uNQLfJRK": {
     "type": {
       "resolvedName": "ResearcherEditCanvas"
     },
@@ -24,11 +24,11 @@
     "parent": "ROOT",
     "hidden": false,
     "nodes": [
-      "YyE-MesIeM"
+      "2yw55rCWk8"
     ],
     "linkedNodes": {}
   },
-  "YyE-MesIeM": {
+  "2yw55rCWk8": {
     "type": {
       "resolvedName": "InstagramDesktopShell"
     },
@@ -38,14 +38,14 @@
     },
     "displayName": "Instagram Desktop Shell",
     "custom": {},
-    "parent": "hsWxC1sAYD",
+    "parent": "T0uNQLfJRK",
     "hidden": false,
     "nodes": [
-      "JgB2w0J6qE"
+      "c5DjRY9EwM"
     ],
     "linkedNodes": {}
   },
-  "JgB2w0J6qE": {
+  "c5DjRY9EwM": {
     "type": "div",
     "isCanvas": false,
     "props": {
@@ -53,16 +53,16 @@
     },
     "displayName": "div",
     "custom": {},
-    "parent": "YyE-MesIeM",
+    "parent": "2yw55rCWk8",
     "hidden": false,
     "nodes": [
-      "NsqS1dxBc3",
-      "UXbKCIdfFF",
-      "lZkRNIQQMt"
+      "a9XUSI5PiS",
+      "kulL0rI68_",
+      "ym8yiiZu-y"
     ],
     "linkedNodes": {}
   },
-  "NsqS1dxBc3": {
+  "a9XUSI5PiS": {
     "type": {
       "resolvedName": "InstagramSidebar"
     },
@@ -70,12 +70,12 @@
     "props": {},
     "displayName": "Instagram Sidebar",
     "custom": {},
-    "parent": "JgB2w0J6qE",
+    "parent": "c5DjRY9EwM",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "UXbKCIdfFF": {
+  "kulL0rI68_": {
     "type": {
       "resolvedName": "InstagramMainFeed"
     },
@@ -85,14 +85,14 @@
     },
     "displayName": "Instagram Main Feed",
     "custom": {},
-    "parent": "JgB2w0J6qE",
+    "parent": "c5DjRY9EwM",
     "hidden": false,
     "nodes": [
-      "9b5z1Pcrew"
+      "Be0z7KeUJS"
     ],
     "linkedNodes": {}
   },
-  "9b5z1Pcrew": {
+  "Be0z7KeUJS": {
     "type": "div",
     "isCanvas": false,
     "props": {
@@ -100,15 +100,15 @@
     },
     "displayName": "div",
     "custom": {},
-    "parent": "UXbKCIdfFF",
+    "parent": "kulL0rI68_",
     "hidden": false,
     "nodes": [
-      "RxGCXXGFkp",
-      "Q42dir7f_O"
+      "QXqJeNDZEJ",
+      "Q48f4EuO3e"
     ],
     "linkedNodes": {}
   },
-  "RxGCXXGFkp": {
+  "QXqJeNDZEJ": {
     "type": {
       "resolvedName": "InstagramStories"
     },
@@ -116,12 +116,12 @@
     "props": {},
     "displayName": "Instagram Stories",
     "custom": {},
-    "parent": "9b5z1Pcrew",
+    "parent": "Be0z7KeUJS",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "Q42dir7f_O": {
+  "Q48f4EuO3e": {
     "type": {
       "resolvedName": "InstagramPostList"
     },
@@ -131,15 +131,15 @@
     },
     "displayName": "Instagram Post List",
     "custom": {},
-    "parent": "9b5z1Pcrew",
+    "parent": "Be0z7KeUJS",
     "hidden": false,
     "nodes": [
-      "FGXx7i49Cl",
-      "H33EAyVTGn"
+      "CSo4zwM-pO",
+      "T1hcZim8PL"
     ],
     "linkedNodes": {}
   },
-  "FGXx7i49Cl": {
+  "CSo4zwM-pO": {
     "type": {
       "resolvedName": "PostWidget"
     },
@@ -155,17 +155,18 @@
       "likes": 47,
       "comments": 12,
       "shares": 8,
+      "views": 1243,
       "saves": 5,
       "sound": "Original Sound · Emma Wilson"
     },
     "displayName": "Post Widget",
     "custom": {},
-    "parent": "Q42dir7f_O",
+    "parent": "Q48f4EuO3e",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "H33EAyVTGn": {
+  "T1hcZim8PL": {
     "type": {
       "resolvedName": "PostWidget"
     },
@@ -181,17 +182,18 @@
       "likes": 23,
       "comments": 4,
       "shares": 2,
+      "views": 1243,
       "saves": 5,
       "sound": "Original Sound · Emma Wilson"
     },
     "displayName": "Post Widget",
     "custom": {},
-    "parent": "Q42dir7f_O",
+    "parent": "Q48f4EuO3e",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "lZkRNIQQMt": {
+  "ym8yiiZu-y": {
     "type": {
       "resolvedName": "InstagramSuggestions"
     },
@@ -199,7 +201,7 @@
     "props": {},
     "displayName": "Instagram Suggestions",
     "custom": {},
-    "parent": "JgB2w0J6qE",
+    "parent": "c5DjRY9EwM",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
