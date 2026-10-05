@@ -8,6 +8,16 @@ export type CreateStudyRequest = {
   templateCode: string
 }
 
+// FR-13: partial draft update. Only DRAFT studies are editable; `version` is
+// required for optimistic locking and at least one other field must be set.
+export type UpdateStudyRequest = {
+  version: number
+  title?: string
+  description?: string | null
+  eyeTrackingEnabled?: boolean
+  questionnaireEnabled?: boolean
+}
+
 export type StudyResponse = {
   id: string
   title: string
@@ -96,6 +106,11 @@ export async function listStudies(page = 0, size = 20) {
 
 export async function getStudy(studyId: string) {
   const response = await api.get<StudyResponse>(`/api/studies/${studyId}`)
+  return response.data
+}
+
+export async function updateStudy(studyId: string, request: UpdateStudyRequest) {
+  const response = await api.patch<StudyResponse>(`/api/studies/${studyId}`, request)
   return response.data
 }
 

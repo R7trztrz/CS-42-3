@@ -261,6 +261,8 @@ import {
 
   saveStudyFeed,
 
+  updateStudy,
+
   type StudyFeedResponse,
 
   type StudyResponse,
@@ -1109,6 +1111,26 @@ function ResearcherEdit() {
 
     useState(false)
 
+  const [
+
+    savingSetting,
+
+    setSavingSetting,
+
+  ] =
+
+    useState<'eyeTrackingEnabled' | 'questionnaireEnabled' | null>(null)
+
+  const [
+
+    settingsError,
+
+    setSettingsError,
+
+  ] =
+
+    useState('')
+
   const isEditable =
 
     study?.status ===
@@ -1757,6 +1779,91 @@ function ResearcherEdit() {
 
     }
 
+  // FR-13: lets a researcher turn on the eye-tracking / questionnaire
+  // runtime switches that default to off. Without this, features such as
+  // the questionnaire editor link below are built but unreachable.
+  const handleToggleStudySetting =
+
+    async (
+
+      field: 'eyeTrackingEnabled' | 'questionnaireEnabled',
+
+      value: boolean,
+
+    ) => {
+
+      if (
+
+        isTemplatePreview ||
+
+        !studyId ||
+
+        !study ||
+
+        !isEditable
+
+      ) {
+
+        return
+
+      }
+
+      setSavingSetting(
+
+        field,
+
+      )
+
+      setSettingsError('')
+
+      try {
+
+        const updatedStudy =
+
+          await updateStudy(
+
+            studyId,
+
+            field === 'eyeTrackingEnabled'
+
+              ? { version: study.version, eyeTrackingEnabled: value }
+
+              : { version: study.version, questionnaireEnabled: value },
+
+          )
+
+        setStudy(
+
+          updatedStudy,
+
+        )
+
+      } catch (error) {
+
+        setSettingsError(
+
+          getApiErrorMessage(
+
+            error,
+
+            'The study setting could not be updated.',
+
+          ),
+
+        )
+
+      } finally {
+
+        setSavingSetting(
+
+          null,
+
+        )
+
+      }
+
+    }
+
   const copyParticipationLink =
 
     async () => {
@@ -2245,6 +2352,84 @@ function ResearcherEdit() {
                   {study.status === 'DRAFT' ? 'Edit questionnaire' : 'View questionnaire'}
 
                 </Link>
+
+              )}
+
+              {isEditable && !isTemplatePreview && (
+
+                <div className="flex flex-col items-end gap-1">
+
+                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+
+                      <input
+
+                        type="checkbox"
+
+                        checked={study.eyeTrackingEnabled}
+
+                        disabled={savingSetting !== null}
+
+                        onChange={(event) =>
+
+                          void handleToggleStudySetting(
+
+                            'eyeTrackingEnabled',
+
+                            event.target.checked,
+
+                          )
+
+                        }
+
+                      />
+
+                      Eye tracking
+
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+
+                      <input
+
+                        type="checkbox"
+
+                        checked={study.questionnaireEnabled}
+
+                        disabled={savingSetting !== null}
+
+                        onChange={(event) =>
+
+                          void handleToggleStudySetting(
+
+                            'questionnaireEnabled',
+
+                            event.target.checked,
+
+                          )
+
+                        }
+
+                      />
+
+                      Questionnaire
+
+                    </label>
+
+                  </div>
+
+                  {settingsError && (
+
+                    <p className="text-xs font-semibold text-red-700" role="alert">
+
+                      {settingsError}
+
+                    </p>
+
+                  )}
+
+                </div>
 
               )}
 
