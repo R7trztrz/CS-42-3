@@ -1,4 +1,5 @@
 import api from './api'
+import participantHttpClient from '../participant/api/participantHttpClient'
 
 export type StudyStatus = 'DRAFT' | 'COLLECTING' | 'CLOSED'
 
@@ -139,7 +140,12 @@ export async function publishStudy(studyId: string, version: number) {
 }
 
 export async function getParticipation(token: string) {
-  const response = await api.get<ParticipationResponse>(`/api/participation/${token}`)
+  // Public participation reads must stay on the anonymous client. Reusing
+  // the researcher client would attach any stale researcher JWT from
+  // localStorage and could redirect an otherwise public visit to /login.
+  const response = await participantHttpClient.get<ParticipationResponse>(
+    `/api/participation/${token}`,
+  )
   return response.data
 }
 
