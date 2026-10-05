@@ -1,0 +1,297 @@
+{
+  "ROOT": {
+    "type": {
+      "resolvedName": "ThreadsTemplate"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Threads Template",
+    "custom": {},
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {
+      "threads-root": "LJi4PidAQy"
+    }
+  },
+  "LJi4PidAQy": {
+    "type": {
+      "resolvedName": "ResearcherEditCanvas"
+    },
+    "isCanvas": true,
+    "props": {},
+    "displayName": "Researcher Edit Canvas",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [
+      "OwKR-LKqHY"
+    ],
+    "linkedNodes": {}
+  },
+  "OwKR-LKqHY": {
+    "type": {
+      "resolvedName": "ThreadsDesktopShell"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "threads-shell"
+    },
+    "displayName": "Threads Desktop Shell",
+    "custom": {},
+    "parent": "LJi4PidAQy",
+    "hidden": false,
+    "nodes": [
+      "udyvqlzPA8"
+    ],
+    "linkedNodes": {}
+  },
+  "udyvqlzPA8": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full w-full bg-white"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "OwKR-LKqHY",
+    "hidden": false,
+    "nodes": [
+      "fehchd8ffa",
+      "GuXq5DEkc6"
+    ],
+    "linkedNodes": {}
+  },
+  "fehchd8ffa": {
+    "type": {
+      "resolvedName": "ThreadsSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Threads Sidebar",
+    "custom": {},
+    "parent": "udyvqlzPA8",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "GuXq5DEkc6": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex min-w-0 flex-1 justify-center"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "udyvqlzPA8",
+    "hidden": false,
+    "nodes": [
+      "gvNFDxfUrf"
+    ],
+    "linkedNodes": {}
+  },
+  "gvNFDxfUrf": {
+    "type": {
+      "resolvedName": "ThreadsMainFeed"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "threads-main-feed"
+    },
+    "displayName": "Threads Main Feed",
+    "custom": {},
+    "parent": "GuXq5DEkc6",
+    "hidden": false,
+    "nodes": [
+      "i_0355EvyM",
+      "WvPVn43g2j",
+      "OJ4SXczKCz"
+    ],
+    "linkedNodes": {}
+  },
+  "i_0355EvyM": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "sticky top-0 z-20 grid h-[62px] grid-cols-2 border-b border-[#eeeeee] bg-white/95 backdrop-blur"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "gvNFDxfUrf",
+    "hidden": false,
+    "nodes": [
+      "i-SIOXUmCQ",
+      "tiA0xSLTA2"
+    ],
+    "linkedNodes": {}
+  },
+  "i-SIOXUmCQ": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "relative flex items-center justify-center"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "i_0355EvyM",
+    "hidden": false,
+    "nodes": [
+      "Yy4rgrEXeh",
+      "evIYGb47Kb"
+    ],
+    "linkedNodes": {}
+  },
+  "Yy4rgrEXeh": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "text-[15px] font-semibold text-[#111111]",
+      "children": "For you"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "i-SIOXUmCQ",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "evIYGb47Kb": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "absolute bottom-0 h-[3px] w-[54px] rounded-full bg-[#111111]"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "i-SIOXUmCQ",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "tiA0xSLTA2": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex items-center justify-center text-[15px] font-medium text-[#9ca3af]",
+      "children": "Following"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "i_0355EvyM",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "WvPVn43g2j": {
+    "type": {
+      "resolvedName": "ThreadsComposer"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Threads Composer",
+    "custom": {},
+    "parent": "gvNFDxfUrf",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "OJ4SXczKCz": {
+    "type": {
+      "resolvedName": "ThreadsPostList"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "threads-post-list"
+    },
+    "displayName": "Threads Post List",
+    "custom": {},
+    "parent": "gvNFDxfUrf",
+    "hidden": false,
+    "nodes": [
+      "lIefum0fB-",
+      "5Ddp288D5E",
+      "puPFbsthMB"
+    ],
+    "linkedNodes": {}
+  },
+  "lIefum0fB-": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "threads",
+      "username": "@emmaw",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "views": 1243,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "OJ4SXczKCz",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "5Ddp288D5E": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "threads",
+      "username": "@alexc",
+      "displayName": "Alex Chen",
+      "time": "4h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Working on an interesting social media research project. The differences in UI patterns across platforms are far more significant than I expected. #research #HCI #UXDesign",
+      "likes": 83,
+      "comments": 21,
+      "shares": 34,
+      "views": 1243,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "OJ4SXczKCz",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "puPFbsthMB": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "threads",
+      "username": "@jordanl",
+      "displayName": "Jordan Lee",
+      "time": "6h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Tried the new coffee shop near the university — incredible atmosphere for deep work. Highly recommend to fellow students! ☕",
+      "likes": 62,
+      "comments": 9,
+      "shares": 5,
+      "views": 1243,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "OJ4SXczKCz",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}

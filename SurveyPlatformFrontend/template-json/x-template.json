@@ -1,19 +1,19 @@
 {
   "ROOT": {
     "type": {
-      "resolvedName": "FacebookTemplate"
+      "resolvedName": "XTemplate"
     },
     "isCanvas": false,
     "props": {},
-    "displayName": "Facebook Template",
+    "displayName": "X Template",
     "custom": {},
     "hidden": false,
     "nodes": [],
     "linkedNodes": {
-      "facebook-root": "-YnQVk4cM7"
+      "x-root": "BQC9-UA3PL"
     }
   },
-  "-YnQVk4cM7": {
+  "BQC9-UA3PL": {
     "type": {
       "resolvedName": "ResearcherEditCanvas"
     },
@@ -24,154 +24,202 @@
     "parent": "ROOT",
     "hidden": false,
     "nodes": [
-      "G3x5rJBfKW"
+      "n62cTFwvhX"
     ],
     "linkedNodes": {}
   },
-  "G3x5rJBfKW": {
+  "n62cTFwvhX": {
     "type": {
-      "resolvedName": "FacebookDesktopShell"
+      "resolvedName": "XDesktopShell"
     },
     "isCanvas": true,
     "props": {
-      "id": "facebook-shell"
+      "id": "x-shell"
     },
-    "displayName": "Facebook Desktop Shell",
+    "displayName": "X Desktop Shell",
     "custom": {},
-    "parent": "-YnQVk4cM7",
+    "parent": "BQC9-UA3PL",
     "hidden": false,
     "nodes": [
-      "4ckWn5kcK3"
+      "34atsQRlzG"
     ],
     "linkedNodes": {}
   },
-  "4ckWn5kcK3": {
+  "34atsQRlzG": {
     "type": "div",
     "isCanvas": false,
     "props": {
-      "className": "flex h-full w-full flex-col overflow-hidden bg-[#f0f2f5]"
+      "className": "flex h-full w-full bg-black text-white"
     },
     "displayName": "div",
     "custom": {},
-    "parent": "G3x5rJBfKW",
+    "parent": "n62cTFwvhX",
     "hidden": false,
     "nodes": [
-      "A_FQCme0Uy",
-      "HuliL9gF-7"
+      "j3KxLYeZBh",
+      "Kqppd2oVIW",
+      "Bu0loBEm2z"
     ],
     "linkedNodes": {}
   },
-  "A_FQCme0Uy": {
+  "j3KxLYeZBh": {
     "type": {
-      "resolvedName": "FacebookTopBar"
+      "resolvedName": "XSidebar"
     },
     "isCanvas": false,
     "props": {},
-    "displayName": "Facebook Top Bar",
+    "displayName": "X Sidebar",
     "custom": {},
-    "parent": "4ckWn5kcK3",
+    "parent": "34atsQRlzG",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "HuliL9gF-7": {
-    "type": "div",
-    "isCanvas": false,
-    "props": {
-      "className": "flex min-h-0 flex-1 overflow-hidden"
-    },
-    "displayName": "div",
-    "custom": {},
-    "parent": "4ckWn5kcK3",
-    "hidden": false,
-    "nodes": [
-      "P-LzE-Kp7s",
-      "QyLyJmqbqj",
-      "OsBrHdO7d1"
-    ],
-    "linkedNodes": {}
-  },
-  "P-LzE-Kp7s": {
-    "type": "div",
-    "isCanvas": false,
-    "props": {
-      "className": "w-[250px] shrink-0"
-    },
-    "displayName": "div",
-    "custom": {},
-    "parent": "HuliL9gF-7",
-    "hidden": false,
-    "nodes": [
-      "2ob7wOYOj_"
-    ],
-    "linkedNodes": {}
-  },
-  "2ob7wOYOj_": {
+  "Kqppd2oVIW": {
     "type": {
-      "resolvedName": "FacebookLeftSidebar"
-    },
-    "isCanvas": false,
-    "props": {},
-    "displayName": "Facebook Left Sidebar",
-    "custom": {},
-    "parent": "P-LzE-Kp7s",
-    "hidden": false,
-    "nodes": [],
-    "linkedNodes": {}
-  },
-  "QyLyJmqbqj": {
-    "type": {
-      "resolvedName": "FacebookMainFeed"
+      "resolvedName": "XMainFeed"
     },
     "isCanvas": true,
     "props": {
-      "id": "facebook-main-feed"
+      "id": "x-main-feed"
     },
-    "displayName": "Facebook Main Feed",
+    "displayName": "X Main Feed",
     "custom": {},
-    "parent": "HuliL9gF-7",
+    "parent": "34atsQRlzG",
     "hidden": false,
     "nodes": [
-      "SSbjs23yr0",
-      "GLl50jy2Sc",
-      "CrANmw9f0p",
-      "vJ8QUi33_Z"
+      "s8k30TXc4e",
+      "zD8Kn-CsON",
+      "-laxhZ9R3L"
     ],
     "linkedNodes": {}
   },
-  "SSbjs23yr0": {
-    "type": {
-      "resolvedName": "FacebookStories"
-    },
+  "s8k30TXc4e": {
+    "type": "div",
     "isCanvas": false,
-    "props": {},
-    "displayName": "Facebook Stories",
+    "props": {
+      "className": "sticky top-0 z-20 grid h-[64px] shrink-0 grid-cols-2 border-b border-[#2f3336] bg-black"
+    },
+    "displayName": "div",
     "custom": {},
-    "parent": "QyLyJmqbqj",
+    "parent": "Kqppd2oVIW",
+    "hidden": false,
+    "nodes": [
+      "LIQKJgWrNz",
+      "4WlDagtVM6"
+    ],
+    "linkedNodes": {}
+  },
+  "LIQKJgWrNz": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "relative flex h-full items-center justify-center"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "s8k30TXc4e",
+    "hidden": false,
+    "nodes": [
+      "EwlndzZkqZ",
+      "KCRvuw3W3H"
+    ],
+    "linkedNodes": {}
+  },
+  "EwlndzZkqZ": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "text-[15px] font-semibold text-[#e7e9ea]",
+      "children": "For You"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "LIQKJgWrNz",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "GLl50jy2Sc": {
-    "type": {
-      "resolvedName": "FacebookCreatePost"
-    },
+  "KCRvuw3W3H": {
+    "type": "span",
     "isCanvas": false,
-    "props": {},
-    "displayName": "Facebook Create Post",
+    "props": {
+      "className": "absolute bottom-0 h-[4px] w-[64px] rounded-full bg-[#1d9bf0]"
+    },
+    "displayName": "span",
     "custom": {},
-    "parent": "QyLyJmqbqj",
+    "parent": "LIQKJgWrNz",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "CrANmw9f0p": {
+  "4WlDagtVM6": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full items-center justify-center"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "s8k30TXc4e",
+    "hidden": false,
+    "nodes": [
+      "BeDNkPIbBE"
+    ],
+    "linkedNodes": {}
+  },
+  "BeDNkPIbBE": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "text-[15px] font-medium text-[#71767b]",
+      "children": "Following"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "4WlDagtVM6",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "zD8Kn-CsON": {
+    "type": {
+      "resolvedName": "XComposer"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "X Composer",
+    "custom": {},
+    "parent": "Kqppd2oVIW",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "-laxhZ9R3L": {
+    "type": {
+      "resolvedName": "XPostList"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "x-post-list"
+    },
+    "displayName": "X Post List",
+    "custom": {},
+    "parent": "Kqppd2oVIW",
+    "hidden": false,
+    "nodes": [
+      "th2lWn97Hz",
+      "g5AFiS3TLU"
+    ],
+    "linkedNodes": {}
+  },
+  "th2lWn97Hz": {
     "type": {
       "resolvedName": "PostWidget"
     },
     "isCanvas": false,
     "props": {
-      "styleId": "facebook",
+      "styleId": "x",
       "username": "@emmaw",
       "displayName": "Emma Wilson",
       "time": "2h ago",
@@ -187,62 +235,47 @@
     },
     "displayName": "Post Widget",
     "custom": {},
-    "parent": "QyLyJmqbqj",
+    "parent": "-laxhZ9R3L",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "vJ8QUi33_Z": {
+  "g5AFiS3TLU": {
     "type": {
       "resolvedName": "PostWidget"
     },
     "isCanvas": false,
     "props": {
-      "styleId": "facebook",
+      "styleId": "x",
       "username": "@alexc",
       "displayName": "Alex Chen",
       "time": "4h ago",
       "avatarSrc": "",
       "imageSrc": "",
       "caption": "Working on an interesting social media research project. The differences in UI patterns across platforms are far more significant than I expected. #research #HCI #UXDesign",
-      "likes": 31,
-      "comments": 6,
-      "shares": 3,
+      "likes": 83,
+      "comments": 21,
+      "shares": 34,
       "views": 1243,
       "saves": 5,
       "sound": "Original Sound · Emma Wilson"
     },
     "displayName": "Post Widget",
     "custom": {},
-    "parent": "QyLyJmqbqj",
+    "parent": "-laxhZ9R3L",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
   },
-  "OsBrHdO7d1": {
-    "type": "div",
-    "isCanvas": false,
-    "props": {
-      "className": "w-[250px] shrink-0"
-    },
-    "displayName": "div",
-    "custom": {},
-    "parent": "HuliL9gF-7",
-    "hidden": false,
-    "nodes": [
-      "LVajGQVOaT"
-    ],
-    "linkedNodes": {}
-  },
-  "LVajGQVOaT": {
+  "Bu0loBEm2z": {
     "type": {
-      "resolvedName": "FacebookRightSidebar"
+      "resolvedName": "XRightSidebar"
     },
     "isCanvas": false,
     "props": {},
-    "displayName": "Facebook Right Sidebar",
+    "displayName": "X Right Sidebar",
     "custom": {},
-    "parent": "OsBrHdO7d1",
+    "parent": "34atsQRlzG",
     "hidden": false,
     "nodes": [],
     "linkedNodes": {}
