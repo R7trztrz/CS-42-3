@@ -7,6 +7,8 @@ export default defineConfig({
       'tests/eyetracking/**/*.test.ts',
       'tests/m4/**/*.test.ts',
       'tests/m4/**/*.test.tsx',
+      'tests/m5/**/*.test.ts',
+      'tests/m5/**/*.test.tsx',
     ],
     clearMocks: true,
     restoreMocks: true,
