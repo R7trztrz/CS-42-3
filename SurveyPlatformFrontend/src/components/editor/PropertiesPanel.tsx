@@ -1,20 +1,17 @@
 import { useEditor } from '@craftjs/core'
-
-import { createElement } from 'react'
-
+import { createElement, useState } from 'react'
 import type {
   ChangeEvent,
   ElementType,
 } from 'react'
-
+import { useParams } from 'react-router-dom'
 import type { PlatformStyle } from '../widgets/types'
-
-
 const propertyControlClass =
   'w-full rounded-sm border border-[#cbd6e2] bg-white px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
-
-
 function PropertiesPanel() {
+  const { studyId } = useParams<{ studyId: string }>()
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const {
     selectedNodeId,
     selectedNodeName,
@@ -29,7 +26,6 @@ function PropertiesPanel() {
       Array.from(
         state.events.selected,
       )[0]
-
     if (!selectedNodeId) {
       return {
         selectedNodeId: null,
@@ -40,16 +36,12 @@ function PropertiesPanel() {
         siblingCount: 0,
       }
     }
-
     const selectedNode =
       state.nodes[selectedNodeId]
-
     const parentId =
       selectedNode?.data?.parent
-
     let selectedNodeIndex = -1
     let siblingCount = 0
-
     if (
       parentId &&
       state.nodes[parentId]
@@ -58,26 +50,21 @@ function PropertiesPanel() {
         state.nodes[
           parentId
         ].data.nodes || []
-
       selectedNodeIndex =
         siblings.indexOf(
           selectedNodeId,
         )
-
       siblingCount =
         siblings.length
     }
-
     return {
       selectedNodeId,
-
       selectedNodeName:
         selectedNode?.data
           ?.displayName ||
         selectedNode?.data
           ?.name ||
         'Widget',
-
       selectedNodeProps:
         query
           .node(
@@ -85,17 +72,12 @@ function PropertiesPanel() {
           )
           .get()
           .data.props,
-
       selectedNodeParent:
         parentId || null,
-
       selectedNodeIndex,
-
       siblingCount,
     }
   })
-
-
   /*
    * Editable widgets
    */
@@ -110,21 +92,17 @@ function PropertiesPanel() {
       'Action Bar Widget' ||
     selectedNodeName ===
       'Post Widget'
-
-
   /*
    * =====================================
    * Text Widget
    * =====================================
    */
-
   const handleTextChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -133,21 +111,17 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Avatar Widget
    * =====================================
    */
-
   const handleAvatarSizeChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -158,15 +132,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleAvatarSrcChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -175,15 +146,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleAvatarUsernameChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -192,15 +160,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleAvatarTimeChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -209,21 +174,17 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Image Widget
    * =====================================
    */
-
   const handleImageSrcChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -232,21 +193,17 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Action Bar Widget
    * =====================================
    */
-
   const handleLikesChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -257,15 +214,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleCommentsChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -276,15 +230,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleSharesChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -295,15 +246,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleCaptionChange = (
     event: ChangeEvent<HTMLTextAreaElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -312,21 +260,17 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Post Widget
    * =====================================
    */
-
   const handlePostDisplayNameChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -335,15 +279,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostUsernameChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -352,15 +293,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostTimeChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -369,15 +307,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostAvatarSrcChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -386,15 +321,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostImageSrcChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -405,13 +337,10 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handleRemovePostAsset = () => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -422,15 +351,100 @@ function PropertiesPanel() {
       },
     )
   }
-
-
+  const handleRemoveImageWidgetAsset = () => {
+    if (!selectedNodeId) return
+    actions.setProp(selectedNodeId, (props) => {
+      props.assetId = undefined
+      props.src = ''
+    })
+  }
+  const handleAssetUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !selectedNodeId) return
+    if (!studyId) {
+      setUploadError('Open a real study before uploading an image.')
+      return
+    }
+    setIsUploadingImage(true)
+    setUploadError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const apiBaseUrl =
+        import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+      const token = localStorage.getItem('researcherToken')
+      const tokenType =
+        localStorage.getItem('researcherTokenType') || 'Bearer'
+      const response = await fetch(
+        `${apiBaseUrl}/api/studies/${encodeURIComponent(studyId)}/assets`,
+        {
+          method: 'POST',
+          headers: token
+            ? { Authorization: `${tokenType} ${token}` }
+            : undefined,
+          body: formData,
+        },
+      )
+      if (!response.ok) {
+        let message = `Image upload failed (${response.status}).`
+        try {
+          const errorBody = await response.json()
+          message =
+            errorBody?.message ||
+            errorBody?.error ||
+            message
+        } catch {
+          // Keep fallback message.
+        }
+        throw new Error(message)
+      }
+      const data = (await response.json()) as {
+        id?: string
+        assetId?: string
+      }
+      const uploadedAssetId =
+        data.assetId || data.id
+      if (!uploadedAssetId) {
+        throw new Error(
+          'The upload succeeded but no asset ID was returned.',
+        )
+      }
+      actions.setProp(
+        selectedNodeId,
+        (nodeProps) => {
+          nodeProps.assetId =
+            uploadedAssetId
+          if (
+            selectedNodeName ===
+            'Image Widget'
+          ) {
+            nodeProps.src = ''
+          }
+          if (
+            selectedNodeName ===
+            'Post Widget'
+          ) {
+            nodeProps.imageSrc = ''
+          }
+        },
+      )
+    } catch (error) {
+      setUploadError(
+        error instanceof Error
+          ? error.message
+          : 'The image could not be uploaded.',
+      )
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
   const handlePostCaptionChange = (
     event: ChangeEvent<HTMLTextAreaElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -439,15 +453,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostLikesChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -458,15 +469,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostCommentsChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -477,15 +485,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostSharesChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -496,19 +501,15 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * TikTok-specific Post properties
    */
-
   const handlePostSavesChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -519,15 +520,12 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   const handlePostSoundChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -536,21 +534,17 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Platform style
    * =====================================
    */
-
   const handleStyleChange = (
     event: ChangeEvent<HTMLSelectElement>,
   ) => {
     if (!selectedNodeId) {
       return
     }
-
     actions.setProp(
       selectedNodeId,
       (props) => {
@@ -560,14 +554,11 @@ function PropertiesPanel() {
       },
     )
   }
-
-
   /*
    * =====================================
    * Widget Actions
    * =====================================
    */
-
   const handleDelete = () => {
     if (
       !selectedNodeId ||
@@ -575,13 +566,10 @@ function PropertiesPanel() {
     ) {
       return
     }
-
     actions.delete(
       selectedNodeId,
     )
   }
-
-
   const handleDuplicate = () => {
     if (
       !selectedNodeId ||
@@ -590,39 +578,32 @@ function PropertiesPanel() {
     ) {
       return
     }
-
     const selectedNode =
       query
         .node(
           selectedNodeId,
         )
         .get()
-
     const NodeComponent =
       selectedNode.data
         .type as ElementType
-
     const duplicatedElement =
       createElement(
         NodeComponent,
         selectedNode.data.props,
       )
-
     const duplicatedTree =
       query
         .parseReactElement(
           duplicatedElement,
         )
         .toNodeTree()
-
     actions.addNodeTree(
       duplicatedTree,
       selectedNodeParent,
       selectedNodeIndex + 1,
     )
   }
-
-
   const handleMoveUp = () => {
     if (
       !selectedNodeId ||
@@ -632,15 +613,12 @@ function PropertiesPanel() {
     ) {
       return
     }
-
     actions.move(
       selectedNodeId,
       selectedNodeParent,
       selectedNodeIndex - 1,
     )
   }
-
-
   const handleMoveDown = () => {
     if (
       !selectedNodeId ||
@@ -652,42 +630,28 @@ function PropertiesPanel() {
     ) {
       return
     }
-
     actions.move(
       selectedNodeId,
       selectedNodeParent,
       selectedNodeIndex + 2,
     )
   }
-
-
   const handleUndo = () => {
     actions.history.undo()
   }
-
-
   const handleRedo = () => {
     actions.history.redo()
   }
-
-
   return (
     <div className="w-full p-4">
-
       <p className="text-xs font-semibold uppercase text-sky-700">
         Selection
       </p>
-
-
       <h2 className="mt-1 text-lg font-semibold text-[#172033]">
         Properties
       </h2>
-
-
       {/* Undo / Redo */}
-
       <div className="mb-4 mt-4 grid grid-cols-2 gap-2">
-
         <button
           type="button"
           onClick={
@@ -697,8 +661,6 @@ function PropertiesPanel() {
         >
           Undo
         </button>
-
-
         <button
           type="button"
           onClick={
@@ -708,10 +670,7 @@ function PropertiesPanel() {
         >
           Redo
         </button>
-
       </div>
-
-
       {!selectedNodeId ? (
         <p className="mt-4 text-sm leading-6 text-[#52667d]">
           Select a widget to edit
@@ -719,38 +678,27 @@ function PropertiesPanel() {
         </p>
       ) : (
         <div className="mt-5 space-y-4">
-
           {/* Selected widget */}
-
           <div className="rounded-sm border border-sky-200 bg-sky-50 px-3 py-3">
-
             <p className="text-sm text-gray-500">
               Selected widget
             </p>
-
             <p className="font-semibold text-sky-950">
               {
                 selectedNodeName
               }
             </p>
-
           </div>
-
-
           {isWidget && (
             <>
-
               {/* Platform Style */}
-
               <div>
-
                 <label
                   htmlFor="style-property"
                   className="mb-1 block text-sm font-medium text-gray-700"
                 >
                   Platform Style
                 </label>
-
                 <select
                   id="style-property"
                   value={
@@ -768,50 +716,38 @@ function PropertiesPanel() {
                   <option value="facebook">
                     Facebook
                   </option>
-
                   <option value="instagram">
                     Instagram
                   </option>
-
                   <option value="tiktok">
                     TikTok
                   </option>
-
                   <option value="x">
                     X
                   </option>
-
                   <option value="threads">
                     Threads
                   </option>
-
                   <option value="bluesky">
                     Bluesky
                   </option>
-
                   <option value="truth-social">
                     Truth Social
                   </option>
                 </select>
-
               </div>
-
-
               {/* =====================================
                   Text Widget
                  ===================================== */}
-
               {selectedNodeName ===
                 'Text Widget' && (
                 <div>
-
                   <label
                     htmlFor="text-property"
                     className="mb-1 block text-sm font-medium text-gray-700"
                   >
                     Text
                   </label>
-
                   <input
                     id="text-property"
                     type="text"
@@ -827,28 +763,21 @@ function PropertiesPanel() {
                       propertyControlClass
                     }
                   />
-
                 </div>
               )}
-
-
               {/* =====================================
                   Avatar Widget
                  ===================================== */}
-
               {selectedNodeName ===
                 'Avatar Widget' && (
                 <div className="space-y-4">
-
                   <div>
-
                     <label
                       htmlFor="avatar-size"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Size
                     </label>
-
                     <input
                       id="avatar-size"
                       type="number"
@@ -866,19 +795,14 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   <div>
-
                     <label
                       htmlFor="avatar-src"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Image URL
                     </label>
-
                     <input
                       id="avatar-src"
                       type="text"
@@ -890,28 +814,23 @@ function PropertiesPanel() {
                       onChange={
                         handleAvatarSrcChange
                       }
-                      placeholder="https://example.com/avatar.jpg"
+                      placeholder="https\://example.com/avatar.jpg"
                       className={
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   {selectedNodeProps
                     ?.styleId ===
                     'instagram' && (
                     <>
                       <div>
-
                         <label
                           htmlFor="avatar-username"
                           className="mb-1 block text-sm font-medium text-gray-700"
                         >
                           Username
                         </label>
-
                         <input
                           id="avatar-username"
                           type="text"
@@ -928,19 +847,14 @@ function PropertiesPanel() {
                             propertyControlClass
                           }
                         />
-
                       </div>
-
-
                       <div>
-
                         <label
                           htmlFor="avatar-time"
                           className="mb-1 block text-sm font-medium text-gray-700"
                         >
                           Time
                         </label>
-
                         <input
                           id="avatar-time"
                           type="text"
@@ -957,68 +871,76 @@ function PropertiesPanel() {
                             propertyControlClass
                           }
                         />
-
                       </div>
                     </>
                   )}
-
                 </div>
               )}
-
-
               {/* =====================================
                   Image Widget
                  ===================================== */}
-
-              {selectedNodeName ===
-                'Image Widget' && (
-                <div>
-
-                  <label
-                    htmlFor="image-src"
-                    className="mb-1 block text-sm font-medium text-gray-700"
-                  >
-                    Image URL
-                  </label>
-
-                  <input
-                    id="image-src"
-                    type="text"
-                    value={
-                      selectedNodeProps
-                        ?.src ??
-                      ''
-                    }
-                    onChange={
-                      handleImageSrcChange
-                    }
-                    placeholder="https://example.com/image.jpg"
-                    className={
-                      propertyControlClass
-                    }
-                  />
-
+              {selectedNodeName === 'Image Widget' && (
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="image-upload" className="mb-1 block text-sm font-medium text-gray-700">
+                      Upload Image
+                    </label>
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAssetUpload}
+                      disabled={isUploadingImage || !studyId}
+                      className="block w-full text-sm text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-emerald-700 file:px-3 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-800 disabled:opacity-50"
+                    />
+                    {!studyId && (
+                      <p className="mt-1 text-xs text-amber-700">Open a real study before uploading assets.</p>
+                    )}
+                    {isUploadingImage && (
+                      <p className="mt-1 text-xs text-sky-700">Uploading image...</p>
+                    )}
+                    {uploadError && (
+                      <p className="mt-1 text-xs text-red-700">{uploadError}</p>
+                    )}
+                  </div>
+                  {selectedNodeProps?.assetId && (
+                    <div className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3">
+                      <p className="text-xs font-semibold uppercase text-emerald-700">Study image attached</p>
+                      <p className="mt-1 break-all text-xs text-emerald-900">Asset ID: {selectedNodeProps.assetId}</p>
+                      <button type="button" onClick={handleRemoveImageWidgetAsset} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">
+                        Remove image
+                      </button>
+                    </div>
+                  )}
+                  <div>
+                    <label htmlFor="image-src" className="mb-1 block text-sm font-medium text-gray-700">
+                      Image URL
+                    </label>
+                    <input
+                      id="image-src"
+                      type="text"
+                      value={selectedNodeProps?.src ?? ''}
+                      onChange={handleImageSrcChange}
+                      placeholder="https://example.com/image.jpg"
+                      className={propertyControlClass}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Entering a URL replaces the uploaded study image.</p>
+                  </div>
                 </div>
               )}
-
-
               {/* =====================================
                   Action Bar Widget
                  ===================================== */}
-
               {selectedNodeName ===
                 'Action Bar Widget' && (
                 <div className="space-y-4">
-
                   <div>
-
                     <label
                       htmlFor="likes-property"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Likes
                     </label>
-
                     <input
                       id="likes-property"
                       type="number"
@@ -1035,19 +957,14 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   <div>
-
                     <label
                       htmlFor="comments-property"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Comments
                     </label>
-
                     <input
                       id="comments-property"
                       type="number"
@@ -1064,19 +981,14 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   <div>
-
                     <label
                       htmlFor="shares-property"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Shares
                     </label>
-
                     <input
                       id="shares-property"
                       type="number"
@@ -1093,22 +1005,17 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   {selectedNodeProps
                     ?.styleId ===
                     'instagram' && (
                     <div>
-
                       <label
                         htmlFor="caption-property"
                         className="mb-1 block text-sm font-medium text-gray-700"
                       >
                         Caption
                       </label>
-
                       <textarea
                         id="caption-property"
                         value={
@@ -1123,47 +1030,33 @@ function PropertiesPanel() {
                         rows={4}
                         className={`${propertyControlClass} resize-y`}
                       />
-
                     </div>
                   )}
-
                 </div>
               )}
-
-
               {/* =====================================
                   Post Widget
                  ===================================== */}
-
               {selectedNodeName ===
                 'Post Widget' && (
                 <div className="space-y-4">
-
                   <div className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3">
-
                     <p className="text-xs font-semibold uppercase text-emerald-700">
                       Complete Post
                     </p>
-
                     <p className="mt-1 text-xs leading-5 text-emerald-900">
                       Edit all content for this
                       social media post.
                     </p>
-
                   </div>
-
-
                   {/* Display Name */}
-
                   <div>
-
                     <label
                       htmlFor="post-display-name"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Display Name
                     </label>
-
                     <input
                       id="post-display-name"
                       type="text"
@@ -1180,21 +1073,15 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   {/* Username */}
-
                   <div>
-
                     <label
                       htmlFor="post-username"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Username
                     </label>
-
                     <input
                       id="post-username"
                       type="text"
@@ -1211,21 +1098,15 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   {/* Time */}
-
                   <div>
-
                     <label
                       htmlFor="post-time"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Time
                     </label>
-
                     <input
                       id="post-time"
                       type="text"
@@ -1242,21 +1123,15 @@ function PropertiesPanel() {
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
                   {/* Avatar URL */}
-
                   <div>
-
                     <label
                       htmlFor="post-avatar-src"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Avatar URL
                     </label>
-
                     <input
                       id="post-avatar-src"
                       type="text"
@@ -1268,82 +1143,68 @@ function PropertiesPanel() {
                       onChange={
                         handlePostAvatarSrcChange
                       }
-                      placeholder="https://example.com/avatar.jpg"
+                      placeholder="https\://example.com/avatar.jpg"
                       className={
                         propertyControlClass
                       }
                     />
-
                   </div>
-
-
-                  {/* Media URL */}
-
-                  <div>
-
-                    {selectedNodeProps
-                      ?.assetId && (
-                      <div className="mb-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3">
-                        <p className="text-xs font-semibold uppercase text-emerald-700">
-                          Imported image
-                        </p>
-
-                        <p className="mt-1 text-xs leading-5 text-emerald-900">
-                          This post uses an image stored with the study.
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={handleRemovePostAsset}
-                          className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900"
-                        >
+                  {/* Media */}
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="post-image-upload" className="mb-1 block text-sm font-medium text-gray-700">
+                        Upload {selectedNodeProps?.styleId === 'tiktok' ? 'Media' : 'Post Image'}
+                      </label>
+                      <input
+                        id="post-image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAssetUpload}
+                        disabled={isUploadingImage || !studyId}
+                        className="block w-full text-sm text-gray-600 file:mr-3 file:rounded file:border-0 file:bg-emerald-700 file:px-3 file:py-2 file:font-semibold file:text-white hover:file:bg-emerald-800 disabled:opacity-50"
+                      />
+                      {!studyId && (
+                        <p className="mt-1 text-xs text-amber-700">Open a real study before uploading assets.</p>
+                      )}
+                      {isUploadingImage && (
+                        <p className="mt-1 text-xs text-sky-700">Uploading image...</p>
+                      )}
+                      {uploadError && (
+                        <p className="mt-1 text-xs text-red-700">{uploadError}</p>
+                      )}
+                    </div>
+                    {selectedNodeProps?.assetId && (
+                      <div className="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-3">
+                        <p className="text-xs font-semibold uppercase text-emerald-700">Study image attached</p>
+                        <p className="mt-1 break-all text-xs text-emerald-900">Asset ID: {selectedNodeProps.assetId}</p>
+                        <button type="button" onClick={handleRemovePostAsset} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">
                           Remove image
                         </button>
                       </div>
                     )}
-
-                    <label
-                      htmlFor="post-image-src"
-                      className="mb-1 block text-sm font-medium text-gray-700"
-                    >
-                      {selectedNodeProps
-                        ?.styleId ===
-                      'tiktok'
-                        ? 'Media URL'
-                        : 'Post Image URL'}
-                    </label>
-
-                    <input
-                      id="post-image-src"
-                      type="text"
-                      value={
-                        selectedNodeProps
-                          ?.imageSrc ??
-                        ''
-                      }
-                      onChange={
-                        handlePostImageSrcChange
-                      }
-                      placeholder="https://example.com/media.jpg"
-                      className={
-                        propertyControlClass
-                      }
-                    />
-
+                    <div>
+                      <label htmlFor="post-image-src" className="mb-1 block text-sm font-medium text-gray-700">
+                        {selectedNodeProps?.styleId === 'tiktok' ? 'Media URL' : 'Post Image URL'}
+                      </label>
+                      <input
+                        id="post-image-src"
+                        type="text"
+                        value={selectedNodeProps?.imageSrc ?? ''}
+                        onChange={handlePostImageSrcChange}
+                        placeholder="https://example.com/media.jpg"
+                        className={propertyControlClass}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Entering a URL replaces the uploaded study image.</p>
+                    </div>
                   </div>
-
-
                   {/* Caption */}
-
                   <div>
-
                     <label
                       htmlFor="post-caption"
                       className="mb-1 block text-sm font-medium text-gray-700"
                     >
                       Caption
                     </label>
-
                     <textarea
                       id="post-caption"
                       value={
@@ -1358,24 +1219,18 @@ function PropertiesPanel() {
                       rows={5}
                       className={`${propertyControlClass} resize-y`}
                     />
-
                   </div>
-
-
                   {/* TikTok Sound */}
-
                   {selectedNodeProps
                     ?.styleId ===
                     'tiktok' && (
                     <div>
-
                       <label
                         htmlFor="post-sound"
                         className="mb-1 block text-sm font-medium text-gray-700"
                       >
                         Sound
                       </label>
-
                       <input
                         id="post-sound"
                         type="text"
@@ -1392,33 +1247,22 @@ function PropertiesPanel() {
                           propertyControlClass
                         }
                       />
-
                     </div>
                   )}
-
-
                   {/* Engagement */}
-
                   <div>
-
                     <p className="mb-3 text-sm font-medium text-gray-700">
                       Engagement
                     </p>
-
-
                     <div className="space-y-3">
-
                       {/* Likes */}
-
                       <div>
-
                         <label
                           htmlFor="post-likes"
                           className="mb-1 block text-xs font-medium text-gray-600"
                         >
                           Likes
                         </label>
-
                         <input
                           id="post-likes"
                           type="number"
@@ -1435,21 +1279,15 @@ function PropertiesPanel() {
                             propertyControlClass
                           }
                         />
-
                       </div>
-
-
                       {/* Comments */}
-
                       <div>
-
                         <label
                           htmlFor="post-comments"
                           className="mb-1 block text-xs font-medium text-gray-600"
                         >
                           Comments
                         </label>
-
                         <input
                           id="post-comments"
                           type="number"
@@ -1466,24 +1304,18 @@ function PropertiesPanel() {
                             propertyControlClass
                           }
                         />
-
                       </div>
-
-
                       {/* TikTok Saves */}
-
                       {selectedNodeProps
                         ?.styleId ===
                         'tiktok' && (
                         <div>
-
                           <label
                             htmlFor="post-saves"
                             className="mb-1 block text-xs font-medium text-gray-600"
                           >
                             Saves
                           </label>
-
                           <input
                             id="post-saves"
                             type="number"
@@ -1500,22 +1332,16 @@ function PropertiesPanel() {
                               propertyControlClass
                             }
                           />
-
                         </div>
                       )}
-
-
                       {/* Shares */}
-
                       <div>
-
                         <label
                           htmlFor="post-shares"
                           className="mb-1 block text-xs font-medium text-gray-600"
                         >
                           Shares
                         </label>
-
                         <input
                           id="post-shares"
                           type="number"
@@ -1532,30 +1358,19 @@ function PropertiesPanel() {
                             propertyControlClass
                           }
                         />
-
                       </div>
-
                     </div>
-
                   </div>
-
                 </div>
               )}
-
-
               {/* =====================================
                   Widget Actions
                  ===================================== */}
-
               <div className="border-t border-gray-200 pt-4">
-
                 <p className="mb-2 text-sm font-medium text-gray-700">
                   Widget Actions
                 </p>
-
-
                 <div className="grid grid-cols-2 gap-2">
-
                   <button
                     type="button"
                     onClick={
@@ -1569,8 +1384,6 @@ function PropertiesPanel() {
                   >
                     Move Up
                   </button>
-
-
                   <button
                     type="button"
                     onClick={
@@ -1586,10 +1399,7 @@ function PropertiesPanel() {
                   >
                     Move Down
                   </button>
-
                 </div>
-
-
                 <button
                   type="button"
                   onClick={
@@ -1599,8 +1409,6 @@ function PropertiesPanel() {
                 >
                   Duplicate Widget
                 </button>
-
-
                 <button
                   type="button"
                   onClick={
@@ -1610,18 +1418,12 @@ function PropertiesPanel() {
                 >
                   Delete Widget
                 </button>
-
               </div>
-
             </>
           )}
-
         </div>
       )}
-
     </div>
   )
 }
-
-
 export default PropertiesPanel
