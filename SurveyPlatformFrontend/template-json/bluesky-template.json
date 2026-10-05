@@ -1,0 +1,282 @@
+{
+  "ROOT": {
+    "type": {
+      "resolvedName": "BlueskyTemplate"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Bluesky Template",
+    "custom": {},
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {
+      "bluesky-root": "QZHMs3fzbO"
+    }
+  },
+  "QZHMs3fzbO": {
+    "type": {
+      "resolvedName": "ResearcherEditCanvas"
+    },
+    "isCanvas": true,
+    "props": {},
+    "displayName": "Researcher Edit Canvas",
+    "custom": {},
+    "parent": "ROOT",
+    "hidden": false,
+    "nodes": [
+      "vgrjKzcHhd"
+    ],
+    "linkedNodes": {}
+  },
+  "vgrjKzcHhd": {
+    "type": {
+      "resolvedName": "BlueskyDesktopShell"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "bluesky-shell"
+    },
+    "displayName": "Bluesky Desktop Shell",
+    "custom": {},
+    "parent": "QZHMs3fzbO",
+    "hidden": false,
+    "nodes": [
+      "cFsapr-U_a"
+    ],
+    "linkedNodes": {}
+  },
+  "cFsapr-U_a": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex h-full w-full bg-white"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "vgrjKzcHhd",
+    "hidden": false,
+    "nodes": [
+      "sc_j9x5OAD",
+      "Y7dzL7aE53",
+      "E9L8AG2T3L",
+      "Rc3Wfa8DW6"
+    ],
+    "linkedNodes": {}
+  },
+  "sc_j9x5OAD": {
+    "type": {
+      "resolvedName": "BlueskySidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Bluesky Sidebar",
+    "custom": {},
+    "parent": "cFsapr-U_a",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "Y7dzL7aE53": {
+    "type": {
+      "resolvedName": "BlueskyMainFeed"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "bluesky-main-feed"
+    },
+    "displayName": "Bluesky Main Feed",
+    "custom": {},
+    "parent": "cFsapr-U_a",
+    "hidden": false,
+    "nodes": [
+      "yk6MEqVzWX",
+      "XTf0htI30n",
+      "pGckdh6Eqp"
+    ],
+    "linkedNodes": {}
+  },
+  "yk6MEqVzWX": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "sticky top-0 z-20 grid h-[58px] grid-cols-2 border-b border-[#e6edf5] bg-white/95 backdrop-blur"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "Y7dzL7aE53",
+    "hidden": false,
+    "nodes": [
+      "i9UxXIwKq9",
+      "TQWg6sb61H"
+    ],
+    "linkedNodes": {}
+  },
+  "i9UxXIwKq9": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "relative flex items-center justify-center"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "yk6MEqVzWX",
+    "hidden": false,
+    "nodes": [
+      "tryknTWO8O",
+      "ChVqnpTaoc"
+    ],
+    "linkedNodes": {}
+  },
+  "tryknTWO8O": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "text-[14px] font-semibold text-[#1185fe]",
+      "children": "Following"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "i9UxXIwKq9",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "ChVqnpTaoc": {
+    "type": "span",
+    "isCanvas": false,
+    "props": {
+      "className": "absolute bottom-0 h-[3px] w-[48px] rounded-full bg-[#1185fe]"
+    },
+    "displayName": "span",
+    "custom": {},
+    "parent": "i9UxXIwKq9",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "TQWg6sb61H": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "flex items-center justify-center text-[14px] font-semibold text-[#64748b]",
+      "children": "Discover"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "yk6MEqVzWX",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "XTf0htI30n": {
+    "type": {
+      "resolvedName": "BlueskyComposer"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Bluesky Composer",
+    "custom": {},
+    "parent": "Y7dzL7aE53",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "pGckdh6Eqp": {
+    "type": {
+      "resolvedName": "BlueskyPostList"
+    },
+    "isCanvas": true,
+    "props": {
+      "id": "bluesky-post-list"
+    },
+    "displayName": "Bluesky Post List",
+    "custom": {},
+    "parent": "Y7dzL7aE53",
+    "hidden": false,
+    "nodes": [
+      "GGeJc_E7Qy",
+      "sDVn4LCYm7"
+    ],
+    "linkedNodes": {}
+  },
+  "GGeJc_E7Qy": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "bluesky",
+      "username": "@emmaw.bsky.social",
+      "displayName": "Emma Wilson",
+      "time": "2h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Beautiful weather for a walk around campus today. The autumn leaves are absolutely stunning this year 🍂",
+      "likes": 47,
+      "comments": 12,
+      "shares": 8,
+      "views": 1243,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "pGckdh6Eqp",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "sDVn4LCYm7": {
+    "type": {
+      "resolvedName": "PostWidget"
+    },
+    "isCanvas": false,
+    "props": {
+      "styleId": "bluesky",
+      "username": "@alexc.bsky.social",
+      "displayName": "Alex Chen",
+      "time": "4h ago",
+      "avatarSrc": "",
+      "imageSrc": "",
+      "caption": "Working on an interesting social media research project. The differences in UI patterns across platforms are far more significant than I expected. #research #HCI #UXDesign",
+      "likes": 83,
+      "comments": 21,
+      "shares": 34,
+      "views": 1243,
+      "saves": 5,
+      "sound": "Original Sound · Emma Wilson"
+    },
+    "displayName": "Post Widget",
+    "custom": {},
+    "parent": "pGckdh6Eqp",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "E9L8AG2T3L": {
+    "type": {
+      "resolvedName": "BlueskyRightSidebar"
+    },
+    "isCanvas": false,
+    "props": {},
+    "displayName": "Bluesky Right Sidebar",
+    "custom": {},
+    "parent": "cFsapr-U_a",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  },
+  "Rc3Wfa8DW6": {
+    "type": "div",
+    "isCanvas": false,
+    "props": {
+      "className": "min-w-0 flex-1 bg-white"
+    },
+    "displayName": "div",
+    "custom": {},
+    "parent": "cFsapr-U_a",
+    "hidden": false,
+    "nodes": [],
+    "linkedNodes": {}
+  }
+}

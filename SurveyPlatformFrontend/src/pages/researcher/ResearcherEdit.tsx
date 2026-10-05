@@ -154,6 +154,73 @@ import {
 
 /*
 
+ * X
+
+ */
+
+import XTemplate from '../../components/templates/x/XTemplate'
+
+import XIcon from '../../components/templates/x/XIcon'
+
+import XSidebar from '../../components/templates/x/XSidebar'
+
+import XRightSidebar from '../../components/templates/x/XRightSidebar'
+
+import XComposer from '../../components/templates/x/XComposer'
+
+import {
+
+  XDesktopShell,
+
+  XMainFeed,
+
+  XPostList,
+
+} from '../../components/templates/x/XLayout'
+
+/*
+ * Threads
+ */
+import ThreadsTemplate from '../../components/templates/threads/ThreadsTemplate'
+import ThreadsIcon from '../../components/templates/threads/ThreadsIcon'
+import ThreadsSidebar from '../../components/templates/threads/ThreadsSidebar'
+import ThreadsComposer from '../../components/templates/threads/ThreadsComposer'
+
+import {
+  ThreadsDesktopShell,
+  ThreadsMainFeed,
+  ThreadsPostList,
+} from '../../components/templates/threads/ThreadsLayout'
+
+/*
+ * Bluesky
+ */
+import BlueskyTemplate from '../../components/templates/bluesky/BlueskyTemplate'
+import BlueskyIcon from '../../components/templates/bluesky/BlueskyIcon'
+import BlueskySidebar from '../../components/templates/bluesky/BlueskySidebar'
+import BlueskyComposer from '../../components/templates/bluesky/BlueskyComposer'
+import BlueskyRightSidebar from '../../components/templates/bluesky/BlueskyRightSidebar'
+import {
+  BlueskyDesktopShell,
+  BlueskyMainFeed,
+  BlueskyPostList,
+} from '../../components/templates/bluesky/BlueskyLayout'
+
+/*
+ * Truth Social
+ */
+import TruthSocialTemplate from '../../components/templates/truthsocial/TruthSocialTemplate'
+import TruthSocialIcon from '../../components/templates/truthsocial/TruthSocialIcon'
+import TruthSocialSidebar from '../../components/templates/truthsocial/TruthSocialSidebar'
+import TruthSocialComposer from '../../components/templates/truthsocial/TruthSocialComposer'
+import TruthSocialRightSidebar from '../../components/templates/truthsocial/TruthSocialRightSidebar'
+import {
+  TruthSocialDesktopShell,
+  TruthSocialMainFeed,
+  TruthSocialPostList,
+} from '../../components/templates/truthsocial/TruthSocialLayout'
+/*
+
  * Shared widgets
 
  */
@@ -537,61 +604,99 @@ ResearcherEditCanvas.craft = {
 }
 
 /*
+
  * Temporary template JSON exporter.
+
  * Keep this while the seven platform templates are being finalised.
+
  * It can be removed after all template JSON files have been exported.
+
  */
+
 function ExportTemplateJson({
+
   template,
+
 }: {
+
   template: EditorTemplate
+
 }) {
+
   const { query } = useEditor()
 
   const handleExport = () => {
+
     const serialized = query.serialize()
 
     let jsonContent = serialized
 
     try {
+
       jsonContent = JSON.stringify(
+
         JSON.parse(serialized),
+
         null,
+
         2,
+
       )
+
     } catch {
+
       jsonContent = serialized
+
     }
 
     const blob = new Blob(
+
       [jsonContent],
+
       {
+
         type: 'application/json',
+
       },
+
     )
 
     const url = URL.createObjectURL(blob)
+
     const link = document.createElement('a')
 
     link.href = url
+
     link.download = `${template}-template.json`
 
     document.body.appendChild(link)
+
     link.click()
+
     document.body.removeChild(link)
 
     URL.revokeObjectURL(url)
+
   }
 
   return (
+
     <button
+
       type="button"
+
       onClick={handleExport}
+
       className="rounded-sm border border-violet-600 bg-white px-4 py-2 text-sm font-semibold text-violet-700 shadow-sm hover:bg-violet-50"
+
     >
+
       Export JSON
+
     </button>
+
   )
+
 }
 
 type RestoreStudyInterfaceProps = {
@@ -1972,6 +2077,63 @@ function ResearcherEdit() {
 
           TikTokActionRail,
 
+          /*
+
+           * X
+
+           */
+
+          XTemplate,
+
+          XIcon,
+
+          XSidebar,
+
+          XRightSidebar,
+
+          XComposer,
+
+          XDesktopShell,
+
+          XMainFeed,
+
+          XPostList,
+
+          /*
+           * Threads
+           */
+          ThreadsTemplate,
+          ThreadsIcon,
+          ThreadsSidebar,
+          ThreadsComposer,
+          ThreadsDesktopShell,
+          ThreadsMainFeed,
+          ThreadsPostList,
+
+          /*
+           * Bluesky
+           */
+          BlueskyTemplate,
+          BlueskyIcon,
+          BlueskySidebar,
+          BlueskyComposer,
+          BlueskyRightSidebar,
+          BlueskyDesktopShell,
+          BlueskyMainFeed,
+          BlueskyPostList,
+
+          /*
+           * Truth Social
+           */
+          TruthSocialTemplate,
+          TruthSocialIcon,
+          TruthSocialSidebar,
+          TruthSocialComposer,
+          TruthSocialRightSidebar,
+          TruthSocialDesktopShell,
+          TruthSocialMainFeed,
+          TruthSocialPostList,
+
         }}
 
       >
@@ -2281,15 +2443,23 @@ function ResearcherEdit() {
                   )}
 
                 {isTemplatePreview && (
+
                   <>
+
                     <span className="rounded-sm border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-800">
+
                       Source template
+
                     </span>
 
                     <ExportTemplateJson
+
                       template={template}
+
                     />
+
                   </>
+
                 )}
 
                 {isEditable &&
@@ -2546,12 +2716,82 @@ function ResearcherEdit() {
 
               </Frame>
 
-            ) : (
+            ) : template ===
+
+              'x' ? (
 
               /*
 
-               * Remaining platforms
+               * X
 
+               */
+
+              <Frame
+
+                key={`${studyId ?? 'new'}-${template}-${
+
+                  isTemplatePreview
+
+                    ? 'preview'
+
+                    : 'persisted'
+
+                }`}
+
+              >
+
+                <XTemplate
+
+                  canvasComponent={
+
+                    ResearcherEditCanvas
+
+                  }
+
+                />
+
+              </Frame>
+
+             ) : template ===
+              'threads' ? (
+              /*
+               * Threads
+               */
+              <Frame
+                key={`${studyId ?? 'new'}-${template}-${
+                  isTemplatePreview
+                    ? 'preview'
+                    : 'persisted'
+                }`}
+              >
+                <ThreadsTemplate
+                  canvasComponent={
+                    ResearcherEditCanvas
+                  }
+                />
+              </Frame>
+
+             ) : template ===
+              'bluesky' ? (
+              /*
+               * Bluesky
+               */
+              <Frame
+                key={`${studyId ?? 'new'}-${template}-${isTemplatePreview ? 'preview' : 'persisted'}`}
+              >
+                <BlueskyTemplate canvasComponent={ResearcherEditCanvas} />
+              </Frame>
+             ) : template ===
+              'truth-social' ? (
+              /*
+               * Truth Social
+               */
+              <Frame key={`${studyId ?? 'new'}-${template}-${isTemplatePreview ? 'preview' : 'persisted'}`}>
+                <TruthSocialTemplate canvasComponent={ResearcherEditCanvas} />
+              </Frame>
+            ) : (
+              /*
+               * Remaining platforms
                */
 
               <Frame
