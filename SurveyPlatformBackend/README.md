@@ -172,10 +172,18 @@ All database values in this document are examples. Replace them with the values 
 | `SPRING_DATASOURCE_PASSWORD` | `replace-with-local-password` | Database password |
 | `JWT_SECRET` | `replace-with-base64-encoded-secret` | Base64-encoded secret used to sign and verify JWT access tokens |
 | `TURNSTILE_SECRET` | `your-turnstile-secret` | Cloudflare Turnstile server-side verification secret |
+| `SPRING_PROFILES_ACTIVE` | `dev` | Explicit development-only M5/M6 adapter wiring; not for production |
 
 `application.yaml` reads these values from environment variables. The datasource variables configure the PostgreSQL connection, while `JWT_SECRET` and `TURNSTILE_SECRET` are security secrets used by the application. These values must be kept separate from platform user credentials and must not be committed to the repository.
 
 Copy `.env.example` to a local `.env` file to store your configuration. Spring Boot and Maven do not load `.env` files automatically.
+
+For local development, explicitly select the `dev` profile. M5 requires a
+`CollectionCompletionGate`; this repository supplies only a `dev`/`test` no-op
+until the real M6 adapter is connected. Without one of these profiles or a real
+adapter, startup deliberately fails rather than silently skipping production
+collection checks. Do not enable `dev` on a real participant research deployment.
+See [the deployment guide](../Server_Deployment_Guide.md) for server-style demos.
 
 ## Running with IntelliJ IDEA
 
@@ -183,7 +191,8 @@ Copy `.env.example` to a local `.env` file to store your configuration. Spring B
 2. Copy `.env.example` to `.env` in the backend directory and configure the database, JWT secret, and Turnstile secret values.
 3. Open **Run → Edit Configurations** and select or create the run configuration for `SurveyPlatformBackendApplication`.
 4. In **Environment variables**, use **Browse for .env files and scripts** to select the backend `.env` file. If the field is hidden, enable it through **Modify options → Environment variables**.
-5. Apply the configuration and run the application.
+5. For development, set **Active profiles** to `dev` (or load `SPRING_PROFILES_ACTIVE=dev` from the backend `.env`); merely creating the file is not enough.
+6. Apply the configuration and run the application. Do not use both Docker and IntelliJ backends on the same host port.
 
 For details, see the [IntelliJ IDEA documentation on environment variables and .env files](https://www.jetbrains.com/help/idea/program-arguments-and-environment-variables.html#environment-variables).
 
@@ -207,13 +216,14 @@ $env:SPRING_DATASOURCE_USERNAME = 'example_user'
 $env:SPRING_DATASOURCE_PASSWORD = 'replace-with-local-password'
 $env:JWT_SECRET = 'replace-with-a-base64-encoded-secret'
 $env:TURNSTILE_SECRET = 'your-turnstile-secret'
+$env:SPRING_PROFILES_ACTIVE = 'dev'
 
 .\mvnw.cmd spring-boot:run
 ```
 > The actual Cloudflare Turnstile secret must not be committed to the repository.
 > Team members should obtain the development secret through a private channel and store it only in their local `.env` file.
 
-These variables apply only to the current PowerShell session and its child processes. They remain available when restarting the application in the same session, but must be set again in a new session. Press `Ctrl + C` to stop the application.
+These variables apply only to the current PowerShell session and its child processes. They remain available when restarting the application in the same session, but must be set again in a new session. The `dev` value is only for local development, not production. Press `Ctrl + C` to stop the application.
 
 Entering a password directly in a command may save it in the terminal history. To enter the password through a credential prompt instead, replace the password assignment above with:
 
@@ -323,8 +333,31 @@ that the questionnaire exists, is nonempty, contains no missing questions, and
 has a terminating, acyclic, reachable flow. It then creates one immutable,
 self-contained snapshot in the same transaction that changes the Study to
 `COLLECTING`. Later question-bank edits or deletions do not change published
-content. A stateless snapshot branch resolver is available for the future M5
-session layer, but participant sessions and answer persistence remain outside M4.
+content. The M5 runtime uses the stateless snapshot branch resolver; participant
+sessions and answer persistence live in the separate `participation` module.
+
+## M5 anonymous sessions and questionnaire execution
+
+Anonymous study entry uses `GET /api/participation/{token}`. Starting a study
+uses `POST /api/participation/{token}/sessions` and returns a session token once.
+Session operations use `X-Participant-Session-Token`, not a researcher JWT or
+the public study-link token. Core routes under `/api/participant-session` are:
+
+- `GET /api/participant-session`: restore the server-saved phase and progress.
+- `PUT /api/participant-session/consent`: accept or decline consent.
+- `POST /api/participant-session/browsing-completion`: finish browsing.
+- `GET /api/participant-session/questionnaire/current`: read the current item.
+- `PUT /api/participant-session/questionnaire/answers/{itemId}`: submit an answer
+  with a UUID `Idempotency-Key`; the server determines the next item.
+- `POST /api/participant-session/questionnaire/submission`: complete the path.
+- `POST /api/participant-session/abandonment`: explicitly exit.
+
+Answers and actually visited steps are persisted independently of the live
+question bank. Exact retries do not create duplicates; completed/abandoned
+sessions and closed studies reject further writes. Non-eye-tracking demo
+sessions can move from consent to browsing and questionnaire completion.
+Eye-tracking calibration, real M6 collection completion, and approved consent
+remain integration prerequisites for actual participant research.
 
 ## Creating a study with a feed template
 
@@ -396,7 +429,8 @@ in production. The frontend must implement this page separately.
 
 `GET /api/participation/{token}` requires no researcher JWT. It returns title,
 description, runtime switches, feed theme and JSON content, without management
-metadata. Only this GET route is anonymously permitted. Responses use
+metadata. Public entry/asset reads and anonymous session creation are permitted;
+subsequent participant operations require the independent session token. Responses use
 `Cache-Control: no-store`; every read checks the current study state.
 Invalid links return 404 PARTICIPATION_NOT_FOUND; CLOSED returns 410 STUDY_CLOSED.
 
@@ -404,9 +438,9 @@ Publishing returns 404 STUDY_NOT_FOUND for missing or foreign-owned studies, or
 409 STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT or FEED_NOT_READY.
 Invalid versions return 400; framework error normalization is unchanged.
 
-Participant sessions, data submission, questionnaire execution and the close
-command remain separate features. Future questionnaire saves must use the same
-study lock and DRAFT-only rule; future participation writes must recheck state.
+M5 session/questionnaire execution is implemented separately as described above;
+the product close command remains outside this publication API. Questionnaire
+saves use the study lock and DRAFT-only rule, and participant writes recheck state.
 
 Run the focused suite (isolated H2 storage and production security filter rules):
 
