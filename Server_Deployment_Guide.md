@@ -1,39 +1,31 @@
-# Server Deployment Preparation and Local Validation
+# Server Deployment Guide
 
 Repository: R7trztrz/CS-42-3
-Validation date: 5 October 2026 (Australia/Sydney)
+Configuration/documentation review: 7 October 2026 (Australia/Sydney)
 Status: M4/M5 demonstrations require the explicit demo override described below. Production M6 completion wiring, shared-server deployment, and automated CD remain pending.
 
 ## 1. Scope
 
 This guide describes the separate `survey-server` Compose environment prepared for a future team test server. It serves the built frontend through Nginx, proxies API requests to the backend, and persists database records and uploaded assets.
 
+The [regular local setup](README.md#docker-quick-start) uses `docker-compose.yml` and ports 5173/8080. It is separate from the server-style setup below; do not mix their Compose project names or environment files when updating an existing deployment.
+
 Local deployment validation does not establish that all application modules are complete or that their regression tests pass. Existing module test reports remain separate.
 
 ## 2. Files
 
-| File | Purpose | Commit |
+| File | Purpose | Versioned |
 | --- | --- | --- |
 | `docker-compose.server.yml` | Separate server services, networking and volumes | Yes |
+| `docker-compose.demo.yml` | Explicit development-only M4/M5 demo override | Yes |
 | `SurveyPlatformFrontend/Dockerfile.server` | Frontend build followed by Nginx runtime | Yes |
 | `SurveyPlatformFrontend/nginx.server.conf` | Static frontend, SPA fallback and API proxy | Yes |
 | `.env.server.example` | Environment variable names without secrets | Yes |
 | `.env.server` | Actual environment credentials | No |
 | `.gitignore` | Allow deployment configuration and template | Yes |
-| `Server_Deployment_Guide.md` | Deployment instructions and validation record | Yes |
+| `Server_Deployment_Guide.md` | Deployment instructions and dated historical validation | Yes |
 
-The existing local modification to `docker-compose.yml` changes the Mac database host port. Exclude that modification from this deployment commit and retain it locally.
-
-The repository root currently uses an allowlist: `/*` ignores root entries unless explicitly allowed. Add these exceptions:
-
-```gitignore
-# Track server deployment configuration and environment template
-!/docker-compose.server.yml
-!/.env.server.example
-!/Server_Deployment_Guide.md
-```
-
-Do not allow `.env.server`. Confirm that it is ignored before committing.
+The deployment configurations and example environment file are already tracked. Keep actual `.env`/`.env.server` files, database dumps, private backups and personal work records out of Git. Confirm that `.env.server` is ignored before sharing changes.
 
 ## 3. Service layout
 
@@ -45,7 +37,7 @@ Do not allow `.env.server`. Confirm that it is ignored before committing.
 
 Browser API requests use `/backend`. Nginx removes this prefix when forwarding to `http://backend:8080/`. For example, `/backend/auth/login` becomes `/auth/login`.
 
-Keep the Compose project name `survey-server` consistent. Its volumes are `survey-server_postgres_data` and `survey-server_study_assets`. These are separate from the original `gitrepository` environment. Accounts in one database do not automatically exist in the other.
+Keep the Compose project name consistent with the initial deployment: `survey-demo` for the demo commands below, or `survey-server` for the intended production topology. Volume names are project-specific, such as `survey-server_postgres_data` and `survey-server_study_assets`; accounts in one project's database do not automatically exist in another. Confirm the existing project and volumes before an update rather than choosing a new name.
 
 The frontend `/healthz` endpoint checks Nginx availability. It does not prove backend or database application readiness. The backend currently has no Compose healthcheck; confirm it through logs and application operations.
 
@@ -78,20 +70,20 @@ TURNSTILE_SECRET=
 VITE_TURNSTILE_SITE_KEY=
 ```
 
-For the already validated Mac environment, `.env.server` was copied from the working `.env` using `cp -n .env .env.server`. Preserve its existing database password and JWT secret; do not overwrite them with the empty template.
+For an existing environment, preserve its private environment file and matching database credentials/JWT secret; do not overwrite them with the empty template. The Mac-specific setup from 5 October is recorded separately in Appendix A.
 
-The JWT secret must use standard Base64. The earlier backend failure `Illegal base64 character 5f` was caused by an invalid value. A fresh secret can be generated locally using `openssl rand -base64 32`; keep its output private and enter it into the local environment file.
+The JWT secret must use standard Base64. A fresh secret can be generated locally using `openssl rand -base64 32`; keep its output private and enter it into the local environment file.
 
 Changing the environment's database password does not change an existing database user's password. For an existing volume, use the matching password or deliberately update the database user. Do not delete data to repair authentication.
 
-Local Turnstile validation used the official always-pass test keys:
+For development-only Turnstile checks, the public always-pass test keys are:
 
 ```dotenv
 VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
 ```
 
-These values validate integration during local testing. They do not provide real bot protection. A shared deployment requires real matching keys configured for its hostname.
+These are public test values, not private deployment credentials. They validate integration during local testing but do not provide real bot protection. A shared deployment requires real matching keys configured for its hostname.
 
 Frontend Vite variables are supplied at build time. Rebuild the frontend after changing its site key. Shell environment variables may override Compose values; clear stale exported values when diagnosing unexpected configuration. Avoid sharing an unredacted environment file or full rendered Compose configuration.
 
@@ -153,11 +145,11 @@ The backend disables SpringDoc API documentation and Swagger UI in this server c
 
 ## 6. Restart and update
 
-Stop containers while retaining the data volumes:
+Use the same project name, environment file and Compose files used at initial startup. The following commands are for the **M4/M5 demo** in section 5 and retain both data volumes:
 
 ```bash
-docker compose -p survey-server --env-file .env.server -f docker-compose.server.yml down
-docker compose -p survey-server --env-file .env.server -f docker-compose.server.yml up -d
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml down
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml up -d
 ```
 
 Do not add `-v` when data must be retained. Volume retention is not a backup.
@@ -165,38 +157,14 @@ Do not add `-v` when data must be retained. Volume retention is not a backup.
 After obtaining reviewed code changes, rebuild and recreate both application services:
 
 ```bash
-docker compose -p survey-server --env-file .env.server -f docker-compose.server.yml up -d --build --force-recreate backend frontend
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml up -d --build --force-recreate backend frontend
 ```
 
-Recreating the frontend alongside the backend also refreshes Nginx's upstream resolution. Recheck container status, `/healthz`, login and saved content. Take verified backups before a shared deployment update involving database migrations. Database rollback and backup restoration are not yet implemented or tested by this preparation work.
+For an already provisioned production environment with a real M6 adapter, use its existing `survey-server` project and base server configuration instead. Never switch a demo to the base-only commands merely to restart it, and never enable the demo no-op for real participant research.
 
-## 7. Local validation record
+Recreating the frontend alongside the backend also refreshes Nginx's upstream resolution. Recheck container status, `/healthz`, login and saved content. Take verified backups before an update involving database migrations; follow the migration guide and validate the target environment's recovery procedure. The historical checks in Appendix A did not establish production backup or rollback readiness.
 
-Results combine inspected terminal screenshots with the tester's explicit confirmations. The assistant did not operate the Mac directly.
-
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Server Compose configuration | PASS | `config --quiet` completed without errors |
-| Frontend and backend image build | PASS | Local server environment started successfully |
-| Three services running | PASS | 20:29 screenshot shows all services up |
-| Database healthcheck | PASS | 20:29 screenshot shows healthy |
-| Frontend healthcheck | PASS | 20:29 screenshot shows healthy |
-| Nginx `/healthz` | PASS | 20:29 screenshot shows HTTP 200 and `ok` |
-| Registration and login | PASS | New server environment login confirmed earlier |
-| Study and Feed save/reopen | PASS | Tester confirmed local server validation |
-| Uploaded image display after refresh | PASS | Tester confirmed local server validation |
-| Data persistence after `down` / `up` without `-v` | PASS | Tester confirmed account, Study, Feed and image retained |
-| Secret file excluded from Git | PASS | 20:27 screenshot shows `.gitignore:2:/* .env.server` |
-| Deployment configuration/template visible to Git | PASS | 20:27 screenshot lists the new files |
-| Full browser regression after switching to `.env.server` | PENDING | Latest screenshot shows service checks only |
-| Shared-server access and HTTPS | NOT RUN | No shared server provisioned |
-| Real Turnstile protection | NOT RUN | Local testing used always-pass keys |
-| Backup and restoration | NOT RUN | No restoration exercise performed |
-| Automated CD | NOT IMPLEMENTED | No deployment workflow created in this work |
-
-No aggregate functional test count is claimed for this deployment validation.
-
-## 8. Remaining shared-server and CD work
+## 7. Remaining shared-server and CD work
 
 1. Obtain a team-accessible server and agree on its administrator, hostname and deployment permissions.
 2. Install and validate Docker/Compose on that server, then obtain the reviewed repository revision.
@@ -209,15 +177,30 @@ No aggregate functional test count is claimed for this deployment validation.
 
 The existing test CI and a future deployment workflow serve different purposes. Adding these deployment files alone does not create automated CD.
 
-## 9. Prepare the commit
+## Appendix A. Historical local validation — 5 October 2026 (Mac)
 
-After placing this guide at the repository root and adding its allowlist exception, stage only the intended files:
+This is a dated record of that Mac environment, not the current setup procedure or proof that the latest code is production-ready. Results combined inspected terminal screenshots with the tester's explicit confirmations; the assistant did not operate the Mac directly. The 7 October documentation review did not rerun these historical checks.
 
-```bash
-git add .gitignore .env.server.example docker-compose.server.yml SurveyPlatformFrontend/Dockerfile.server SurveyPlatformFrontend/nginx.server.conf Server_Deployment_Guide.md
-git diff --cached --check
-git diff --cached --name-only
-git status --short
-```
+That environment created `.env.server` from its working `.env` without overwriting an existing file. An invalid Base64 JWT secret had caused `Illegal base64 character 5f` before it was corrected. These observations do not require other environments to copy those files or change their secrets.
 
-Expected staged files are the six paths above. The real `.env.server` must be absent. The existing local `docker-compose.yml` port modification must remain unstaged. Review the staged changes before committing; avoid `git add .` for this task.
+| Check | Result on 5 October | Historical evidence |
+| --- | --- | --- |
+| Server Compose configuration | PASS | `config --quiet` completed without errors |
+| Frontend and backend image build | PASS | Local server environment started successfully |
+| Three services running | PASS | 20:29 screenshot showed all services up |
+| Database healthcheck | PASS | 20:29 screenshot showed healthy |
+| Frontend healthcheck | PASS | 20:29 screenshot showed healthy |
+| Nginx `/healthz` | PASS | 20:29 screenshot showed HTTP 200 and `ok` |
+| Registration and login | PASS | Tester confirmed new server environment login |
+| Study and Feed save/reopen | PASS | Tester confirmed local server validation |
+| Uploaded image display after refresh | PASS | Tester confirmed local server validation |
+| Data persistence after `down` / `up` without `-v` | PASS | Tester confirmed account, Study, Feed and image retention |
+| Secret file excluded from Git | PASS | 20:27 screenshot showed `.env.server` ignored |
+| Deployment configuration/template visible to Git | PASS | 20:27 screenshot listed the new files |
+| Full browser regression after switching to `.env.server` | PENDING | That record showed service checks only |
+| Shared-server access and HTTPS | NOT RUN | No shared server was provisioned |
+| Real Turnstile protection | NOT RUN | Local testing used always-pass keys |
+| Backup and restoration | NOT RUN | No restoration exercise was performed |
+| Automated CD | NOT IMPLEMENTED | No deployment workflow was created by that work |
+
+No aggregate functional test count is claimed by this historical record. Confirm current behavior against the intended revision and environment before any shared-server rollout.
