@@ -76,10 +76,17 @@ The current migration sequence is:
 - V7: Study publication token and publication timestamp
 - V8: synchronized social-feed template documents
 - V9: Study image assets and storage metadata
-- V10: reusable question bank and stable question-option identities
-- V11: versioned questionnaire drafts and stable ordered item identities
-- V12: deterministic questionnaire branch rules
-- V13: immutable, self-contained questionnaire publication snapshots
+- V10: main's immutable synchronization of all seven platform feed templates
+- V11: reusable question bank and stable question-option identities
+- V12: versioned questionnaire drafts and stable ordered item identities
+- V13: deterministic questionnaire branch rules
+- V14: immutable, self-contained questionnaire publication snapshots
+- V15: participant sessions, consent metadata, and lifecycle state
+- V16: immutable answer paths and persisted participant answers
+
+Legacy feature databases with V10 question-bank / V16 template-sync history
+must follow [the upgrade guide](../M4_M5_Migration_Upgrade_Guide.md), not an
+in-place restart with renamed migrations. Main V1-V10 is preserved byte-for-byte.
 
 The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables. Add future migrations using the next immutable version number.
 
@@ -232,7 +239,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts an isolated PostgreSQL container, applies Flyway V1 through V12, and runs repository, publication, and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V16, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test

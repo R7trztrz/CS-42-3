@@ -2,7 +2,7 @@
 
 Repository: R7trztrz/CS-42-3
 Validation date: 5 October 2026 (Australia/Sydney)
-Status: Server-oriented Docker configuration validated locally. Shared-server deployment and automated CD remain pending.
+Status: M4/M5 demonstrations require the explicit demo override described below. Production M6 completion wiring, shared-server deployment, and automated CD remain pending.
 
 ## 1. Scope
 
@@ -97,6 +97,40 @@ Frontend Vite variables are supplied at build time. Rebuild the frontend after c
 
 ## 5. Validate and start
 
+### M4/M5 demonstration (not real participant research)
+
+The current M5 backend requires `CollectionCompletionGate`. Its no-op adapter
+is intentionally available only in `dev`/`test`; the base server configuration
+does not supply the production M6 adapter and must not be described as
+production-ready. For a demonstration, explicitly opt in:
+
+```bash
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml config --quiet
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml up -d --build
+docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml ps
+```
+
+Use the same project name and both Compose files for subsequent updates.
+The `survey-demo` volumes are separate from other projects; do not change the
+project name when reusing an existing deployment's data. Configure
+`APP_PARTICIPANT_BASE_URL` in `.env.server` for the actual browser-facing URL
+when it differs from `http://localhost:8088`. The override supplies that
+default and sets `SPRING_PROFILES_ACTIVE=dev` only for this demo deployment.
+Consent remains unapproved placeholder text; real collection completion is
+not checked. Never use this override for actual participant research.
+
+Before any database upgrade, read
+[the M4/M5 migration guide](M4_M5_Migration_Upgrade_Guide.md).
+Normal main V1-V10 history is unchanged; legacy feature histories require a
+separate copy-and-cutover, not renamed files against the old database.
+
+### Production deployment boundary
+
+The base-only commands below describe the intended production topology;
+they are not a currently complete M4/M5 launch procedure. Supply and test a
+real M6 completion adapter before using them. Do not remove the profile
+restriction or silently enable the no-op gate in production.
+
 ```bash
 git check-ignore -v .env.server
 docker compose -p survey-server --env-file .env.server -f docker-compose.server.yml config --quiet
@@ -105,7 +139,7 @@ docker compose -p survey-server --env-file .env.server -f docker-compose.server.
 curl -i http://127.0.0.1:8088/healthz
 ```
 
-Expected results: `.env.server` is ignored; configuration validation produces no error; all three services run; database and frontend become healthy; `/healthz` returns HTTP 200 and `ok`.
+With a valid completion adapter, expected results are: `.env.server` is ignored; configuration validation produces no error; all three services run; database and frontend become healthy; `/healthz` returns HTTP 200 and `ok`. For the current demo-only adapter, use both Compose files above.
 
 Open `http://127.0.0.1:8088`. Register a test account if this database is new, then verify login, Study creation, Feed editing, image upload, saving and reopening.
 

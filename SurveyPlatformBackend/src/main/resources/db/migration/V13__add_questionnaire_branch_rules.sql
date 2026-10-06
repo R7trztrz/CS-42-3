@@ -1,4 +1,4 @@
--- Add deterministic SINGLE_CHOICE and SCALE branching for FR38 after the V11 questionnaire schema.
+-- Add deterministic SINGLE_CHOICE and SCALE branching for FR38 after the V12 questionnaire schema.
 CREATE TABLE questionnaire_branch_rules (
     id UUID NOT NULL,
     source_item_id UUID NOT NULL,

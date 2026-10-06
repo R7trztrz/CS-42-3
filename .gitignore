@@ -18,7 +18,10 @@
 
 # Track server deployment configuration and environment template
 !/docker-compose.server.yml
+!/docker-compose.demo.yml
 !/.env.server.example
+!/M4_M5_Migration_Upgrade_Guide.md
+!/scripts/
 
 # Track the server deployment guide
 !/Server_Deployment_Guide.md

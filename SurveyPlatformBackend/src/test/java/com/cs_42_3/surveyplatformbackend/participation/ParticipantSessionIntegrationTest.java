@@ -435,7 +435,7 @@ class ParticipantSessionIntegrationTest {
     }
 
     @Test
-    void v14UpgradesSchemaValidLegacyLifecycleRowsWithoutInventingPublicationData() {
+    void v15UpgradesSchemaValidLegacyLifecycleRowsWithoutInventingPublicationData() {
         String schema = "m5_upgrade_" + UUID.randomUUID().toString().replace("-", "");
         jdbc.execute("CREATE SCHEMA " + schema);
         try {
@@ -444,7 +444,7 @@ class ParticipantSessionIntegrationTest {
                     .schemas(schema)
                     .defaultSchema(schema)
                     .locations("classpath:db/migration")
-                    .target(MigrationVersion.fromVersion("13"))
+                    .target(MigrationVersion.fromVersion("14"))
                     .load()
                     .migrate();
 

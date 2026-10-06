@@ -29,7 +29,7 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V10-V13 constraints and questionnaire mappings. */
+/** PostgreSQL integration coverage for V11-V14 constraints and questionnaire mappings. */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"
@@ -69,7 +69,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v11CreatesUuidColumnsAndDeferredUniquenessConstraints() {
+    void v12CreatesUuidColumnsAndDeferredUniquenessConstraints() {
         assertThat(columnType("questionnaires", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaires", "study_id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_items", "question_id")).isEqualTo("uuid");
@@ -97,7 +97,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v16PopulatesAllPlatformTemplatesWithoutChangingBlankTemplate() {
+    void v10PopulatesAllPlatformTemplatesWithoutChangingBlankTemplate() {
         assertThat(jdbcTemplate.queryForList(
                 "SELECT code FROM feed_templates WHERE content IS NOT NULL AND schema_version = 1 ORDER BY code",
                 String.class
@@ -109,7 +109,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v12CreatesBranchChecksWithoutCouplingTriggersToMutableOptions() {
+    void v13CreatesBranchChecksWithoutCouplingTriggersToMutableOptions() {
         assertThat(columnType("questionnaire_branch_rules", "source_option_id"))
                 .isEqualTo("uuid");
         assertThat(columnType("questionnaire_branch_rules", "source_scale_value"))
@@ -120,7 +120,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v13CreatesSelfContainedJsonSnapshotWithOnePublicationPerStudy() {
+    void v14CreatesSelfContainedJsonSnapshotWithOnePublicationPerStudy() {
         assertThat(columnType("questionnaire_publication_snapshots", "id")).isEqualTo("uuid");
         assertThat(columnType("questionnaire_publication_snapshots", "content")).isEqualTo("jsonb");
         assertThat(deleteAction("fk_questionnaire_publication_snapshots_study"))
@@ -129,13 +129,13 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v12RejectsNonObjectSnapshotContent() {
+    void v14RejectsNonObjectSnapshotContent() {
         assertThatThrownBy(() -> insertSnapshot("[]"))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
-    void v12RejectsSecondSnapshotForTheSameStudy() {
+    void v14RejectsSecondSnapshotForTheSameStudy() {
         insertSnapshot("{\"items\":[]}");
 
         assertThatThrownBy(() -> insertSnapshot("{\"items\":[]}"))
@@ -166,7 +166,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v11RejectsRulesWithoutExactlyOneTrigger() {
+    void v13RejectsRulesWithoutExactlyOneTrigger() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
@@ -184,7 +184,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v11RejectsSelfLoops() {
+    void v13RejectsSelfLoops() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         Question source = questionRepository.findById(
@@ -206,7 +206,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v11RejectsDuplicateOptionTriggers() {
+    void v13RejectsDuplicateOptionTriggers() {
         Questionnaire questionnaire = saveBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
@@ -229,7 +229,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void v11RejectsDuplicateScaleTriggers() {
+    void v13RejectsDuplicateScaleTriggers() {
         Questionnaire questionnaire = saveScaleBranchedQuestionnaire();
         UUID sourceItemId = questionnaire.getItems().get(0).getId();
         UUID targetItemId = questionnaire.getItems().get(1).getId();
