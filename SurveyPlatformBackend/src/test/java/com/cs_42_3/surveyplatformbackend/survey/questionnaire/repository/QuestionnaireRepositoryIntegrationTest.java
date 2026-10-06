@@ -79,7 +79,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV15() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV16() {
         List<String> versions = jdbcTemplate.queryForList(
                 """
                         SELECT version
@@ -92,8 +92,20 @@ class QuestionnaireRepositoryIntegrationTest {
         );
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"
         );
+    }
+
+    @Test
+    void v16PopulatesAllPlatformTemplatesWithoutChangingBlankTemplate() {
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT code FROM feed_templates WHERE content IS NOT NULL AND schema_version = 1 ORDER BY code",
+                String.class
+        )).containsExactly("bluesky", "facebook", "instagram", "threads", "tiktok", "truth-social", "x");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT content IS NULL AND schema_version IS NULL FROM feed_templates WHERE code = 'blank'",
+                Boolean.class
+        )).isTrue();
     }
 
     @Test
