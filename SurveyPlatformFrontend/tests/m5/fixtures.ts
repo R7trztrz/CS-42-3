@@ -6,6 +6,16 @@ import type {
   ParticipantSessionResponse,
 } from '../../src/participant/model/participantSession'
 
+export function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((fulfil, fail) => {
+    resolve = fulfil
+    reject = fail
+  })
+  return { promise, resolve, reject }
+}
+
 export function makeConsentDocument(
   overrides: Partial<ConsentDocument> = {},
 ): ConsentDocument {

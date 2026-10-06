@@ -6,7 +6,7 @@
 // must reuse one key, while changing the answer before resubmitting must
 // mint a new one (contract section 4.7).
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   getCurrentParticipantQuestion,
@@ -63,6 +63,11 @@ function describeQuestionnaireError(code: string | null, status: number | null):
 export function useParticipantQuestionnaire(
   sessionToken: string | null,
 ): UseParticipantQuestionnaireResult {
+  const sessionScope = useMemo(() => ({ sessionToken }), [sessionToken])
+  const currentScopeRef = useRef<typeof sessionScope | null>(null)
+  const activeRequestRef = useRef(0)
+  const submissionRequestRef = useRef(0)
+  const submissionInFlightRef = useRef(false)
   const [currentQuestion, setCurrentQuestion] = useState<ParticipantQuestion | null>(null)
   const [readyToSubmit, setReadyToSubmit] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -73,29 +78,58 @@ export function useParticipantQuestionnaire(
   // One idempotency key per item, reused while the answer payload is
   // unchanged and replaced the moment it changes.
   const idempotencyKeysRef = useRef(new Map<string, { key: string; signature: string }>())
+  const isCurrentSession = useCallback(
+    () => currentScopeRef.current === sessionScope,
+    [sessionScope],
+  )
 
-  const load = useCallback(async () => {
-    if (!sessionToken) {
+  useEffect(() => {
+    currentScopeRef.current = sessionScope
+    ++activeRequestRef.current
+    ++submissionRequestRef.current
+    submissionInFlightRef.current = false
+    idempotencyKeysRef.current.clear()
+    setCurrentQuestion(null)
+    setReadyToSubmit(false)
+    setIsLoading(false)
+    setIsSubmitting(false)
+    setErrorCode(null)
+    setErrorMessage(null)
+    return () => {
+      currentScopeRef.current = null
+      ++activeRequestRef.current
+      ++submissionRequestRef.current
+      submissionInFlightRef.current = false
+      idempotencyKeysRef.current.clear()
+    }
+  }, [sessionScope])
+
+  const load = useCallback(async (duringSubmission = false) => {
+    if (!sessionToken || !isCurrentSession() || (submissionInFlightRef.current && !duringSubmission)) {
       return
     }
 
+    const requestId = ++activeRequestRef.current
+    const isCurrentRequest = () => isCurrentSession() && activeRequestRef.current === requestId
     setIsLoading(true)
     setErrorCode(null)
     setErrorMessage(null)
 
     try {
       const state = await getCurrentParticipantQuestion(sessionToken)
+      if (!isCurrentRequest()) return
       setCurrentQuestion(state.currentQuestion)
       setReadyToSubmit(state.readyToSubmit)
     } catch (error) {
+      if (!isCurrentRequest()) return
       const code = getParticipantErrorCode(error)
       const status = getParticipantErrorStatus(error)
       setErrorCode(code)
       setErrorMessage(describeQuestionnaireError(code, status))
     } finally {
-      setIsLoading(false)
+      if (isCurrentRequest()) setIsLoading(false)
     }
-  }, [sessionToken])
+  }, [sessionToken, isCurrentSession])
 
   useEffect(() => {
     void load()
@@ -103,10 +137,15 @@ export function useParticipantQuestionnaire(
 
   const submitAnswer = useCallback(
     async (itemId: string, answer: SubmitAnswerPayload): Promise<boolean> => {
-      if (!sessionToken) {
+      if (!sessionToken || !isCurrentSession() || submissionInFlightRef.current) {
         return false
       }
 
+      const requestId = ++activeRequestRef.current
+      const submissionId = ++submissionRequestRef.current
+      const isCurrentSubmission = () => isCurrentSession() && submissionRequestRef.current === submissionId
+      const isCurrentRequest = () => isCurrentSubmission() && activeRequestRef.current === requestId
+      submissionInFlightRef.current = true
       const signature = JSON.stringify(answer)
       const existing = idempotencyKeysRef.current.get(itemId)
       const key =
@@ -114,34 +153,43 @@ export function useParticipantQuestionnaire(
 
       idempotencyKeysRef.current.set(itemId, { key, signature })
 
+      setIsLoading(false)
       setIsSubmitting(true)
       setErrorCode(null)
       setErrorMessage(null)
 
       try {
         const state = await submitParticipantAnswer(sessionToken, itemId, key, answer)
+        if (!isCurrentRequest()) return false
         setCurrentQuestion(state.currentQuestion)
         setReadyToSubmit(state.readyToSubmit)
         return true
       } catch (error) {
+        if (!isCurrentRequest()) return false
         const code = getParticipantErrorCode(error)
         const status = getParticipantErrorStatus(error)
 
         // Both of these mean our local view is stale, not that the
         // request should be retried blindly: resync from the server.
         if (code === 'PARTICIPANT_QUESTION_NOT_CURRENT' || code === 'PARTICIPANT_IDEMPOTENCY_CONFLICT') {
-          await load()
+          await load(true)
+          if (!isCurrentSubmission()) return false
         }
 
         setErrorCode(code)
         setErrorMessage(describeQuestionnaireError(code, status))
         return false
       } finally {
-        setIsSubmitting(false)
+        if (isCurrentSubmission()) {
+          submissionInFlightRef.current = false
+          setIsSubmitting(false)
+        }
       }
     },
-    [sessionToken, load],
+    [sessionToken, load, isCurrentSession],
   )
+
+  const reload = useCallback(() => load(), [load])
 
   return {
     currentQuestion,
@@ -151,6 +199,6 @@ export function useParticipantQuestionnaire(
     errorCode,
     errorMessage,
     submitAnswer,
-    reload: load,
+    reload,
   }
 }

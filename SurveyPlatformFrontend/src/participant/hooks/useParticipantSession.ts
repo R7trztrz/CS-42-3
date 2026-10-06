@@ -7,7 +7,7 @@
 // a given `phase` shows; that belongs to the per-phase step components
 // built on top of it (ConsentStep, BrowsingStep, ...).
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   abandonParticipantSession,
@@ -86,29 +86,63 @@ function describeError(code: string | null, status: number | null): string {
 }
 
 export function useParticipantSession(studyToken: string | undefined): UseParticipantSessionResult {
+  // Object identity also distinguishes A -> B -> A from the original A.
+  const studyScope = useMemo(() => ({ studyToken }), [studyToken])
+  const currentScopeRef = useRef<typeof studyScope | null>(null)
+  const activeRequestRef = useRef(0)
+  const actionRequestRef = useRef(0)
+  const creationInFlightRef = useRef(false)
+  const actionInFlightRef = useRef(false)
+  const sessionTokenRef = useRef<string | null>(null)
   const [stage, setStage] = useState<ParticipantSessionStage>('checking')
   const [session, setSession] = useState<ParticipantSessionResponse | null>(null)
   const [sessionToken, setSessionTokenState] = useState<string | null>(null)
-  const setSessionToken = useCallback((token: string | null) => {
-    sessionTokenRef.current = token
-    setSessionTokenState(token)
-  }, [])
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isActionPending, setIsActionPending] = useState(false)
   const [actionErrorCode, setActionErrorCode] = useState<string | null>(null)
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null)
+  const setSessionToken = useCallback((token: string | null) => {
+    if (sessionTokenRef.current !== token) {
+      ++actionRequestRef.current
+      actionInFlightRef.current = false
+      setIsActionPending(false)
+    }
+    sessionTokenRef.current = token
+    setSessionTokenState(token)
+  }, [])
+  const isCurrentStudy = useCallback(
+    () => currentScopeRef.current === studyScope,
+    [studyScope],
+  )
 
-  // Guards state updates from a restore/create call that is still in
-  // flight when the component unmounts or studyToken changes.
-  const activeRequestRef = useRef(0)
-  // The current session token, readable synchronously by action callbacks
-  // without adding `sessionToken` state to their dependency arrays.
-  const sessionTokenRef = useRef<string | null>(null)
+  useEffect(() => {
+    currentScopeRef.current = studyScope
+    ++activeRequestRef.current
+    ++actionRequestRef.current
+    creationInFlightRef.current = false
+    actionInFlightRef.current = false
+    setSessionToken(null)
+    setSession(null)
+    setErrorCode(null)
+    setErrorMessage(null)
+    setIsActionPending(false)
+    setActionErrorCode(null)
+    setActionErrorMessage(null)
+
+    return () => {
+      currentScopeRef.current = null
+      ++activeRequestRef.current
+      ++actionRequestRef.current
+      creationInFlightRef.current = false
+      actionInFlightRef.current = false
+      sessionTokenRef.current = null
+    }
+  }, [studyScope, setSessionToken])
 
   const restore = useCallback(
     async (token: string) => {
-      if (!studyToken) {
+      if (!studyToken || !isCurrentStudy()) {
         return
       }
 
@@ -117,7 +151,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
       try {
         const current = await getCurrentParticipantSession(token)
 
-        if (activeRequestRef.current !== requestId) {
+        if (!isCurrentStudy() || activeRequestRef.current !== requestId) {
           return
         }
 
@@ -127,7 +161,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         setErrorMessage(null)
         setStage('active')
       } catch (error) {
-        if (activeRequestRef.current !== requestId) {
+        if (!isCurrentStudy() || activeRequestRef.current !== requestId) {
           return
         }
 
@@ -163,7 +197,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         setStage('error')
       }
     },
-    [studyToken],
+    [studyToken, isCurrentStudy, setSessionToken],
   )
 
   useEffect(() => {
@@ -188,11 +222,12 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
 
   const createSession = useCallback(
     async (deviceInfo: ParticipantDeviceInfo | null = null) => {
-      if (!studyToken || stage === 'checking' || stage === 'creating' || stage === 'active') {
+      if (!studyToken || !isCurrentStudy() || creationInFlightRef.current || stage === 'checking' || stage === 'creating' || stage === 'active') {
         return
       }
 
       const requestId = ++activeRequestRef.current
+      creationInFlightRef.current = true
       setStage('creating')
       setErrorCode(null)
       setErrorMessage(null)
@@ -200,7 +235,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
       try {
         const created = await createParticipantSession(studyToken, deviceInfo)
 
-        if (activeRequestRef.current !== requestId) {
+        if (!isCurrentStudy() || activeRequestRef.current !== requestId) {
           return
         }
 
@@ -210,7 +245,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         // whether it came from create or restore.
         await restore(created.sessionToken)
       } catch (error) {
-        if (activeRequestRef.current !== requestId) {
+        if (!isCurrentStudy() || activeRequestRef.current !== requestId) {
           return
         }
 
@@ -227,13 +262,15 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         setErrorCode(code)
         setErrorMessage(describeError(code, status))
         setStage('error')
+      } finally {
+        if (isCurrentStudy()) creationInFlightRef.current = false
       }
     },
-    [studyToken, stage, restore],
+    [studyToken, stage, restore, isCurrentStudy],
   )
 
   const retry = useCallback(async () => {
-    if (!studyToken) {
+    if (!studyToken || !isCurrentStudy() || creationInFlightRef.current) {
       return
     }
 
@@ -248,7 +285,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
     setStage('landing')
     setErrorCode(null)
     setErrorMessage(null)
-  }, [studyToken, restore])
+  }, [studyToken, restore, isCurrentStudy])
 
   // Shared error handling for every action that mutates an *existing*
   // session (consent, browsing completion, abandonment). A session that
@@ -259,19 +296,26 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
     async (action: (token: string) => Promise<ParticipantSessionResponse>): Promise<boolean> => {
       const token = sessionTokenRef.current
 
-      if (!studyToken || !token) {
+      if (!studyToken || !token || !isCurrentStudy() || actionInFlightRef.current) {
         return false
       }
 
+      const actionId = ++actionRequestRef.current
+      const isCurrentAction = () => isCurrentStudy()
+        && actionRequestRef.current === actionId
+        && sessionTokenRef.current === token
+      actionInFlightRef.current = true
       setIsActionPending(true)
       setActionErrorCode(null)
       setActionErrorMessage(null)
 
       try {
         const updated = await action(token)
+        if (!isCurrentAction()) return false
         setSession(updated)
         return true
       } catch (error) {
+        if (!isCurrentAction()) return false
         const code = getParticipantErrorCode(error)
         const status = getParticipantErrorStatus(error)
 
@@ -299,10 +343,13 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         setActionErrorMessage(describeError(code, status))
         return false
       } finally {
-        setIsActionPending(false)
+        if (isCurrentAction()) {
+          actionInFlightRef.current = false
+          setIsActionPending(false)
+        }
       }
     },
-    [studyToken, setSessionToken],
+    [studyToken, setSessionToken, isCurrentStudy],
   )
 
   const decideConsent = useCallback(

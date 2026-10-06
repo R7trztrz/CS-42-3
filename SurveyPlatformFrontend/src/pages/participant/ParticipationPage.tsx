@@ -477,6 +477,12 @@ function ParticipationPage() {
 
     let ignore = false
 
+    // A new public link must not display the previous study or its error
+    // while its own metadata/session are being loaded.
+    setParticipation(null)
+    setErrorMessage('')
+    setIsLoading(true)
+
     const loadParticipation =
 
       async () => {
