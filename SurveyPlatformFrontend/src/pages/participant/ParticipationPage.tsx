@@ -241,6 +241,24 @@ import {
 
 /*
 
+ * M5 participant session (creation + restoration)
+
+ */
+
+import { useParticipantSession } from '../../participant/hooks/useParticipantSession'
+
+import type { ParticipantDeviceInfo } from '../../participant/model/participantSession'
+
+import ConsentStep from '../../participant/components/ConsentStep'
+
+import CalibrationStep from '../../participant/components/CalibrationStep'
+
+import QuestionnaireStep from '../../participant/components/QuestionnaireStep'
+
+import FinishedStep from '../../participant/components/FinishedStep'
+
+/*
+
  * Old Craft component names that may still exist
 
  * inside previously saved Study feeds.
@@ -395,6 +413,24 @@ function getParticipationError(
 
 }
 
+// Backend limits: browser <= 64 chars, os/timezone <= 64 (see
+// ParticipantDeviceInfoRequest). navigator.userAgent is routinely well over
+// 64 chars, so it must be truncated rather than passed through -- an
+// oversized value fails validation with 400 REQUEST_VALIDATION_FAILED.
+// There is no reliable cross-browser way to extract just "Chrome 131"
+// without a UA-parsing dependency, so browserVersion is left unset.
+const DEVICE_INFO_MAX_LENGTH = 64
+
+function collectDeviceInfo(): ParticipantDeviceInfo {
+  return {
+    browser: navigator.userAgent.slice(0, DEVICE_INFO_MAX_LENGTH),
+    os: navigator.platform.slice(0, DEVICE_INFO_MAX_LENGTH),
+    screenWidth: window.screen?.width,
+    screenHeight: window.screen?.height,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone.slice(0, DEVICE_INFO_MAX_LENGTH),
+  }
+}
+
 function ParticipationPage() {
 
   const {
@@ -440,6 +476,12 @@ function ParticipationPage() {
   useEffect(() => {
 
     let ignore = false
+
+    // A new public link must not display the previous study or its error
+    // while its own metadata/session are being loaded.
+    setParticipation(null)
+    setErrorMessage('')
+    setIsLoading(true)
 
     const loadParticipation =
 
@@ -524,6 +566,8 @@ function ParticipationPage() {
     token,
 
   ])
+
+  const participantSession = useParticipantSession(token)
 
   return (
 
@@ -655,8 +699,149 @@ function ParticipationPage() {
 
               </section>
 
+              {/* M5 session bootstrap (creation + restoration) */}
+
+              {(participantSession.stage === 'checking' ||
+                participantSession.stage === 'landing' ||
+                participantSession.stage === 'creating' ||
+                participantSession.stage === 'error' ||
+                participantSession.stage === 'closed') && (
+                <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-5 shadow-sm">
+                  {participantSession.stage === 'checking' && (
+                    <p className="text-sm text-gray-600" role="status">
+                      Checking for an existing session...
+                    </p>
+                  )}
+
+                  {participantSession.stage === 'landing' && (
+                    <div className="flex flex-col items-start gap-3">
+                      <p className="text-sm text-gray-700">
+                        Starting will create an anonymous session for this study.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void participantSession.createSession(collectDeviceInfo())}
+                        className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                      >
+                        Start study
+                      </button>
+                    </div>
+                  )}
+
+                  {participantSession.stage === 'creating' && (
+                    <p className="text-sm text-gray-600" role="status">
+                      Starting your session...
+                    </p>
+                  )}
+
+                  {(participantSession.stage === 'error' || participantSession.stage === 'closed') && (
+                    <div className="flex flex-col items-start gap-3">
+                      <p className="text-sm text-red-700" role="alert">
+                        {participantSession.errorMessage}
+                      </p>
+                      {participantSession.stage === 'error' && (
+                        <button
+                          type="button"
+                          onClick={() => void participantSession.retry()}
+                          className="rounded-sm border border-red-700 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                        >
+                          Try again
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* M5 phase-driven participant flow */}
+
+              {participantSession.stage === 'active' && participantSession.session && (
+                <>
+                  {(participantSession.session.status === 'COMPLETED' ||
+                    participantSession.session.status === 'ABANDONED') && (
+                    <FinishedStep
+                      status={participantSession.session.status}
+                      abandonmentReason={participantSession.session.abandonmentReason}
+                    />
+                  )}
+
+                  {participantSession.session.status === 'IN_PROGRESS' &&
+                    participantSession.session.phase === 'CONSENT' && (
+                      <ConsentStep
+                        consentDocument={participantSession.session.consentDocument}
+                        isPending={participantSession.isActionPending}
+                        errorMessage={participantSession.actionErrorMessage}
+                        onDecide={participantSession.decideConsent}
+                      />
+                    )}
+
+                  {participantSession.session.status === 'IN_PROGRESS' &&
+                    participantSession.session.phase === 'CALIBRATION' && (
+                      <CalibrationStep onRefreshSession={participantSession.refreshSession} />
+                    )}
+
+                  {participantSession.session.status === 'IN_PROGRESS' &&
+                    participantSession.session.phase === 'BROWSING' && (
+                      <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-6 py-4 shadow-sm">
+                        <p className="text-sm text-gray-700">
+                          Browse the interface below, then continue when you are done.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            disabled={participantSession.isActionPending}
+                            onClick={() => void participantSession.completeBrowsing()}
+                            className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                          >
+                            Continue
+                          </button>
+                          <button
+                            type="button"
+                            disabled={participantSession.isActionPending}
+                            onClick={() => void participantSession.abandon()}
+                            className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            Leave study
+                          </button>
+                        </div>
+                        {participantSession.actionErrorMessage && (
+                          <p className="w-full text-sm font-semibold text-red-700" role="alert">
+                            {participantSession.actionErrorMessage}
+                          </p>
+                        )}
+                      </section>
+                    )}
+
+                  {participantSession.session.status === 'IN_PROGRESS' &&
+                    participantSession.session.phase === 'QUESTIONNAIRE' &&
+                    participantSession.sessionToken && (
+                      <>
+                        <QuestionnaireStep
+                          sessionToken={participantSession.sessionToken}
+                          onCompleteQuestionnaire={participantSession.completeQuestionnaire}
+                          isCompleting={participantSession.isActionPending}
+                          completeErrorMessage={participantSession.actionErrorMessage}
+                        />
+                        <div className="mb-6">
+                          <button
+                            type="button"
+                            disabled={participantSession.isActionPending}
+                            onClick={() => void participantSession.abandon()}
+                            className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            Leave study
+                          </button>
+                        </div>
+                      </>
+                    )}
+                </>
+              )}
+
               {/* Published interface */}
 
+              {participantSession.stage === 'active' &&
+                participantSession.session?.status === 'IN_PROGRESS' &&
+                participantSession.session?.phase === 'BROWSING' && (
               <section className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm [&_.cursor-move]:cursor-default">
 
                 <InterfaceErrorBoundary>
@@ -883,6 +1068,7 @@ function ParticipationPage() {
                 </InterfaceErrorBoundary>
 
               </section>
+                )}
 
             </>
 

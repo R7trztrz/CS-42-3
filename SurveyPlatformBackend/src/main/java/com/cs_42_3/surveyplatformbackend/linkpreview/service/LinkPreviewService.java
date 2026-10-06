@@ -10,4 +10,3 @@ import java.util.UUID;
 public interface LinkPreviewService {
     LinkPreviewResponse preview(UUID ownerId, UUID studyId, String url);
 }
-

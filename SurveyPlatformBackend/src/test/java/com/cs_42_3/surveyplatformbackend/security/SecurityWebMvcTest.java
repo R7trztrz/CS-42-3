@@ -1,6 +1,8 @@
 package com.cs_42_3.surveyplatformbackend.security;
 
 import com.cs_42_3.surveyplatformbackend.config.SecurityConfig;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
 import com.cs_42_3.surveyplatformbackend.study.api.StudyController;
 import com.cs_42_3.surveyplatformbackend.study.service.StudyService;
 import com.cs_42_3.surveyplatformbackend.study.service.ParticipationLinks;
@@ -26,7 +28,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @WebMvcTest(StudyController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, ParticipantSessionAuthenticationFilter.class})
 @TestPropertySource(properties = {
         "security.jwt.secret=Y/KkJGsSTMeS+u3PyY7AUbvWjoy6sozESc+bVJKlftw="
 })
@@ -43,6 +45,9 @@ class SecurityWebMvcTest {
 
     @MockitoBean
     private ParticipationLinks participationLinks;
+
+    @MockitoBean
+    private ParticipantSessionTokenService participantSessionTokens;
 
     @Autowired
     private JwtEncoder jwtEncoder;

@@ -1,0 +1,7 @@
+# Explicitly opt into the development-only M6 completion gate for demonstrations.
+# Use together with docker-compose.server.yml, never for approved real studies.
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      APP_PARTICIPANT_BASE_URL: ${APP_PARTICIPANT_BASE_URL:-http://localhost:8088}

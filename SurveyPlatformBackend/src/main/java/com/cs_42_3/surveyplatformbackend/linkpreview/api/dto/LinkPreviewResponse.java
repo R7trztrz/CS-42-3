@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * Returns editable text and an optional study-owned image without changing the feed.
- * 
+ *
  * @author Simon Tian
  */
 public record LinkPreviewResponse(String sourceUrl, String title, String description,

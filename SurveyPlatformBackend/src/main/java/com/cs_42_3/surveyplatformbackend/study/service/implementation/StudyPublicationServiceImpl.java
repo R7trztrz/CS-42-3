@@ -1,10 +1,13 @@
 package com.cs_42_3.surveyplatformbackend.study.service.implementation;
 
+import com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences;
 import com.cs_42_3.surveyplatformbackend.feed.repository.StudyFeedRepository;
+import com.cs_42_3.surveyplatformbackend.participation.service.ConsentDocumentProvider;
 import com.cs_42_3.surveyplatformbackend.study.domain.*;
 import com.cs_42_3.surveyplatformbackend.study.exception.*;
 import com.cs_42_3.surveyplatformbackend.study.repository.StudyRepository;
 import com.cs_42_3.surveyplatformbackend.study.service.StudyPublicationService;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.service.QuestionnaireSnapshotPublicationService;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -13,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.UUID;
@@ -28,8 +33,11 @@ import java.util.UUID;
 public class StudyPublicationServiceImpl implements StudyPublicationService {
     private final StudyRepository studies;
     private final StudyFeedRepository feeds;
+    private final QuestionnaireSnapshotPublicationService questionnaireSnapshots;
     private final ObjectMapper mapper;
-    private final com.cs_42_3.surveyplatformbackend.asset.service.AssetReferences assetReferences;
+    private final AssetReferences assetReferences;
+    private final ConsentDocumentProvider consentDocuments;
+    private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     @Override
@@ -54,13 +62,18 @@ public class StudyPublicationServiceImpl implements StudyPublicationService {
             throw new FeedNotReadyException();
         }
         assetReferences.validate(studyId, feed.getContent());
+        Instant publicationTime = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        String consentDocumentVersion = consentDocuments.currentDocument().version();
         if (study.isQuestionnaireEnabled()) {
-            // TODO: Validate questionnaire readiness and freeze question content after module integration.
-            // Temporarily allow publication without checking or snapshotting the questionnaire.
+            questionnaireSnapshots.createSnapshot(study, publicationTime);
         }
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
-        study.publish(Base64.getUrlEncoder().withoutPadding().encodeToString(bytes), Instant.now());
+        study.publish(
+                Base64.getUrlEncoder().withoutPadding().encodeToString(bytes),
+                publicationTime,
+                consentDocumentVersion
+        );
         try {
             studies.flush();
         } catch (OptimisticLockingFailureException | OptimisticLockException exception) {

@@ -80,7 +80,6 @@ public class AuthController {
                 The email must be valid and must not already be registered.
                 The password must contain at least 8 characters, and password and
                 confirmPassword must match.
-                
                 A valid Cloudflare Turnstile human-verification token is required
                 before the account can be created.
 

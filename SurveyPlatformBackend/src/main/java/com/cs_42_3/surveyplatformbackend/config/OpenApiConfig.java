@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.config;
 
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeIn;
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import org.springframework.context.annotation.Configuration;
@@ -14,6 +15,13 @@ import org.springframework.context.annotation.Configuration;
         scheme = "bearer",
         bearerFormat = "JWT",
         description = "Enter a researcher JWT. Signature and expiry validation require Resource Server configuration."
+)
+@SecurityScheme(
+        name = "participantSessionToken",
+        type = SecuritySchemeType.APIKEY,
+        in = SecuritySchemeIn.HEADER,
+        paramName = "X-Participant-Session-Token",
+        description = "Opaque participant session token returned once when the anonymous session is created."
 )
 public class OpenApiConfig {
 }

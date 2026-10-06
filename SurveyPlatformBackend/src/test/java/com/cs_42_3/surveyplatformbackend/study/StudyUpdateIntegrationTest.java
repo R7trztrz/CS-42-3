@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Testcontainers
 @SpringBootTest
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
 class StudyUpdateIntegrationTest {
@@ -326,7 +328,11 @@ class StudyUpdateIntegrationTest {
         UUID studyId = study.getId();
 
         // Prepare a COLLECTING study to isolate the editing restriction.
-        study.publish(UUID.randomUUID().toString(), Instant.now());
+        study.publish(
+                UUID.randomUUID().toString(),
+                Instant.now(),
+                "platform-default-v2"
+        );
         studyRepository.flush();
 
         long publishedVersion = study.getLockVersion();

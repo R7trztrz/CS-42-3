@@ -1,0 +1,6 @@
+{
+  "version": "platform-default-v2",
+  "title": "Test-only successor consent document",
+  "content": "NON-PRODUCTION TEST FIXTURE: validates access to retained older versions.",
+  "approvedForProduction": false
+}

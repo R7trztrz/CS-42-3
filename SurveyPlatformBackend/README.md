@@ -2,11 +2,11 @@
 
 Backend service for SurveyPlatform, a University of Sydney COMP5703 project. Built with Java, Spring Boot, and PostgreSQL, it provides the foundation for developing the survey platform.
 
-The backend currently provides the core researcher authentication and authorization flow together with the Study API foundation.
+The backend currently includes researcher authentication and authorization, Study and feed-template APIs, the reusable question bank, versioned questionnaire-draft APIs with FR38 single-choice and scale branching, and immutable questionnaire publication snapshots.
 
 Implemented functionality includes researcher registration and login, BCrypt password hashing, JWT issuance and validation, stateless request authentication, RESEARCHER role-based authorization, authenticated researcher identity handling, password change, Cloudflare Turnstile verification for registration, and rate limiting for authentication endpoints.
 
-The backend also exposes OpenAPI documentation through Swagger UI and uses Flyway migrations to manage the PostgreSQL schema.
+The backend also exposes OpenAPI documentation through Swagger UI. Flyway owns the PostgreSQL schema, and Spring Security protects researcher endpoints with JWT bearer authentication.
 
 ## Technology Stack and Dependencies
 
@@ -27,6 +27,7 @@ The backend also exposes OpenAPI documentation through Swagger UI and uses Flywa
 | Lombok | Managed by Spring Boot | Compile-time generation of constructors, accessors, and other boilerplate |
 | DevTools | Managed by Spring Boot | Automatic application restarts after recompilation during development |
 | Spring Boot Test Starters | Managed by Spring Boot | Test support for MVC, JPA, security, validation, Flyway, and Actuator |
+| Testcontainers PostgreSQL | Managed by Spring Boot | Repeatable PostgreSQL integration tests using the production database engine |
 | BCrypt | Via Spring Security | Researcher password hashing and verification |
 | Cloudflare Turnstile | External service | Human verification for researcher registration |
 | Bucket4j | 8.20.0 | In-memory rate limiting for authentication endpoints |
@@ -51,11 +52,14 @@ SurveyPlatformBackend/
 │   │   ├── ratelimit/             # Authentication rate limiting
 │   │   └── turnstile/             # Cloudflare Turnstile verification
 │   ├── study/                     # Study APIs, domain and services
+│   ├── survey/                    # M4 question bank and questionnaire APIs
 │   └── SurveyPlatformBackendApplication.java
 ├── src/main/resources/
 │   ├── application.yaml           # Application configuration
 │   └── db/migration/              # Flyway database migrations
-├── src/test/
+├── src/test/java/com/cs_42_3/surveyplatformbackend/
+│   ├── survey/                    # Unit, MVC, repository, and concurrency tests
+│   └── TestcontainersConfiguration.java
 ├── .env.example                   # Sanitized environment template
 ├── .gitignore
 ├── mvnw
@@ -65,7 +69,26 @@ SurveyPlatformBackend/
 
 The project uses Flyway for database schema management. Migration scripts are stored under `src/main/resources/db/migration/`.
 
-The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables.
+The current migration sequence is:
+
+- V1-V5: Study, researcher, runtime-setting, and feed-template foundations
+- V6: seeded Facebook feed template
+- V7: Study publication token and publication timestamp
+- V8: synchronized social-feed template documents
+- V9: Study image assets and storage metadata
+- V10: main's immutable synchronization of all seven platform feed templates
+- V11: reusable question bank and stable question-option identities
+- V12: versioned questionnaire drafts and stable ordered item identities
+- V13: deterministic questionnaire branch rules
+- V14: immutable, self-contained questionnaire publication snapshots
+- V15: participant sessions, consent metadata, and lifecycle state
+- V16: immutable answer paths and persisted participant answers
+
+Legacy feature databases with V10 question-bank / V16 template-sync history
+must follow [the upgrade guide](../M4_M5_Migration_Upgrade_Guide.md), not an
+in-place restart with renamed migrations. Main V1-V10 is preserved byte-for-byte.
+
+The current setting, `spring.jpa.hibernate.ddl-auto=validate`, instructs Hibernate to validate entity mappings against the Flyway-managed database schema without automatically creating or modifying database tables. Add future migrations using the next immutable version number.
 
 ## Authentication and Security
 
@@ -133,12 +156,12 @@ Authorization: Bearer <access-token>
 
 When using Swagger UI, call `/auth/login`, copy the returned access token, click **Authorize**, and paste the token into the Bearer authentication field.
 
-
 ## Prerequisites
 
 1. Install JDK 17, set `JAVA_HOME` to the JDK installation directory, and add its `bin` directory to `PATH`.
 2. Create a PostgreSQL database and ensure it is accessible. The database account must have the permissions required for application reads and writes and migration execution.
 3. Ensure network access is available on the first Maven Wrapper run to download Maven and project dependencies.
+4. Install and start a Docker-compatible container runtime to run PostgreSQL integration tests. Container-backed tests intentionally fail when Docker is unavailable so a required database gate cannot be reported as skipped.
 
 All database values in this document are examples. Replace them with the values for your environment. Do not store actual passwords in this README, `application.yaml`, or shared run configurations.
 
@@ -149,10 +172,18 @@ All database values in this document are examples. Replace them with the values 
 | `SPRING_DATASOURCE_PASSWORD` | `replace-with-local-password` | Database password |
 | `JWT_SECRET` | `replace-with-base64-encoded-secret` | Base64-encoded secret used to sign and verify JWT access tokens |
 | `TURNSTILE_SECRET` | `your-turnstile-secret` | Cloudflare Turnstile server-side verification secret |
+| `SPRING_PROFILES_ACTIVE` | `dev` | Explicit development-only M5/M6 adapter wiring; not for production |
 
 `application.yaml` reads these values from environment variables. The datasource variables configure the PostgreSQL connection, while `JWT_SECRET` and `TURNSTILE_SECRET` are security secrets used by the application. These values must be kept separate from platform user credentials and must not be committed to the repository.
 
 Copy `.env.example` to a local `.env` file to store your configuration. Spring Boot and Maven do not load `.env` files automatically.
+
+For local development, explicitly select the `dev` profile. M5 requires a
+`CollectionCompletionGate`; this repository supplies only a `dev`/`test` no-op
+until the real M6 adapter is connected. Without one of these profiles or a real
+adapter, startup deliberately fails rather than silently skipping production
+collection checks. Do not enable `dev` on a real participant research deployment.
+See [the deployment guide](../Server_Deployment_Guide.md) for server-style demos.
 
 ## Running with IntelliJ IDEA
 
@@ -160,7 +191,8 @@ Copy `.env.example` to a local `.env` file to store your configuration. Spring B
 2. Copy `.env.example` to `.env` in the backend directory and configure the database, JWT secret, and Turnstile secret values.
 3. Open **Run → Edit Configurations** and select or create the run configuration for `SurveyPlatformBackendApplication`.
 4. In **Environment variables**, use **Browse for .env files and scripts** to select the backend `.env` file. If the field is hidden, enable it through **Modify options → Environment variables**.
-5. Apply the configuration and run the application.
+5. For development, set **Active profiles** to `dev` (or load `SPRING_PROFILES_ACTIVE=dev` from the backend `.env`); merely creating the file is not enough.
+6. Apply the configuration and run the application. Do not use both Docker and IntelliJ backends on the same host port.
 
 For details, see the [IntelliJ IDEA documentation on environment variables and .env files](https://www.jetbrains.com/help/idea/program-arguments-and-environment-variables.html#environment-variables).
 
@@ -184,13 +216,14 @@ $env:SPRING_DATASOURCE_USERNAME = 'example_user'
 $env:SPRING_DATASOURCE_PASSWORD = 'replace-with-local-password'
 $env:JWT_SECRET = 'replace-with-a-base64-encoded-secret'
 $env:TURNSTILE_SECRET = 'your-turnstile-secret'
+$env:SPRING_PROFILES_ACTIVE = 'dev'
 
 .\mvnw.cmd spring-boot:run
 ```
 > The actual Cloudflare Turnstile secret must not be committed to the repository.
 > Team members should obtain the development secret through a private channel and store it only in their local `.env` file.
 
-These variables apply only to the current PowerShell session and its child processes. They remain available when restarting the application in the same session, but must be set again in a new session. Press `Ctrl + C` to stop the application.
+These variables apply only to the current PowerShell session and its child processes. They remain available when restarting the application in the same session, but must be set again in a new session. The `dev` value is only for local development, not production. Press `Ctrl + C` to stop the application.
 
 Entering a password directly in a command may save it in the terminal history. To enter the password through a credential prompt instead, replace the password assignment above with:
 
@@ -199,6 +232,132 @@ $credential = Get-Credential -UserName $env:SPRING_DATASOURCE_USERNAME -Message 
 $env:SPRING_DATASOURCE_PASSWORD = $credential.GetNetworkCredential().Password
 Remove-Variable credential
 ```
+
+## Building and Testing
+
+Use the repository Maven Wrapper so Windows, Linux, and macOS use Maven 3.9.16 consistently.
+
+Windows PowerShell:
+
+```powershell
+.\mvnw.cmd test
+```
+
+Linux or macOS:
+
+```bash
+./mvnw test
+```
+
+With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V16, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
+
+```powershell
+.\mvnw.cmd -Pperformance test
+```
+
+## M4 question bank and questionnaires
+
+M4 is contained under the top-level `survey` package. The frozen frontend
+integration contract is distributed separately as `m4-api-contract-v1.md`;
+it includes request and response examples, the error envelope, branch
+semantics, and migration notes.
+
+Question-bank APIs are under `/api/questions`. The list endpoint returns the
+stable `QuestionPageResponse` envelope and accepts `page`, `size`, `type`, and
+`search`; create, detail, update, and delete use `questionId`. Choice-option
+identities are generated by the server and returned as `optionId`. Updates must
+retain existing option IDs, unless `replaceAllOptions: true` explicitly replaces
+every option identity.
+
+Questionnaire composition remains a `survey.questionnaire` subdomain and exposes:
+
+```text
+GET /api/studies/{studyId}/questionnaire
+PUT /api/studies/{studyId}/questionnaire
+```
+
+`GET` returns live question-bank data while the owned Study is `DRAFT`; after
+publication it returns the immutable snapshot with
+`contentSource: PUBLISHED_SNAPSHOT`. A missing draft questionnaire returns HTTP
+404 `QUESTIONNAIRE_NOT_FOUND`, which an editor may interpret as its unsaved state.
+
+`PUT` submits the complete desired item order. Existing `itemId` values must be
+retained when reordering or replacing items. The `expectedVersion` JSON property
+is mandatory: a first save uses `null`, and subsequent changes submit the version
+returned by `GET`. Identical retries are idempotent and do not advance the
+questionnaire version. Only `DRAFT` studies are editable.
+
+FR38 rules are supplied on each source item. `SINGLE_CHOICE` uses
+`sourceOptionId`; `SCALE` uses `sourceScaleValue`; exactly one trigger must be
+present. `targetPosition` is a zero-based index into the final submitted item
+array:
+
+```json
+{
+  "expectedVersion": 3,
+  "items": [
+    {
+      "itemId": "11111111-1111-1111-1111-111111111111",
+      "questionId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "branchRules": [
+        {
+          "sourceOptionId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          "sourceScaleValue": null,
+          "targetPosition": 1
+        }
+      ]
+    },
+    {
+      "itemId": "22222222-2222-2222-2222-222222222222",
+      "questionId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "branchRules": []
+    }
+  ]
+}
+```
+
+When no explicit rule matches, the flow continues to the next item; the last
+default transition reaches END. Optional branching questions always retain the
+no-answer default path. Saves reject duplicate triggers, invalid option or scale
+values, invalid targets, cycles, unreachable items, and non-terminating items.
+Only DRAFT studies are editable.
+
+Question updates retain explicitly submitted option IDs. Draft questionnaires
+read the latest live question data. Deleting a question clears its outgoing rules,
+retains incoming references to the now-missing item, and makes that draft visibly
+invalid until repaired. `GET` returns stable item and target IDs, per-item
+reference status, `valid`, and structured `validationIssues`.
+
+When a Study with `questionnaireEnabled: true` is published, publication validates
+that the questionnaire exists, is nonempty, contains no missing questions, and
+has a terminating, acyclic, reachable flow. It then creates one immutable,
+self-contained snapshot in the same transaction that changes the Study to
+`COLLECTING`. Later question-bank edits or deletions do not change published
+content. The M5 runtime uses the stateless snapshot branch resolver; participant
+sessions and answer persistence live in the separate `participation` module.
+
+## M5 anonymous sessions and questionnaire execution
+
+Anonymous study entry uses `GET /api/participation/{token}`. Starting a study
+uses `POST /api/participation/{token}/sessions` and returns a session token once.
+Session operations use `X-Participant-Session-Token`, not a researcher JWT or
+the public study-link token. Core routes under `/api/participant-session` are:
+
+- `GET /api/participant-session`: restore the server-saved phase and progress.
+- `PUT /api/participant-session/consent`: accept or decline consent.
+- `POST /api/participant-session/browsing-completion`: finish browsing.
+- `GET /api/participant-session/questionnaire/current`: read the current item.
+- `PUT /api/participant-session/questionnaire/answers/{itemId}`: submit an answer
+  with a UUID `Idempotency-Key`; the server determines the next item.
+- `POST /api/participant-session/questionnaire/submission`: complete the path.
+- `POST /api/participant-session/abandonment`: explicitly exit.
+
+Answers and actually visited steps are persisted independently of the live
+question bank. Exact retries do not create duplicates; completed/abandoned
+sessions and closed studies reject further writes. Non-eye-tracking demo
+sessions can move from consent to browsing and questionnaire completion.
+Eye-tracking calibration, real M6 collection completion, and approved consent
+remain integration prerequisites for actual participant research.
 
 ## Creating a study with a feed template
 
@@ -252,10 +411,12 @@ participationUrl. The owner's detail endpoint also returns this URL later.
 COLLECTING and CLOSED cannot be republished. Study and feed editing are blocked
 after publication. Publication and feed saves lock the same study row.
 
-Questionnaire readiness checks and question snapshots are temporarily bypassed,
-even when questionnaireEnabled is true. An English TODO marks this integration
-work. Detailed Craft.js validation is also deferred: publication does not yet
-guarantee renderability or satisfy questionnaire readiness/snapshot criteria.
+When `questionnaireEnabled` is true, publication validates the complete M4
+questionnaire and atomically creates its immutable snapshot. Missing, empty, or
+invalid questionnaires return HTTP 409
+`QUESTIONNAIRE_PUBLICATION_VALIDATION_ERROR` with structured `details`. When the
+switch is false, no questionnaire or snapshot is required. Detailed Craft.js feed
+validation remains separate from questionnaire readiness.
 
 Configure the frontend base URL (defaults to the local frontend origin):
 
@@ -268,7 +429,8 @@ in production. The frontend must implement this page separately.
 
 `GET /api/participation/{token}` requires no researcher JWT. It returns title,
 description, runtime switches, feed theme and JSON content, without management
-metadata. Only this GET route is anonymously permitted. Responses use
+metadata. Public entry/asset reads and anonymous session creation are permitted;
+subsequent participant operations require the independent session token. Responses use
 `Cache-Control: no-store`; every read checks the current study state.
 Invalid links return 404 PARTICIPATION_NOT_FOUND; CLOSED returns 410 STUDY_CLOSED.
 
@@ -276,9 +438,9 @@ Publishing returns 404 STUDY_NOT_FOUND for missing or foreign-owned studies, or
 409 STUDY_NOT_PUBLISHABLE, STUDY_VERSION_CONFLICT or FEED_NOT_READY.
 Invalid versions return 400; framework error normalization is unchanged.
 
-Participant sessions, data submission, questionnaire execution and the close
-command remain separate features. Future questionnaire saves must use the same
-study lock and DRAFT-only rule; future participation writes must recheck state.
+M5 session/questionnaire execution is implemented separately as described above;
+the product close command remains outside this publication API. Questionnaire
+saves use the study lock and DRAFT-only rule, and participant writes recheck state.
 
 Run the focused suite (isolated H2 storage and production security filter rules):
 

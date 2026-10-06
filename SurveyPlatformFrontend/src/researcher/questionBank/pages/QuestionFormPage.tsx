@@ -1,0 +1,228 @@
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import QuestionOptionsEditor from '../components/QuestionOptionsEditor'
+import { createQuestion, getQuestion, updateQuestion } from '../api/questionBankApi'
+import { describeError } from '../../../shared/types/apiError'
+import type { QuestionFormValues, QuestionType } from '../../../shared/types/question'
+import { validateQuestionForm } from '../model/questionFormValidation'
+
+const EMPTY_FORM: QuestionFormValues = {
+  type: 'SINGLE_CHOICE',
+  questionText: '',
+  required: true,
+  options: [
+    { optionId: null, optionText: '' },
+    { optionId: null, optionText: '' },
+  ],
+  scaleMin: 1,
+  scaleMax: 10,
+  scaleMinLabel: '',
+  scaleMaxLabel: '',
+}
+
+export default function QuestionFormPage() {
+  const { questionId } = useParams<{ questionId: string }>()
+  const isEditing = Boolean(questionId)
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState<QuestionFormValues>(EMPTY_FORM)
+  const [isLoading, setIsLoading] = useState(isEditing)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!questionId) {
+      return
+    }
+    getQuestion(questionId)
+      .then((question) =>
+        setForm({
+          type: question.type,
+          questionText: question.questionText,
+          required: question.required,
+          options: question.options.length
+            ? question.options.map((o) => ({ optionId: o.optionId, optionText: o.optionText }))
+            : [
+                { optionId: null, optionText: '' },
+                { optionId: null, optionText: '' },
+              ],
+          scaleMin: question.scaleMin,
+          scaleMax: question.scaleMax,
+          scaleMinLabel: question.scaleMinLabel,
+          scaleMaxLabel: question.scaleMaxLabel,
+        }),
+      )
+      .catch((err) => setError(describeError(err, 'Failed to load question.')))
+      .finally(() => setIsLoading(false))
+  }, [questionId])
+
+  function updateType(type: QuestionType) {
+    setForm((prev) => ({
+      ...prev,
+      type,
+      scaleMin: type === 'SCALE' ? (prev.scaleMin ?? 1) : null,
+      scaleMax: type === 'SCALE' ? (prev.scaleMax ?? 10) : null,
+    }))
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    const validationErrors = validateQuestionForm(form)
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(' '))
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      if (isEditing && questionId) {
+        await updateQuestion(questionId, form)
+      } else {
+        await createQuestion(form)
+      }
+      navigate('/questions')
+    } catch (err) {
+      setError(describeError(err, 'Failed to save question.'))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isLoading) {
+    return <p className="mx-auto max-w-2xl px-4 py-8 text-sm text-gray-500">Loading...</p>
+  }
+
+  const isChoiceType = form.type === 'SINGLE_CHOICE' || form.type === 'MULTI_CHOICE'
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <h1 className="mb-6 text-2xl font-semibold text-gray-900">
+        {isEditing ? 'Edit question' : 'New question'}
+      </h1>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Question type</label>
+          <select
+            value={form.type}
+            onChange={(event) => updateType(event.target.value as QuestionType)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+          >
+            <option value="SINGLE_CHOICE">Single choice</option>
+            <option value="MULTI_CHOICE">Multiple choice</option>
+            <option value="SCALE">Scale</option>
+            <option value="TEXT">Text</option>
+          </select>
+          {isEditing && (
+            <p className="mt-1 text-xs text-amber-600">
+              A questionnaire draft that already enables this question reads it live, so
+              changing its type or options here takes effect immediately for any draft, but
+              never for a questionnaire that has already been published.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Question text</label>
+          <textarea
+            value={form.questionText}
+            onChange={(event) => setForm({ ...form, questionText: event.target.value })}
+            rows={3}
+            required
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={form.required}
+            onChange={(event) => setForm({ ...form, required: event.target.checked })}
+          />
+          Required
+        </label>
+
+        {isChoiceType && (
+          <QuestionOptionsEditor
+            options={form.options}
+            onChange={(options) => setForm({ ...form, options })}
+          />
+        )}
+
+        {form.type === 'SCALE' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Minimum</label>
+              <input
+                type="number"
+                value={form.scaleMin ?? ''}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    scaleMin: event.target.value === '' ? null : Number(event.target.value),
+                  })
+                }
+                step={1}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+              <input
+                type="text"
+                value={form.scaleMinLabel ?? ''}
+                onChange={(event) => setForm({ ...form, scaleMinLabel: event.target.value })}
+                placeholder="Minimum label (optional)"
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Maximum</label>
+              <input
+                type="number"
+                value={form.scaleMax ?? ''}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    scaleMax: event.target.value === '' ? null : Number(event.target.value),
+                  })
+                }
+                step={1}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              />
+              <input
+                type="text"
+                value={form.scaleMaxLabel ?? ''}
+                onChange={(event) => setForm({ ...form, scaleMaxLabel: event.target.value })}
+                placeholder="Maximum label (optional)"
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? 'Saving...' : 'Save question'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/questions')}
+            className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}

@@ -4,7 +4,7 @@ import java.net.URI;
 
 /**
  * Holds a bounded response and the final URL used to resolve relative metadata.
- * 
+ *
  * @author Simon Tian
  */
 public record RemoteDocument(URI uri, String contentType, byte[] bytes) {}

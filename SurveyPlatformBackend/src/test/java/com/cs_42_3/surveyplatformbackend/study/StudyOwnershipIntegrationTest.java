@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.study;
 
+import com.cs_42_3.surveyplatformbackend.TestcontainersConfiguration;
 import com.cs_42_3.surveyplatformbackend.researcher.domain.Researcher;
 import com.cs_42_3.surveyplatformbackend.researcher.repository.ResearcherRepository;
 import com.cs_42_3.surveyplatformbackend.study.domain.Study;
@@ -12,15 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
+import org.springframework.context.annotation.Import;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,41 +30,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Testcontainers
-@SpringBootTest
+@SpringBootTest(properties = {
+        "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+})
+@Import(TestcontainersConfiguration.class)
+@ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
 class StudyOwnershipIntegrationTest {
-
-    @Container
-    static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:16-alpine")
-                    .withDatabaseName("survey_platform_test")
-                    .withUsername("test")
-                    .withPassword("test");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-
-        registry.add(
-                "spring.datasource.url",
-                postgres::getJdbcUrl
-        );
-
-        registry.add(
-                "spring.datasource.username",
-                postgres::getUsername
-        );
-
-        registry.add(
-                "spring.datasource.password",
-                postgres::getPassword
-        );
-
-        registry.add(
-                "security.jwt.secret",
-                () -> "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-        );
-    }
 
     @Autowired
     private MockMvc mockMvc;

@@ -107,4 +107,3 @@ public class StudyAssetServiceImpl implements StudyAssetService {
         return new AssetContent(storage.read(asset.getStorageKey()), asset.getContentType());
     }
 }
-

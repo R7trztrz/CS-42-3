@@ -68,4 +68,3 @@ public class LinkPreviewServiceImpl implements LinkPreviewService {
         if (study.getStatus() != StudyStatus.DRAFT) throw new StudyNotEditableException();
     }
 }
-

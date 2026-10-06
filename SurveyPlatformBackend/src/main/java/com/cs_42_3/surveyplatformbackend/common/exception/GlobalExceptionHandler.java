@@ -10,7 +10,10 @@ import com.cs_42_3.surveyplatformbackend.security.turnstile.HumanVerificationExc
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotEditableException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyNotFoundException;
 import com.cs_42_3.surveyplatformbackend.study.exception.StudyVersionConflictException;
+import com.cs_42_3.surveyplatformbackend.survey.api.dto.SurveyErrorResponse;
+import com.cs_42_3.surveyplatformbackend.survey.questionnaire.snapshot.exception.QuestionnairePublicationException;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -29,6 +32,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+
 /**
  * Handles application exceptions and returns consistent API error responses.
  *
@@ -37,6 +42,13 @@ import org.springframework.web.server.ResponseStatusException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException.class)
+    public ResponseEntity<ErrorResponse> handleParticipation(
+            com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
+
     /** Returns stable preview failures without disclosing remote response bodies. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.linkpreview.exception.LinkPreviewException.class)
     public ResponseEntity<ErrorResponse> handlePreview(
@@ -61,6 +73,23 @@ public class GlobalExceptionHandler {
 
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /** Returns structured questionnaire readiness failures from the atomic publish command. */
+    @ExceptionHandler(QuestionnairePublicationException.class)
+    public ResponseEntity<SurveyErrorResponse>
+            handleQuestionnairePublication(
+                    QuestionnairePublicationException exception,
+                    HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                new SurveyErrorResponse(
+                        "QUESTIONNAIRE_PUBLICATION_VALIDATION_ERROR",
+                        exception.getMessage(),
+                        Instant.now(),
+                        request.getRequestURI(),
+                        exception.getDetails()
+                )
+        );
+    }
 
     /** Maps the STUDY_NOT_PUBLISHABLE business failure without persistence details. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.StudyNotPublishableException.class)

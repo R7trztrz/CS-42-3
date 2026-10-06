@@ -1,4 +1,5 @@
 import api from './api'
+import participantHttpClient from '../participant/api/participantHttpClient'
 
 export type StudyStatus = 'DRAFT' | 'COLLECTING' | 'CLOSED'
 
@@ -6,6 +7,16 @@ export type CreateStudyRequest = {
   title: string
   description?: string
   templateCode: string
+}
+
+// FR-13: partial draft update. Only DRAFT studies are editable; `version` is
+// required for optimistic locking and at least one other field must be set.
+export type UpdateStudyRequest = {
+  version: number
+  title?: string
+  description?: string | null
+  eyeTrackingEnabled?: boolean
+  questionnaireEnabled?: boolean
 }
 
 export type StudyResponse = {
@@ -99,6 +110,11 @@ export async function getStudy(studyId: string) {
   return response.data
 }
 
+export async function updateStudy(studyId: string, request: UpdateStudyRequest) {
+  const response = await api.patch<StudyResponse>(`/api/studies/${studyId}`, request)
+  return response.data
+}
+
 export async function getStudyFeed(studyId: string) {
   const response = await api.get<StudyFeedResponse>(`/api/studies/${studyId}/feed`)
   return response.data
@@ -124,7 +140,12 @@ export async function publishStudy(studyId: string, version: number) {
 }
 
 export async function getParticipation(token: string) {
-  const response = await api.get<ParticipationResponse>(`/api/participation/${token}`)
+  // Public participation reads must stay on the anonymous client. Reusing
+  // the researcher client would attach any stale researcher JWT from
+  // localStorage and could redirect an otherwise public visit to /login.
+  const response = await participantHttpClient.get<ParticipationResponse>(
+    `/api/participation/${token}`,
+  )
   return response.data
 }
 

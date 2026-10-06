@@ -2,6 +2,7 @@ package com.cs_42_3.surveyplatformbackend.config;
 
 import com.cs_42_3.surveyplatformbackend.common.exception.ErrorCode;
 import com.cs_42_3.surveyplatformbackend.common.exception.ErrorResponse;
+import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -17,6 +18,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -29,7 +32,6 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.List;
 import javax.crypto.SecretKey;
@@ -62,27 +64,37 @@ public class SecurityConfig {
             JwtAuthenticationConverter jwtAuthenticationConverter,
             CorsConfigurationSource corsConfigurationSource,
             AuthenticationEntryPoint authenticationEntryPoint,
-            AccessDeniedHandler accessDeniedHandler
+            AccessDeniedHandler accessDeniedHandler,
+            ParticipantSessionAuthenticationFilter participantFilter
     ) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
                 .csrf(csrf -> csrf.disable())
 
+                .headers(headers -> headers
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)
+                        )
+                )
+
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .authorizeHttpRequests(auth -> auth
-                        // Only the public entry read is anonymous; future write APIs need their own rules.
+                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                "/api/participation/*/sessions").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                 "/api/participation/*", "/api/participation/*/assets/*/content").permitAll()
+                        .requestMatchers("/api/participant-session", "/api/participant-session/**")
+                                .hasAuthority("PARTICIPANT_SESSION")
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",
                                 "/error",
-                                "/swagger-ui/**",
                                 "/swagger-ui.html",
+                                "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/actuator/health").hasRole("RESEARCHER")
@@ -101,6 +113,8 @@ public class SecurityConfig {
                                 .jwtAuthenticationConverter(jwtAuthenticationConverter)
                         )
                 );
+
+        http.addFilterBefore(participantFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }
@@ -179,7 +193,12 @@ public class SecurityConfig {
         );
 
         configuration.setAllowedHeaders(
-                List.of("Authorization", "Content-Type")
+                List.of(
+                        "Authorization",
+                        "Content-Type",
+                        "X-Participant-Session-Token",
+                        "Idempotency-Key"
+                )
         );
 
         UrlBasedCorsConfigurationSource source =
@@ -189,7 +208,6 @@ public class SecurityConfig {
 
         return source;
     }
-
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint(
             ObjectMapper objectMapper
