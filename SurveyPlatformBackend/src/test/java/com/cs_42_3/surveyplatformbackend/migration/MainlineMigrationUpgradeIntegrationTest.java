@@ -68,12 +68,12 @@ class MainlineMigrationUpgradeIntegrationTest {
             }
 
             var upgraded = flyway(schema, null);
-            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(16 - Integer.parseInt(baseline));
+            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(18 - Integer.parseInt(baseline));
             assertThat(upgraded.validateWithResult().validationSuccessful).isTrue();
             List<String> finalHistory = values(connection,
                     "SELECT version || ':' || script || ':' || checksum || ':' || success "
                     + "FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank");
-            assertThat(finalHistory).hasSize(16).startsWith(originalHistory.toArray(String[]::new));
+            assertThat(finalHistory).hasSize(18).startsWith(originalHistory.toArray(String[]::new));
             assertThat(values(connection, businessDigestSql)).isEqualTo(originalBusinessData);
             assertThat(values(connection,
                     "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16') ORDER BY installed_rank"))
