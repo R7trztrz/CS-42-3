@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "algorithmVersion": "residual-v2",
+  "sessionId": "11111111-1111-4111-8111-111111111111",
+  "attemptId": "22222222-2222-4222-8222-222222222222",
+  "attemptNumber": 1,
+  "outcome": "COMPLETED",
+  "trackingAvailable": true,
+  "unavailableReason": null,
+  "quality": "GOOD",
+  "qualityBasis": "CALIBRATION",
+  "lowQualityReasons": [],
+  "qualityThresholds": {
+    "goodFraction": 0.05,
+    "fairFraction": 0.1
+  },
+  "minSamplesPerTarget": 3,
+  "calibrationTargetsMeasured": 9,
+  "calibrationTargetsRequired": 9,
+  "validationTargetsMeasured": 0,
+  "validationTargetsRequired": 0,
+  "residualMedianPx": 6,
+  "validationMedianPx": null,
+  "viewportWidth": 1000,
+  "viewportHeight": 800,
+  "devicePixelRatio": 2,
+  "startedAt": "2023-11-14T22:13:20.000Z",
+  "finishedAt": "2023-11-14T22:13:29.045Z",
+  "pointResiduals": [
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 0,
+      "targetX": 120,
+      "targetY": 128,
+      "predictedX": 120,
+      "predictedY": 134,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 1,
+      "targetX": 500,
+      "targetY": 128,
+      "predictedX": 500,
+      "predictedY": 134,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 2,
+      "targetX": 880,
+      "targetY": 128,
+      "predictedX": 880,
+      "predictedY": 134,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 3,
+      "targetX": 120,
+      "targetY": 400,
+      "predictedX": 120,
+      "predictedY": 406,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 4,
+      "targetX": 500,
+      "targetY": 400,
+      "predictedX": 500,
+      "predictedY": 406,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 5,
+      "targetX": 880,
+      "targetY": 400,
+      "predictedX": 880,
+      "predictedY": 406,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 6,
+      "targetX": 120,
+      "targetY": 672,
+      "predictedX": 120,
+      "predictedY": 678,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 7,
+      "targetX": 500,
+      "targetY": 672,
+      "predictedX": 500,
+      "predictedY": 678,
+      "residualPx": 6,
+      "sampleCount": 5
+    },
+    {
+      "pointKind": "CALIBRATION",
+      "pointIndex": 8,
+      "targetX": 880,
+      "targetY": 672,
+      "predictedX": 880,
+      "predictedY": 678,
+      "residualPx": 6,
+      "sampleCount": 5
+    }
+  ]
+}
