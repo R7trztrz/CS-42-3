@@ -247,7 +247,10 @@ import {
 
 import { useParticipantSession } from '../../participant/hooks/useParticipantSession'
 
-import { useParticipantEyeTracking } from '../../participant/hooks/useParticipantEyeTracking'
+import {
+  useEyeTrackingSnapshot,
+  useParticipantEyeTracking,
+} from '../../participant/hooks/useParticipantEyeTracking'
 
 import type { ParticipantDeviceInfo } from '../../participant/model/participantSession'
 
@@ -590,6 +593,8 @@ function ParticipationPage() {
     eyeTrackingActive,
   )
 
+  const eyeTrackingSnapshot = useEyeTrackingSnapshot(eyeTracking)
+
   const isBrowsing =
     participantSession.stage === 'active' &&
     currentSession?.status === 'IN_PROGRESS' &&
@@ -860,6 +865,17 @@ function ParticipationPage() {
                             Leave study
                           </button>
                         </div>
+                        {eyeTrackingSnapshot?.canToggleGazeDot && (
+                          // Test mode only (VITE_EYE_TRACKING_TEST_MODE); real participants never see it.
+                          <label className="flex w-full items-center gap-2 text-sm text-gray-600">
+                            <input
+                              type="checkbox"
+                              checked={eyeTrackingSnapshot.gazeDotVisible}
+                              onChange={(event) => eyeTracking?.setGazeDotVisible(event.target.checked)}
+                            />
+                            Show the live gaze dot (test mode)
+                          </label>
+                        )}
                         {isSavingGaze && (
                           <p className="w-full text-sm text-gray-600" role="status">
                             Saving eye-tracking data...

@@ -158,20 +158,44 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
       preview: container ? getComputedStyle(container).display : null,
       faceMeshPath: (window as unknown as { webgazer?: { params?: { faceMeshSolutionPath?: string } } })
         .webgazer?.params?.faceMeshSolutionPath,
+      gazeDot: (window as unknown as { webgazer?: { params?: { showGazeDot?: boolean } } }).webgazer
+        ?.params?.showGazeDot,
+      // The calibration layer must not create a stacking context, or the preview covers targets.
+      layer: (() => {
+        const style = getComputedStyle(document.querySelector('[role="dialog"]') as Element)
+        return { position: style.position, zIndex: style.zIndex }
+      })(),
     }
   })
   expect(calibrating.tracks).toEqual(['live'])
   expect(calibrating.preview).not.toBe('none')
   expect(calibrating.faceMeshPath).toMatch(/^\/webgazer\/3\.5\.3\/mediapipe\/face_mesh$/)
+  expect(calibrating.gazeDot).toBe(true)
+  expect(calibrating.layer).toEqual({ position: 'static', zIndex: 'auto' })
 
+  const overlaps: string[] = []
   for (let click = 0; click < 45; click += 1) {
     await expect(dot).toBeEnabled()
+    if (click % 5 === 0) {
+      const target = await dot.boundingBox()
+      const preview = await page.locator('#webgazerVideoContainer').boundingBox()
+      if (
+        target &&
+        preview &&
+        target.x < preview.x + preview.width &&
+        preview.x < target.x + target.width &&
+        target.y < preview.y + preview.height &&
+        preview.y < target.y + target.height
+      )
+        overlaps.push(`${target.x},${target.y}`)
+    }
     // WebGazer runs face-mesh inference on the main thread every frame, which makes Playwright's
     // wait-for-stable-frames slow in a software-rendered headless browser; the dot never moves
     // while it is enabled, so the stability wait is skipped.
     await dot.click({ force: true })
   }
   await expect(dot).toHaveCount(0)
+  expect(overlaps).toEqual([])
   await expect(page.getByText('Its accuracy could not be measured.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recalibrate' })).toBeVisible()
 
@@ -186,10 +210,15 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
       preview: container ? getComputedStyle(container).display : null,
       // What FR-50 attribution reads under a point in the middle of the feed.
       widgets: document.querySelectorAll('[data-component-id]').length,
+      gazeDot: (window as unknown as { webgazer?: { params?: { showGazeDot?: boolean } } }).webgazer
+        ?.params?.showGazeDot,
     }
   })
   expect(browsing.preview).toBe('none')
   expect(browsing.widgets).toBeGreaterThan(0)
+  // Without VITE_EYE_TRACKING_TEST_MODE participants see no gaze dot and no switch for it.
+  expect(browsing.gazeDot).toBe(false)
+  await expect(page.getByLabel('Show the live gaze dot (test mode)')).toHaveCount(0)
   expect(await video.evaluate((element) =>
     ((element as HTMLVideoElement).srcObject as MediaStream).getTracks().map((t) => t.readyState),
   )).toEqual(['live'])

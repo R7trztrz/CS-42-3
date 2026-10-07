@@ -92,8 +92,8 @@ async function lookAndClickThrough(
   await vi.advanceTimersByTimeAsync(0)
 }
 
-async function calibrated(offset = 0) {
-  const world = setupOwner()
+async function calibrated(offset = 0, options: Partial<ParticipantEyeTrackingOptions> = {}) {
+  const world = setupOwner(options)
   const running = world.owner.calibrate()
   await vi.advanceTimersByTimeAsync(0)
   expect(world.owner.stage).toBe('CALIBRATING')
@@ -126,6 +126,21 @@ describe('ParticipantEyeTracking', () => {
     expect(Object.isFrozen(snapshot)).toBe(true)
     expect(snapshot).toMatchObject({ attempt, canRecalibrate: false, attemptsRemaining: 1 })
     expect(owner.getSnapshot()).toBe(snapshot)
+  })
+
+  it('shows the live gaze dot to every participant while calibrating', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    const { owner, engine, webgazer } = setupOwner()
+    const running = owner.calibrate()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(owner.stage).toBe('CALIBRATING')
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(true)
+    expect(owner.getSnapshot()).toMatchObject({ gazeDotVisible: true, canToggleGazeDot: false })
+
+    await lookAndClickThrough(owner, engine)
+    await running
+    expect(owner.getSnapshot()).toMatchObject({ stage: 'FINISHED', gazeDotVisible: true })
   })
 
   it('offers one recalibration after a poor result and then no more', async () => {
@@ -199,6 +214,11 @@ describe('ParticipantEyeTracking', () => {
     expect(owner.stage).toBe('TRACKING')
     expect(webgazer.showVideo).toHaveBeenCalledWith(false)
     expect(webgazer.showFaceFeedbackBox).toHaveBeenCalledWith(false)
+    // Real participants: no gaze dot while browsing, and no switch to turn it on.
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(false)
+    expect(owner.getSnapshot()).toMatchObject({ gazeDotVisible: false, canToggleGazeDot: false })
+    owner.setGazeDotVisible(true)
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(false)
     expect(owner.beginTracking()).toBe(false)
 
     engine.emit(10, 20, performance.now())
@@ -217,6 +237,29 @@ describe('ParticipantEyeTracking', () => {
     expect(events[0]).toMatchObject({ widgetId: 'node-1', calibrationAttemptId: attempt.attemptId })
     expect(owner.getSnapshot().collectorStats).toMatchObject({ eventsProduced: 2, batchesDelivered: 1 })
     expect(owner.stopTracking()).toBe(owner.stopTracking())
+  })
+
+  it('in test mode shows the gaze dot while browsing and lets it be switched off and on', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    const { owner, webgazer } = await calibrated(0, { showGazeDotWhileBrowsing: true })
+
+    expect(owner.beginTracking()).toBe(true)
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(true)
+    expect(owner.getSnapshot()).toMatchObject({ gazeDotVisible: true, canToggleGazeDot: true })
+
+    owner.setGazeDotVisible(false)
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(false)
+    expect(owner.getSnapshot().gazeDotVisible).toBe(false)
+    owner.setGazeDotVisible(true)
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(true)
+    expect(owner.getSnapshot().gazeDotVisible).toBe(true)
+
+    const stopping = owner.stopTracking()
+    await vi.advanceTimersByTimeAsync(0)
+    await settle()
+    await stopping
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(false)
+    expect(owner.getSnapshot()).toMatchObject({ gazeDotVisible: false, canToggleGazeDot: false })
   })
 
   it('does not collect on a page that never calibrated', async () => {

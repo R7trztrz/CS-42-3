@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import {
   createHttpEyeTrackingTransport,
+  EYE_TRACKING_TEST_MODE,
   leaseParticipantEyeTracking,
   ParticipantEyeTracking,
   type ParticipantEyeTrackingIssue,
@@ -41,6 +42,7 @@ export function useParticipantEyeTracking(
         new ParticipantEyeTracking({
           sessionId,
           transport: createHttpEyeTrackingTransport(sessionToken),
+          showGazeDotWhileBrowsing: EYE_TRACKING_TEST_MODE,
           onIssue: reportIssue,
         }),
     )

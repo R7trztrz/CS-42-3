@@ -29,6 +29,7 @@ export {
   PARTICIPANT_MAX_CALIBRATION_ATTEMPTS,
   ParticipantEyeTracking,
 } from './participantEyeTracking'
+export { EYE_TRACKING_TEST_MODE } from './testMode'
 export type { LoadedWebGazer, LoadWebGazerOptions, WebGazerAssets } from './webgazerLoader'
 export {
   DEFAULT_WEBGAZER_LOAD_TIMEOUT_MS,

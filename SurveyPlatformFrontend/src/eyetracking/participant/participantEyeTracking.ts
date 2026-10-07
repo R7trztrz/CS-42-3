@@ -52,6 +52,10 @@ export interface ParticipantEyeTrackingSnapshot {
   readonly canRecalibrate: boolean
   /** Final collector counters once browsing collection has stopped. */
   readonly collectorStats: GazeCollectorStats | null
+  /** Whether WebGazer's live gaze dot is shown. */
+  readonly gazeDotVisible: boolean
+  /** True while browsing in test mode, when setGazeDotVisible() applies. */
+  readonly canToggleGazeDot: boolean
 }
 
 export interface ParticipantEyeTrackingIssue {
@@ -63,6 +67,12 @@ export interface ParticipantEyeTrackingOptions {
   sessionId: string
   transport: EyeTrackingTransport
   maxAttempts?: number
+  /**
+   * Test mode. The live gaze dot is always shown during calibration; with this set it is also
+   * shown while browsing, and setGazeDotVisible() turns it off and on. Leave it unset for real
+   * participants, who should not have a moving dot drawing their eye during the task.
+   */
+  showGazeDotWhileBrowsing?: boolean
   /** Test seams; the defaults load the real WebGazer build and drive the real camera. */
   loadWebGazer?: () => Promise<LoadedWebGazer>
   createEngine?: (webgazer: LoadedWebGazer) => GazeEngine
@@ -99,6 +109,7 @@ export class ParticipantEyeTracking {
   private progress: CalibrationProgress | null = null
   private attempt: CalibrationAttempt | null = null
   private collectorStats: GazeCollectorStats | null = null
+  private gazeDotVisible = false
   private stopping: Promise<void> | null = null
   private disposedValue = false
   private snapshot: ParticipantEyeTrackingSnapshot
@@ -147,8 +158,11 @@ export class ParticipantEyeTracking {
       onTargetChange: (target: CalibrationTarget) => {
         this.target = target
         this.progress = null
-        if (this.stageValue === 'STARTING') this.setStage('CALIBRATING')
-        else this.publish()
+        if (this.stageValue === 'STARTING') {
+          // The engine hides WebGazer's dot each time it starts; calibration shows it to everyone.
+          this.setGazeDot(true)
+          this.setStage('CALIBRATING')
+        } else this.publish()
       },
       onProgress: (progress: CalibrationProgress) => {
         this.progress = progress
@@ -216,6 +230,7 @@ export class ParticipantEyeTracking {
     try {
       const engine = controller.handoffToTracking()
       this.hidePreview()
+      this.setGazeDot(this.options.showGazeDotWhileBrowsing ?? false)
       const collector = new GazeEventCollector({
         engine,
         sink: { deliver: (batch) => this.options.transport.sendGazeBatch(batch) },
@@ -239,12 +254,20 @@ export class ParticipantEyeTracking {
     return true
   }
 
+  /** Test mode only: turns the live gaze dot off or back on while browsing. */
+  setGazeDotVisible(visible: boolean): void {
+    if (this.stageValue !== 'TRACKING' || !this.options.showGazeDotWhileBrowsing) return
+    this.setGazeDot(visible)
+    this.publish()
+  }
+
   /**
    * Stops collection and releases the camera. While tracking, resolves once queued gaze has been
    * offered to the server or the drain timeout passed; call it before leaving the browsing phase.
    */
   stopTracking(): Promise<void> {
     if (this.stopping) return this.stopping
+    this.setGazeDot(false)
     const collector = this.collector
     if (!collector) {
       this.release()
@@ -312,6 +335,7 @@ export class ParticipantEyeTracking {
 
   /** Releases the camera without collecting anything further. */
   private release(): void {
+    this.setGazeDot(false)
     this.loading?.abort()
     this.controller?.dispose()
     this.target = null
@@ -327,7 +351,16 @@ export class ParticipantEyeTracking {
       webgazer.showVideo?.(false)
       webgazer.showFaceOverlay?.(false)
       webgazer.showFaceFeedbackBox?.(false)
-      webgazer.showPredictionPoints?.(false)
+    } catch (error) {
+      this.report({ stage: 'preview', error })
+    }
+  }
+
+  /** WebGazer draws the dot itself, at each prediction, once it is switched on. */
+  private setGazeDot(visible: boolean): void {
+    this.gazeDotVisible = visible
+    try {
+      this.webgazer?.showPredictionPoints?.(visible)
     } catch (error) {
       this.report({ stage: 'preview', error })
     }
@@ -372,6 +405,8 @@ export class ParticipantEyeTracking {
         isRetryWorthOffering(attempt.quality) &&
         attemptsRemaining > 0,
       collectorStats: this.collectorStats,
+      gazeDotVisible: this.gazeDotVisible,
+      canToggleGazeDot: this.stageValue === 'TRACKING' && !!this.options.showGazeDotWhileBrowsing,
     })
   }
 

@@ -1,17 +1,19 @@
 /* M6 eye-tracking UI. WebGazer appends #webgazerVideoContainer to <body> itself. */
 
 /*
- * Keep WebGazer's camera preview small in a corner: above the calibration backdrop so the
- * participant can check their face is in view, below the targets so no target is ever painted
- * under it, and out of elementFromPoint so it can never be attributed as gaze content. The
- * preview is hidden entirely once browsing starts.
+ * WebGazer's camera preview, 160 x 120 after the 0.5 scale. It sits on the bottom edge between
+ * the bottom-left and bottom-centre calibration targets (x = 12% and 50% of the viewport), so no
+ * target is under it on any viewport wider than about 600 px. It is stacked above the
+ * calibration backdrop, so the participant can check their face is in view, and below the
+ * targets, and it is kept out of elementFromPoint so it is never attributed as gaze content.
+ * The preview is hidden once browsing starts.
  */
 #webgazerVideoContainer {
   position: fixed !important;
   top: auto !important;
   right: auto !important;
   bottom: 16px !important;
-  left: 16px !important;
+  left: calc(31vw - 80px) !important;
   z-index: 10001 !important;
   overflow: hidden;
   border-radius: 8px;
@@ -24,7 +26,20 @@
   pointer-events: none !important;
 }
 
-.et-calibration-overlay {
+/*
+ * WebGazer's live gaze dot sits exactly on the predicted point. Without this it would take the
+ * click meant for a calibration target and be what elementFromPoint returns for every gaze event.
+ */
+#webgazerGazeDot {
+  pointer-events: none !important;
+}
+
+/*
+ * The calibration layer has no position or z-index of its own, so it does not create a stacking
+ * context: its children are stacked against WebGazer's preview at page level. Backdrop 10000,
+ * preview 10001, help, skip and targets 10003, WebGazer's gaze dot 99999 (set by WebGazer).
+ */
+.et-calibration-backdrop {
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -80,7 +95,7 @@
  */
 .et-calibration-target {
   position: fixed;
-  z-index: 10002;
+  z-index: 10003;
   width: 44px;
   height: 44px;
   padding: 0;

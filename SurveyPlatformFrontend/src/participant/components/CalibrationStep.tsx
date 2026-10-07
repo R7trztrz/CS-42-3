@@ -171,6 +171,7 @@ function CalibrationOverlay({ eyeTracking, target, progress }: CalibrationOverla
 
   return createPortal(
     <div className="et-calibration-overlay" role="dialog" aria-modal="true" aria-label="Eye-tracking calibration">
+      <div className="et-calibration-backdrop" />
       <div className="et-calibration-help" role="status">
         <span className="et-calibration-progress">
           Point {current} of {total}
