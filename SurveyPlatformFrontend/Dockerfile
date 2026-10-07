@@ -9,7 +9,7 @@ ARG VITE_TURNSTILE_SITE_KEY=your-turnstile-site-key
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .

@@ -8,7 +8,13 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist', 'playwright-report', 'test-results']),
   {
-    files: ['src/eyetracking/**/*.ts', 'tests/**/*.ts', 'vitest.config.ts', 'playwright.config.ts'],
+    files: [
+      'src/eyetracking/**/*.ts',
+      'tests/**/*.ts',
+      'vite/**/*.ts',
+      'vitest.config.ts',
+      'playwright.config.ts',
+    ],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },

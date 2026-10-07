@@ -247,6 +247,8 @@ import {
 
 import { useParticipantSession } from '../../participant/hooks/useParticipantSession'
 
+import { useParticipantEyeTracking } from '../../participant/hooks/useParticipantEyeTracking'
+
 import type { ParticipantDeviceInfo } from '../../participant/model/participantSession'
 
 import ConsentStep from '../../participant/components/ConsentStep'
@@ -569,6 +571,55 @@ function ParticipationPage() {
 
   const participantSession = useParticipantSession(token)
 
+  // M6: for studies with eye tracking, one owner runs from CALIBRATION through
+  // BROWSING, so the engine calibrated in the first phase is the one that
+  // collects gaze in the second. Outside those phases it is released, which
+  // also turns the camera off.
+  const currentSession = participantSession.session
+
+  const eyeTrackingActive =
+    participantSession.stage === 'active' &&
+    currentSession !== null &&
+    currentSession.eyeTrackingEnabled &&
+    currentSession.status === 'IN_PROGRESS' &&
+    (currentSession.phase === 'CALIBRATION' || currentSession.phase === 'BROWSING')
+
+  const eyeTracking = useParticipantEyeTracking(
+    currentSession?.sessionId ?? null,
+    participantSession.sessionToken,
+    eyeTrackingActive,
+  )
+
+  const isBrowsing =
+    participantSession.stage === 'active' &&
+    currentSession?.status === 'IN_PROGRESS' &&
+    currentSession.phase === 'BROWSING'
+
+  useEffect(() => {
+    // A no-op unless calibration on this page handed over a usable engine.
+    if (eyeTracking && isBrowsing) {
+      eyeTracking.beginTracking()
+    }
+  }, [eyeTracking, isBrowsing])
+
+  const [isSavingGaze, setIsSavingGaze] = useState(false)
+
+  // Gaze still queued in the browser is delivered before the phase changes:
+  // once the session leaves BROWSING the server no longer accepts it.
+  const leaveBrowsing = async (action: () => Promise<boolean>) => {
+    if (eyeTracking) {
+      setIsSavingGaze(true)
+
+      try {
+        await eyeTracking.stopTracking()
+      } finally {
+        setIsSavingGaze(false)
+      }
+    }
+
+    await action()
+  }
+
   return (
 
     <div className="min-h-screen bg-[#f3f6f8] text-[#172033]">
@@ -777,7 +828,12 @@ function ParticipationPage() {
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
                     participantSession.session.phase === 'CALIBRATION' && (
-                      <CalibrationStep onRefreshSession={participantSession.refreshSession} />
+                      <CalibrationStep
+                        eyeTracking={eyeTracking}
+                        isCompleting={participantSession.isActionPending}
+                        errorMessage={participantSession.actionErrorMessage}
+                        onComplete={participantSession.completeCalibration}
+                      />
                     )}
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
@@ -789,21 +845,26 @@ function ParticipationPage() {
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            disabled={participantSession.isActionPending}
-                            onClick={() => void participantSession.completeBrowsing()}
+                            disabled={participantSession.isActionPending || isSavingGaze}
+                            onClick={() => void leaveBrowsing(participantSession.completeBrowsing)}
                             className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                           >
                             Continue
                           </button>
                           <button
                             type="button"
-                            disabled={participantSession.isActionPending}
-                            onClick={() => void participantSession.abandon()}
+                            disabled={participantSession.isActionPending || isSavingGaze}
+                            onClick={() => void leaveBrowsing(participantSession.abandon)}
                             className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                           >
                             Leave study
                           </button>
                         </div>
+                        {isSavingGaze && (
+                          <p className="w-full text-sm text-gray-600" role="status">
+                            Saving eye-tracking data...
+                          </p>
+                        )}
                         {participantSession.actionErrorMessage && (
                           <p className="w-full text-sm font-semibold text-red-700" role="alert">
                             {participantSession.actionErrorMessage}

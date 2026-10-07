@@ -1,5 +1,6 @@
 import axios from 'axios'
 
+import type { CalibrationAttempt } from '../../eyetracking'
 import participantHttpClient from './participantHttpClient'
 import {
   PARTICIPANT_SESSION_TOKEN_HEADER,
@@ -57,6 +58,22 @@ export async function completeParticipantBrowsing(
   const response = await participantHttpClient.post<ParticipantSessionResponse>(
     '/api/participant-session/browsing-completion',
     undefined,
+    sessionHeaders(sessionToken),
+  )
+
+  return response.data
+}
+
+// M6: stores the calibration attempt the participant continued with and, in the
+// same server transaction, moves the session from CALIBRATION to BROWSING. Any
+// finished attempt is accepted, including skipped and camera-unavailable ones.
+export async function completeParticipantCalibration(
+  sessionToken: string,
+  attempt: CalibrationAttempt,
+): Promise<ParticipantSessionResponse> {
+  const response = await participantHttpClient.post<ParticipantSessionResponse>(
+    '/api/participant-session/calibration-completion',
+    attempt,
     sessionHeaders(sessionToken),
   )
 

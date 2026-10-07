@@ -18,5 +18,7 @@ export default defineConfig({
     command: 'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4186 --strictPort',
     url: 'http://127.0.0.1:4186',
     reuseExistingServer: false,
+    // Same-origin API base, so participant.spec.ts can stub the backend with page.route.
+    env: { VITE_API_BASE_URL: '/stub-api' },
   },
 })
