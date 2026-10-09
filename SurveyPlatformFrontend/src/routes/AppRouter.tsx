@@ -23,6 +23,7 @@ import ParticipationPage from '../pages/participant/ParticipationPage'
 import QuestionBankListPage from '../researcher/questionBank/pages/QuestionBankListPage'
 import QuestionFormPage from '../researcher/questionBank/pages/QuestionFormPage'
 import QuestionnaireEditorPage from '../researcher/questionnaire/pages/QuestionnaireEditorPage'
+import ParticipantDemo from '../pages/participant/ParticipantDemo'
 
 const router = createBrowserRouter([
   {
@@ -36,6 +37,10 @@ const router = createBrowserRouter([
   {
     path: '/participate/:token',
     element: <ParticipationPage />,
+  },
+  {
+    path: '/participant-demo',
+    element: <ParticipantDemo />,
   },
   {
     element: <ProtectedRoute />,
