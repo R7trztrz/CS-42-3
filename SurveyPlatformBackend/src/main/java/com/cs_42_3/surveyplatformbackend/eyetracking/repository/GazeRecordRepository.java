@@ -18,12 +18,13 @@ import java.util.UUID;
 @Repository
 @RequiredArgsConstructor
 public class GazeRecordRepository {
+    /** pageX/pageY are not stored: they equal x + scroll_x and y + scroll_y (checked on receipt). */
     private static final String INSERT_EVENT = """
             INSERT INTO gaze_events (
                 session_id, batch_sequence, event_index, page_id, x, y, scroll_x, scroll_y,
-                page_x, page_y, viewport_width, viewport_height, device_pixel_ratio,
+                viewport_width, viewport_height, device_pixel_ratio,
                 widget_id, attribution, occurred_at, session_elapsed_ms, calibration_attempt_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     private final JdbcTemplate jdbc;
@@ -84,16 +85,14 @@ public class GazeRecordRepository {
             statement.setDouble(6, event.y());
             statement.setDouble(7, event.scrollX());
             statement.setDouble(8, event.scrollY());
-            statement.setDouble(9, event.pageX());
-            statement.setDouble(10, event.pageY());
-            statement.setDouble(11, event.viewportWidth());
-            statement.setDouble(12, event.viewportHeight());
-            statement.setDouble(13, event.devicePixelRatio());
-            setNullableString(statement, 14, event.widgetId());
-            statement.setString(15, event.attribution().name());
-            statement.setObject(16, utc(event.occurredAt()));
-            statement.setDouble(17, event.sessionElapsedMs());
-            statement.setObject(18, event.calibrationAttemptId());
+            statement.setDouble(9, event.viewportWidth());
+            statement.setDouble(10, event.viewportHeight());
+            statement.setDouble(11, event.devicePixelRatio());
+            setNullableString(statement, 12, event.widgetId());
+            statement.setString(13, event.attribution().name());
+            statement.setObject(14, utc(event.occurredAt()));
+            statement.setDouble(15, event.sessionElapsedMs());
+            statement.setObject(16, event.calibrationAttemptId());
         });
     }
 

@@ -6,7 +6,6 @@ import com.cs_42_3.surveyplatformbackend.eyetracking.domain.LowQualityReason;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import tools.jackson.databind.ObjectMapper;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,11 +14,13 @@ import java.sql.Types;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -33,14 +34,17 @@ public class CalibrationRecordRepository {
             INSERT INTO calibration_attempts (
                 session_id, attempt_id, schema_version, algorithm_version, attempt_number,
                 outcome, tracking_available, unavailable_reason, quality, quality_basis,
-                low_quality_reasons, good_fraction, fair_fraction, min_samples_per_target,
+                good_fraction, fair_fraction, min_samples_per_target,
                 calibration_targets_measured, calibration_targets_required,
                 validation_targets_measured, validation_targets_required,
                 residual_median_px, validation_median_px,
                 viewport_width, viewport_height, device_pixel_ratio,
                 started_at, finished_at, request_hash, received_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """;
+    private static final String INSERT_REASON = """
+            INSERT INTO calibration_attempt_reasons (session_id, attempt_id, reason)
+            VALUES (?, ?, ?)
             """;
     private static final String INSERT_RESIDUAL = """
             INSERT INTO calibration_point_residuals (
@@ -50,7 +54,6 @@ public class CalibrationRecordRepository {
             """;
 
     private final JdbcTemplate jdbc;
-    private final ObjectMapper objectMapper;
 
     public Optional<StoredAttempt> findAttempt(UUID sessionId, UUID attemptId) {
         return jdbc.query(
@@ -86,9 +89,6 @@ public class CalibrationRecordRepository {
             String requestHash,
             Instant receivedAt
     ) {
-        String reasons = objectMapper.writeValueAsString(
-                attempt.lowQualityReasons().stream().map(Enum::name).toList()
-        );
         jdbc.update(INSERT_ATTEMPT, statement -> {
             int index = 1;
             statement.setObject(index++, sessionId);
@@ -103,7 +103,6 @@ public class CalibrationRecordRepository {
                     : attempt.unavailableReason().name());
             statement.setString(index++, attempt.quality().name());
             statement.setString(index++, attempt.qualityBasis().name());
-            statement.setString(index++, reasons);
             statement.setDouble(index++, attempt.qualityThresholds().goodFraction());
             statement.setDouble(index++, attempt.qualityThresholds().fairFraction());
             statement.setInt(index++, attempt.minSamplesPerTarget());
@@ -121,6 +120,15 @@ public class CalibrationRecordRepository {
             statement.setString(index++, requestHash);
             statement.setObject(index, utc(receivedAt));
         });
+        // lowQualityReasons as rows; the browser never repeats a reason (validated before here).
+        List<LowQualityReason> reasons = attempt.lowQualityReasons();
+        if (!reasons.isEmpty()) {
+            jdbc.batchUpdate(INSERT_REASON, reasons, reasons.size(), (statement, reason) -> {
+                statement.setObject(1, sessionId);
+                statement.setObject(2, attempt.attemptId());
+                statement.setString(3, reason.name());
+            });
+        }
         List<CalibrationAttemptRequest.PointResidual> points = attempt.pointResiduals();
         if (points.isEmpty()) {
             return;
@@ -151,15 +159,15 @@ public class CalibrationRecordRepository {
         return findCompletedAttemptId(sessionId).isPresent();
     }
 
-    public void insertCompletion(UUID sessionId, UUID attemptId, Instant completedAt) {
+    /**
+     * The completion time is not stored here: M5's completeCalibration sets
+     * participant_sessions.calibration_completed_at in the same transaction.
+     */
+    public void insertCompletion(UUID sessionId, UUID attemptId) {
         jdbc.update(
-                """
-                        INSERT INTO calibration_completions (session_id, attempt_id, completed_at)
-                        VALUES (?, ?, ?)
-                        """,
+                "INSERT INTO calibration_completions (session_id, attempt_id) VALUES (?, ?)",
                 sessionId,
-                attemptId,
-                utc(completedAt)
+                attemptId
         );
     }
 
@@ -168,29 +176,37 @@ public class CalibrationRecordRepository {
      * attempt must repeat. A session holds a handful of attempts, so one query covers them all.
      */
     public Map<UUID, TrackingCalibration> findTrackingCalibrations(UUID sessionId) {
-        Map<UUID, TrackingCalibration> found = new HashMap<>();
+        Map<UUID, Boolean> trackingAvailable = new HashMap<>();
+        Map<UUID, CalibrationQuality> quality = new HashMap<>();
+        Map<UUID, Set<LowQualityReason>> reasons = new HashMap<>();
         jdbc.query(
                 """
-                        SELECT attempt_id, tracking_available, quality,
-                               low_quality_reasons::text AS reasons
-                        FROM calibration_attempts
-                        WHERE session_id = ?
+                        SELECT a.attempt_id, a.tracking_available, a.quality, r.reason
+                        FROM calibration_attempts a
+                        LEFT JOIN calibration_attempt_reasons r
+                            ON r.session_id = a.session_id AND r.attempt_id = a.attempt_id
+                        WHERE a.session_id = ?
                         """,
                 (ResultSet rs) -> {
-                    found.put(rs.getObject("attempt_id", UUID.class), new TrackingCalibration(
-                            rs.getBoolean("tracking_available"),
-                            CalibrationQuality.valueOf(rs.getString("quality")),
-                            reasons(rs.getString("reasons"))
-                    ));
+                    UUID attemptId = rs.getObject("attempt_id", UUID.class);
+                    trackingAvailable.put(attemptId, rs.getBoolean("tracking_available"));
+                    quality.put(attemptId, CalibrationQuality.valueOf(rs.getString("quality")));
+                    Set<LowQualityReason> attemptReasons = reasons.computeIfAbsent(
+                            attemptId, ignored -> EnumSet.noneOf(LowQualityReason.class));
+                    String reason = rs.getString("reason");
+                    if (reason != null) {
+                        attemptReasons.add(LowQualityReason.valueOf(reason));
+                    }
                 },
                 sessionId
         );
+        Map<UUID, TrackingCalibration> found = new HashMap<>();
+        trackingAvailable.forEach((attemptId, available) -> found.put(attemptId, new TrackingCalibration(
+                available,
+                quality.get(attemptId),
+                Collections.unmodifiableSet(reasons.get(attemptId))
+        )));
         return found;
-    }
-
-    private List<LowQualityReason> reasons(String json) {
-        String[] names = objectMapper.readValue(json, String[].class);
-        return Arrays.stream(names).map(LowQualityReason::valueOf).toList();
     }
 
     private static void setNullableDouble(PreparedStatement statement, int index, Double value)
@@ -214,11 +230,14 @@ public class CalibrationRecordRepository {
     public record StoredAttempt(int attemptNumber, String requestHash, Instant receivedAt) {
     }
 
-    /** The calibration identity every gaze event recorded under an attempt must repeat. */
+    /**
+     * The calibration identity every gaze event recorded under an attempt must repeat. The
+     * reasons are stored one per row, so they compare as a set rather than in upload order.
+     */
     public record TrackingCalibration(
             boolean trackingAvailable,
             CalibrationQuality quality,
-            List<LowQualityReason> lowQualityReasons
+            Set<LowQualityReason> lowQualityReasons
     ) {
     }
 }

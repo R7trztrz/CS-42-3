@@ -100,7 +100,7 @@ public class CalibrationRecordService {
         // The final attempt is never refused for exceeding the per-session attempt cap: the
         // participant must always be able to leave calibration.
         store(sessionId, validated, false);
-        records.insertCompletion(sessionId, attempt.attemptId(), now());
+        records.insertCompletion(sessionId, attempt.attemptId());
     }
 
     private RecordResult store(UUID sessionId, ValidatedAttempt validated, boolean enforceCap) {

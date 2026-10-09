@@ -164,6 +164,17 @@ class EyeTrackingIntegrationTest {
         completeCalibration(participant, unavailable)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phase").value("BROWSING"));
+        assertThat(count("calibration_attempt_reasons", participant)).isEqualTo(3);
+        assertThat(jdbc.queryForObject(
+                """
+                        SELECT tracking_available || '|' || unavailable_reason || '|'
+                               || calibration_quality || '|' || calibration_low_quality_reasons
+                        FROM eye_tracking_session_quality WHERE session_id = ?
+                        """,
+                String.class,
+                participant.sessionId()
+        )).isEqualTo("false|PERMISSION_DENIED|NOT_MEASURED|"
+                + "ENGINE_UNAVAILABLE;INSUFFICIENT_SAMPLES;NOT_MEASURED");
 
         String batch = editEvents(batch(participant, attemptId), event -> {
             event.put("calibrationQuality", "NOT_MEASURED");
@@ -225,9 +236,11 @@ class EyeTrackingIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PARTICIPANT_IDEMPOTENCY_CONFLICT"));
 
+        // pageY is not stored; y + scroll_y gives back what the browser sent.
         List<String> rows = jdbc.query(
                 """
-                        SELECT attribution, widget_id, page_id, scroll_y, page_y, calibration_attempt_id
+                        SELECT attribution, widget_id, page_id, scroll_y, y + scroll_y AS page_y,
+                               calibration_attempt_id
                         FROM gaze_events WHERE session_id = ? ORDER BY event_index
                         """,
                 (rs, row) -> rs.getString("attribution") + "|" + rs.getString("widget_id") + "|"
@@ -261,6 +274,64 @@ class EyeTrackingIntegrationTest {
         submitBatch(participant, second).andExpect(status().isCreated());
         assertThat(count("gaze_batches", participant)).isEqualTo(2);
         assertThat(count("gaze_events", participant)).isEqualTo(6);
+
+        // The FR-51 session record is derived from the rows above.
+        String quality = jdbc.queryForObject(
+                """
+                        SELECT eye_tracking_enabled || '|' || calibration_attempt_count || '|'
+                               || completed_attempt_id || '|' || tracking_available || '|'
+                               || calibration_quality || '|' || calibration_quality_basis || '|'
+                               || coalesce(calibration_low_quality_reasons, '') || '|'
+                               || gaze_batches_received || '|' || gaze_batches_missing || '|'
+                               || gaze_events_received || '|' || gaze_events_dropped
+                        FROM eye_tracking_session_quality WHERE session_id = ?
+                        """,
+                String.class,
+                participant.sessionId()
+        );
+        assertThat(quality).isEqualTo("true|1|" + calibration + "|true|GOOD|CALIBRATION||2|0|6|4");
+    }
+
+    @Test
+    void lowQualityReasonsAreStoredAsRowsAndMatchedAsASet() throws Exception {
+        Participant participant = consentedParticipant(true);
+        UUID attemptId = UUID.randomUUID();
+        completeCalibration(participant, edit(attempt(participant, attemptId), node -> {
+            node.put("quality", "POOR");
+            node.set("lowQualityReasons", objectMapper.createArrayNode()
+                    .add("HIGH_RESIDUAL").add("VIEWPORT_CHANGED"));
+        })).andExpect(status().isOk()).andExpect(jsonPath("$.phase").value("BROWSING"));
+        assertThat(jdbc.queryForList(
+                "SELECT reason FROM calibration_attempt_reasons WHERE session_id = ? ORDER BY reason",
+                String.class,
+                participant.sessionId()
+        )).containsExactly("HIGH_RESIDUAL", "VIEWPORT_CHANGED");
+
+        // Every event repeats the attempt's markers; the order of the reasons is not significant.
+        String batch = editAllEvents(batch(participant, attemptId), event -> {
+            event.put("calibrationQuality", "POOR");
+            event.set("calibrationLowQualityReasons", objectMapper.createArrayNode()
+                    .add("VIEWPORT_CHANGED").add("HIGH_RESIDUAL"));
+        });
+        submitBatch(participant, editAllEvents(batch, event -> event.set(
+                "calibrationLowQualityReasons", objectMapper.createArrayNode().add("HIGH_RESIDUAL"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(containsString("calibration quality")));
+        submitBatch(participant, editAllEvents(batch, event -> event.set(
+                "calibrationLowQualityReasons", objectMapper.createArrayNode()
+                        .add("HIGH_RESIDUAL").add("HIGH_RESIDUAL").add("VIEWPORT_CHANGED"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(containsString("must not repeat")));
+        submitBatch(participant, batch).andExpect(status().isCreated());
+        assertThat(count("gaze_events", participant)).isEqualTo(3);
+        assertThat(jdbc.queryForObject(
+                """
+                        SELECT calibration_quality || '|' || calibration_low_quality_reasons
+                        FROM eye_tracking_session_quality WHERE session_id = ?
+                        """,
+                String.class,
+                participant.sessionId()
+        )).isEqualTo("POOR|HIGH_RESIDUAL;VIEWPORT_CHANGED");
     }
 
     @Test
@@ -305,6 +376,13 @@ class EyeTrackingIntegrationTest {
         submitBatch(participant, editEvents(batch, event -> event.put("x", "NaN")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(containsString("payload[0].x")));
+        // pageX/pageY are not stored, so a value that x + scrollX would not give back is refused.
+        submitBatch(participant, editEvents(batch, event -> event.put("pageX", 51)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(containsString("payload[0].pageX")));
+        submitBatch(participant, editEvents(batch, event -> event.put("pageY", 60)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(containsString("payload[0].pageY")));
         // The first event is a WIDGET hit; keeping its widgetId under another attribution is invalid.
         submitBatch(participant, editEvents(batch, event -> event.put("attribution", "NO_CONTENT")))
                 .andExpect(status().isBadRequest())
@@ -347,8 +425,9 @@ class EyeTrackingIntegrationTest {
 
         jdbc.update("DELETE FROM studies WHERE id = ?", participant.studyId());
 
-        for (String table : List.of("calibration_attempts", "calibration_point_residuals",
-                "calibration_completions", "gaze_batches", "gaze_events")) {
+        for (String table : List.of("calibration_attempts", "calibration_attempt_reasons",
+                "calibration_point_residuals", "calibration_completions", "gaze_batches",
+                "gaze_events")) {
             assertThat(count(table, participant)).as(table).isZero();
         }
     }
@@ -474,6 +553,15 @@ class EyeTrackingIntegrationTest {
         return edit(batch, node -> {
             ArrayNode events = (ArrayNode) objectMapper.readTree(node.get("payload").asString());
             change.accept((ObjectNode) events.get(0));
+            node.put("payload", objectMapper.writeValueAsString(events));
+        });
+    }
+
+    /** Applies a change to every event inside the serialized payload. */
+    private String editAllEvents(String batch, Consumer<ObjectNode> change) {
+        return edit(batch, node -> {
+            ArrayNode events = (ArrayNode) objectMapper.readTree(node.get("payload").asString());
+            events.forEach(event -> change.accept((ObjectNode) event));
             node.put("payload", objectMapper.writeValueAsString(events));
         });
     }

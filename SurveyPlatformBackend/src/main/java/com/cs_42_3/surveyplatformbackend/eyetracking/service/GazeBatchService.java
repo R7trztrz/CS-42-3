@@ -23,8 +23,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -178,15 +180,29 @@ public class GazeBatchService {
             reasons.add(enumValue(LowQualityReason.class, name,
                     field + ".calibrationLowQualityReasons"));
         }
+        if (new HashSet<>(reasons).size() != reasons.size()) {
+            throw EyeTrackingRequestException.invalid(
+                    field + ".calibrationLowQualityReasons must not repeat a reason");
+        }
+        double x = finite(event.x(), field + ".x");
+        double y = finite(event.y(), field + ".y");
+        double scrollX = finite(event.scrollX(), field + ".scrollX");
+        double scrollY = finite(event.scrollY(), field + ".scrollY");
+        // pageX/pageY are not stored, so they must be exactly what the stored columns give back.
+        // The browser computes them as x + scrollX in IEEE doubles, which Java reproduces exactly.
+        if (finite(event.pageX(), field + ".pageX") != x + scrollX) {
+            throw EyeTrackingRequestException.invalid(field + ".pageX must equal x + scrollX");
+        }
+        if (finite(event.pageY(), field + ".pageY") != y + scrollY) {
+            throw EyeTrackingRequestException.invalid(field + ".pageY must equal y + scrollY");
+        }
         return new ValidatedGazeEvent(
                 index,
                 pageId,
-                finite(event.x(), field + ".x"),
-                finite(event.y(), field + ".y"),
-                finite(event.scrollX(), field + ".scrollX"),
-                finite(event.scrollY(), field + ".scrollY"),
-                finite(event.pageX(), field + ".pageX"),
-                finite(event.pageY(), field + ".pageY"),
+                x,
+                y,
+                scrollX,
+                scrollY,
                 viewportWidth,
                 viewportHeight,
                 devicePixelRatio,
@@ -221,8 +237,9 @@ public class GazeBatchService {
                 throw EyeTrackingRequestException.invalid(field
                         + ".calibrationAttemptId names an attempt without a usable eye tracker");
             }
+            // The attempt's reasons are stored one per row, so they compare as a set.
             if (calibration.quality() != event.calibrationQuality()
-                    || !calibration.lowQualityReasons().equals(event.calibrationLowQualityReasons())) {
+                    || !calibration.lowQualityReasons().equals(Set.copyOf(event.calibrationLowQualityReasons()))) {
                 throw EyeTrackingRequestException.invalid(field
                         + " calibration quality does not match the recorded attempt");
             }
