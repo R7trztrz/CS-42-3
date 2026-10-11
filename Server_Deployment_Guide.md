@@ -57,6 +57,7 @@ Fill the following values locally:
 # Web entry point; access through an HTTPS reverse proxy when deployed
 WEB_BIND_ADDRESS=127.0.0.1
 WEB_PORT=8088
+APP_PARTICIPANT_BASE_URL=http://localhost:8088
 
 POSTGRES_DB=survey_platform
 POSTGRES_USER=survey_user
