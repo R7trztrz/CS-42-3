@@ -179,6 +179,18 @@
 
 .demo-copy-panel {
   max-width: 650px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.study-introduction__description {
+  white-space: pre-wrap;
+}
+
+.demo-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+  transform: none;
 }
 
 .demo-eyebrow {
@@ -1143,4 +1155,309 @@
   .demo-progress__track span {
     transition: none;
   }
+}
+
+.demo-experience--study {
+  min-height: 0;
+}
+
+.demo-experience--study .demo-social-shell {
+  min-height: 600px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 20px;
+}
+
+.demo-experience--study .demo-social-shell > .participation-flow__feed {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.demo-experience--study .demo-activity-panel {
+  position: static;
+  width: auto;
+  margin: 24px 20px 24px 0;
+}
+
+@media (max-width: 1200px) {
+  .demo-experience--study .demo-social-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .demo-experience--study .demo-activity-panel {
+    margin: 0 16px 24px;
+  }
+}
+
+.participation-flow .participant-demo__body {
+  width: min(1240px, calc(100% - 48px));
+  grid-template-columns: 230px minmax(0, 1fr);
+}
+
+.participation-flow .demo-step-rail {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  min-height: calc(100vh - 76px);
+}
+
+.participation-flow .participant-demo__main {
+  min-width: 0;
+}
+
+.participation-flow__study {
+  margin: 0 0 28px;
+  overflow-wrap: anywhere;
+  color: #667582;
+  font-size: 13px;
+}
+
+.participation-flow__consent-document {
+  margin-top: 24px;
+  padding: 24px 0;
+  border-top: 1px solid #d9e0e4;
+  border-bottom: 1px solid #d9e0e4;
+  color: #526373;
+  font-size: 15px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.participation-flow__module {
+  max-width: 960px;
+}
+
+.participation-flow__module > section {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.participation-flow__module button {
+  min-height: 46px;
+  border-radius: 6px;
+}
+
+.participation-flow__module input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #087d70;
+}
+
+.participation-questionnaire__choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d2dbe0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.participation-questionnaire__choice:has(input:checked) {
+  border-color: #087d70;
+  background: #f0faf7;
+}
+
+.participation-flow__module textarea {
+  min-height: 140px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.participation-flow--questionnaire .participation-flow__module > section {
+  margin-top: 36px;
+  padding-top: 26px;
+  border-top: 1px solid #d9e0e4;
+}
+
+.participation-flow__activity {
+  display: flex;
+  margin-bottom: 28px;
+  align-items: start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.participation-flow__activity h1 {
+  font-size: 28px;
+}
+
+.participation-flow__activity > div > p:not(.demo-eyebrow) {
+  max-width: 560px;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+
+.participation-flow__feed {
+  max-width: 100%;
+  overflow: auto;
+  background: #fff;
+}
+
+.participation-flow__continue {
+  justify-content: flex-end;
+}
+
+.participation-flow--test .participant-demo__main {
+  display: block;
+  padding: 28px;
+  background: #0d1117;
+  color: #fff;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-rows: auto 1fr;
+  gap: 24px;
+}
+
+.participation-flow--test .participation-flow__study {
+  margin: 0;
+  color: #aeb7c1;
+  grid-column: 1 / -1;
+}
+
+.participation-flow--test .participation-flow__feed {
+  align-self: start;
+  background: #0d1117;
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.participation-flow--test .participation-flow__activity {
+  display: block;
+  margin: 0;
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.participation-flow--test .participation-flow__activity h1 {
+  color: #fff;
+  font-size: 20px;
+}
+
+.participation-flow--test .participation-flow__activity p:not(.demo-eyebrow) {
+  color: #aeb7c1;
+}
+
+.participation-flow--test .participation-flow__activity > div + div {
+  margin-top: 24px;
+  flex-direction: column;
+}
+
+.participation-flow--test .demo-button--primary {
+  background: #e55745;
+}
+
+.participation-flow--test .demo-eyebrow {
+  color: #6ad4bd;
+}
+
+.participation-questionnaire__scale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 8px;
+}
+
+.participation-questionnaire__rating {
+  display: grid;
+  min-height: 84px;
+  border: 1px solid #d2dbe0;
+  background: #fff;
+  cursor: pointer;
+  place-items: center;
+}
+
+.participation-questionnaire__rating > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #eef2f4;
+  color: #3d4d5c;
+  font-size: 13px;
+  place-items: center;
+}
+
+.participation-questionnaire__rating[aria-pressed="true"] {
+  border-color: #087d70;
+  background: #f0faf7;
+  box-shadow: inset 0 0 0 1px #087d70;
+}
+
+.participation-questionnaire__rating[aria-pressed="true"] > span {
+  background: #087d70;
+  color: #fff;
+}
+
+@media (max-width: 1200px) {
+  .participation-flow--test .participant-demo__main {
+    display: block;
+  }
+
+  .participation-flow--test .participation-flow__feed {
+    width: 100%;
+    order: 1;
+  }
+
+  .participation-flow--test .participation-flow__activity {
+    order: 2;
+  }
+}
+
+@media (max-width: 1100px) {
+  .participation-flow .participant-demo__body {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .participation-flow .demo-step-rail {
+    display: block;
+    padding-right: 16px;
+  }
+
+  .participation-flow .participant-demo__main {
+    padding-left: 28px;
+  }
+
+  .participation-flow .demo-two-column,
+  .participation-flow .demo-calibration {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .participation-flow .participant-demo__body {
+    display: block;
+    width: calc(100% - 32px);
+  }
+
+  .participation-flow .demo-step-rail {
+    position: static;
+    display: flex;
+    min-height: 0;
+    padding: 20px 0;
+    border-right: 0;
+    border-bottom: 1px solid #dce3e7;
+    overflow-x: auto;
+    gap: 16px;
+  }
+
+  .participation-flow .demo-step-rail li {
+    min-width: 130px;
+    min-height: 40px;
+  }
+
+  .participation-flow .demo-step-rail li::after {
+    display: none;
+  }
+
+  .participation-flow .participant-demo__main {
+    padding-left: 0;
+  }
+
 }

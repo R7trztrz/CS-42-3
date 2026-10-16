@@ -19,7 +19,6 @@ import NewInterface from '../pages/prototypes/NewInterface'
 import ResearcherDashboard from '../pages/researcher/ResearcherDashboard'
 import ResearcherEdit from '../pages/researcher/ResearcherEdit'
 import StudyList from '../pages/researcher/StudyList'
-import ParticipationPage from '../pages/participant/ParticipationPage'
 import QuestionBankListPage from '../researcher/questionBank/pages/QuestionBankListPage'
 import QuestionFormPage from '../researcher/questionBank/pages/QuestionFormPage'
 import QuestionnaireEditorPage from '../researcher/questionnaire/pages/QuestionnaireEditorPage'
@@ -36,7 +35,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/participate/:token',
-    element: <ParticipationPage />,
+    element: <ParticipantDemo />,
   },
   {
     path: '/participant-demo',

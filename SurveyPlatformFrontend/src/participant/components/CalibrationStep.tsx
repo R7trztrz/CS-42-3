@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CalibrationView } from '../../pages/participant/ParticipantDemoTemplate'
 
 // M6 boundary: there is no public HTTP endpoint for completing
 // calibration (see M5前端联调交接说明_2026-10-05.md section 7). Production
@@ -28,16 +29,20 @@ function CalibrationStep({ onRefreshSession }: CalibrationStepProps) {
   }, [onRefreshSession])
 
   return (
-    <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-emerald-700">Eye-tracking calibration</p>
-      <h2 className="mt-1 text-lg font-semibold text-[#172033]">
-        Waiting for calibration to be confirmed
-      </h2>
-      <p className="mt-2 text-sm text-gray-600" role="status">
-        This step depends on backend calibration persistence (M6), which is not wired up yet in
-        this build. The page will continue on its own once the session is confirmed.
-      </p>
-    </section>
+    <CalibrationView
+      onNext={() => void onRefreshSession()}
+      nextLabel="Check calibration"
+      previewStatus="Waiting"
+      previewCaption="Camera is not active"
+      notice={
+        <div className="demo-notice">
+          <div>
+            <strong>Waiting for calibration to be confirmed</strong>
+            <p role="status">Calibration is not available in this build. This page will continue once calibration is confirmed.</p>
+          </div>
+        </div>
+      }
+    />
   )
 }
 
