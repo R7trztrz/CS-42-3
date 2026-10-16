@@ -123,7 +123,7 @@ describe('QuestionnaireStep', () => {
     expect(screen.getByText('Not satisfied')).toBeTruthy()
     expect(screen.getByText('Very satisfied')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '4' }))
+    fireEvent.click(screen.getByRole('radio', { name: '4' }))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(submitAnswer).toHaveBeenCalledWith('item-1', {

@@ -256,6 +256,11 @@ import CalibrationStep from '../../participant/components/CalibrationStep'
 import QuestionnaireStep from '../../participant/components/QuestionnaireStep'
 
 import FinishedStep from '../../participant/components/FinishedStep'
+import StudyIntroduction from './StudyIntroduction'
+import ParticipationFlowLayout from './ParticipationFlowLayout'
+import { ExperienceView, type DemoStep } from './ParticipantDemoTemplate'
+import EyeTrackingPreparation from './EyeTrackingPreparation'
+import ActivityIntroduction from './ActivityIntroduction'
 
 /*
 
@@ -431,17 +436,18 @@ function collectDeviceInfo(): ParticipantDeviceInfo {
   }
 }
 
-function ParticipationPage() {
+function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
 
   const {
 
-    token,
+    token: routeToken,
 
   } = useParams<{
 
     token: string
 
   }>()
+  const token = studyToken ?? routeToken
 
   const [
 
@@ -568,44 +574,60 @@ function ParticipationPage() {
   ])
 
   const participantSession = useParticipantSession(token)
+  const [reviewedSetup, setReviewedSetup] = useState('')
+  const [startedActivity, setStartedActivity] = useState('')
+  const activityKey = `${token ?? ''}:${participantSession.session?.sessionId ?? ''}`
+  const setupKey = `${token ?? ''}:${participantSession.session?.sessionId ?? ''}:setup-reviewed`
+  let storedSetup = false
+  try {
+    storedSetup = sessionStorage.getItem(setupKey) === 'true'
+  } catch {
+    // In-memory review still works when browser storage is unavailable.
+  }
+  const showPreparation = participantSession.stage === 'active'
+    && participantSession.session?.status === 'IN_PROGRESS'
+    && participantSession.session.phase === 'BROWSING'
+    && reviewedSetup !== setupKey && !storedSetup
+  const continueFromSetup = () => {
+    try {
+      sessionStorage.setItem(setupKey, 'true')
+    } catch {
+      // Storage is optional; this page can continue without it.
+    }
+    setReviewedSetup(setupKey)
+  }
+  const isActivityActive = participantSession.stage === 'active'
+    && participantSession.session?.status === 'IN_PROGRESS'
+    && participantSession.session.phase === 'BROWSING'
+    && !showPreparation && startedActivity === activityKey
+  const phaseSteps: Record<string, DemoStep> = {
+    CONSENT: 'consent',
+    CALIBRATION: 'calibration',
+    BROWSING: 'experience',
+    QUESTIONNAIRE: 'questionnaire',
+  }
+  const session = participantSession.session
+  const flowStep: DemoStep = showPreparation ? 'calibration' : session
+    ? session.status === 'COMPLETED'
+      ? 'complete'
+      : phaseSteps[session.phase] ?? 'introduction'
+    : 'introduction'
+
+  if (!isLoading && participation && (
+    participantSession.stage === 'landing' || participantSession.stage === 'creating'
+  )) {
+    return (
+      <StudyIntroduction
+        study={participation}
+        pending={participantSession.stage === 'creating'}
+        onStart={() => void participantSession.createSession(collectDeviceInfo())}
+      />
+    )
+  }
 
   return (
 
-    <div className="min-h-screen bg-[#f3f6f8] text-[#172033]">
-
-      {/* Participant header */}
-
-      <header className="border-b border-[#314158] bg-[#101b2b] px-5 py-5 text-white md:px-8">
-
-        <div className="mx-auto flex w-full max-w-6xl items-center gap-4">
-
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-500 text-sm font-bold text-[#101b2b]">
-
-            SP
-
-          </div>
-
-          <div>
-
-            <p className="text-xs font-semibold uppercase text-emerald-300">
-
-              Research study
-
-            </p>
-
-            <h1 className="mt-1 text-xl font-semibold">
-
-              Survey Platform
-
-            </h1>
-
-          </div>
-
-        </div>
-
-      </header>
-
-      <main className="mx-auto w-full max-w-[110rem] px-5 py-8 md:px-8 md:py-10">
+    <ParticipationFlowLayout step={flowStep} title={participation?.title} activityActive={isActivityActive}>
 
         {/* Loading */}
 
@@ -663,41 +685,6 @@ function ParticipationPage() {
 
             <>
 
-              {/* Study information */}
-
-              <section className="mb-6 border-b border-gray-300 pb-6">
-
-                <p className="text-sm font-semibold text-emerald-700">
-
-                  Participant view
-
-                </p>
-
-                <h2 className="mt-1 text-3xl font-semibold">
-
-                  {
-
-                    participation.title
-
-                  }
-
-                </h2>
-
-                {participation.description && (
-
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-
-                    {
-
-                      participation.description
-
-                    }
-
-                  </p>
-
-                )}
-
-              </section>
 
               {/* M5 session bootstrap (creation + restoration) */}
 
@@ -767,61 +754,51 @@ function ParticipationPage() {
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
                     participantSession.session.phase === 'CONSENT' && (
+                      <div className="participation-flow__module">
                       <ConsentStep
                         consentDocument={participantSession.session.consentDocument}
                         isPending={participantSession.isActionPending}
                         errorMessage={participantSession.actionErrorMessage}
                         onDecide={participantSession.decideConsent}
                       />
+                      </div>
                     )}
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
                     participantSession.session.phase === 'CALIBRATION' && (
-                      <CalibrationStep onRefreshSession={participantSession.refreshSession} />
+                      <div className="participation-flow__module">
+                        <CalibrationStep onRefreshSession={participantSession.refreshSession} />
+                      </div>
                     )}
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
-                    participantSession.session.phase === 'BROWSING' && (
-                      <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-gray-200 bg-white px-6 py-4 shadow-sm">
-                        <p className="text-sm text-gray-700">
-                          Browse the interface below, then continue when you are done.
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={participantSession.isActionPending}
-                            onClick={() => void participantSession.completeBrowsing()}
-                            className="rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                          >
-                            Continue
-                          </button>
-                          <button
-                            type="button"
-                            disabled={participantSession.isActionPending}
-                            onClick={() => void participantSession.abandon()}
-                            className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                          >
-                            Leave study
-                          </button>
-                        </div>
-                        {participantSession.actionErrorMessage && (
-                          <p className="w-full text-sm font-semibold text-red-700" role="alert">
-                            {participantSession.actionErrorMessage}
-                          </p>
-                        )}
-                      </section>
+                    showPreparation && (
+                      <EyeTrackingPreparation
+                        enabled={participation.eyeTrackingEnabled}
+                        confirmed={Boolean(session?.calibrationCompletedAt)}
+                        onContinue={continueFromSetup}
+                      />
+                    )}
+                  {participantSession.session.status === 'IN_PROGRESS' &&
+                    participantSession.session.phase === 'BROWSING' && !showPreparation && !isActivityActive && (
+                      <ActivityIntroduction
+                        questionnaireEnabled={participation.questionnaireEnabled}
+                        onStart={() => setStartedActivity(activityKey)}
+                      />
                     )}
 
                   {participantSession.session.status === 'IN_PROGRESS' &&
                     participantSession.session.phase === 'QUESTIONNAIRE' &&
                     participantSession.sessionToken && (
                       <>
+                        <div className="participation-flow__module">
                         <QuestionnaireStep
                           sessionToken={participantSession.sessionToken}
                           onCompleteQuestionnaire={participantSession.completeQuestionnaire}
                           isCompleting={participantSession.isActionPending}
                           completeErrorMessage={participantSession.actionErrorMessage}
                         />
+                        </div>
                         <div className="mb-6">
                           <button
                             type="button"
@@ -841,8 +818,17 @@ function ParticipationPage() {
 
               {participantSession.stage === 'active' &&
                 participantSession.session?.status === 'IN_PROGRESS' &&
+                isActivityActive &&
                 participantSession.session?.phase === 'BROWSING' && (
-              <section className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm [&_.cursor-move]:cursor-default">
+              <ExperienceView
+                onNext={() => void participantSession.completeBrowsing()}
+                pending={participantSession.isActionPending}
+                error={participantSession.actionErrorMessage}
+                actions={
+                  <button className="demo-button demo-button--quiet mt-3 w-full" type="button" disabled={participantSession.isActionPending} onClick={() => void participantSession.abandon()}>Leave study</button>
+                }
+              >
+              <section className="participation-flow__feed [&_.cursor-move]:cursor-default">
 
                 <InterfaceErrorBoundary>
 
@@ -1068,15 +1054,14 @@ function ParticipationPage() {
                 </InterfaceErrorBoundary>
 
               </section>
+              </ExperienceView>
                 )}
 
             </>
 
           )}
 
-      </main>
-
-    </div>
+    </ParticipationFlowLayout>
 
   )
 

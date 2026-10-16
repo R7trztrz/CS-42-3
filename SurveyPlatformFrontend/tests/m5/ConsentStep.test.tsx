@@ -48,6 +48,8 @@ describe('ConsentStep', () => {
       />,
     )
 
+    expect((screen.getByRole('button', { name: /i agree to participate/i }) as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: /i agree to participate/i }))
     expect(onDecide).toHaveBeenCalledWith(true)
 

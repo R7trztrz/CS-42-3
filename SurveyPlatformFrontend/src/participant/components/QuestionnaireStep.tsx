@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { QuestionnaireView } from '../../pages/participant/ParticipantDemoTemplate'
 import { useParticipantQuestionnaire } from '../hooks/useParticipantQuestionnaire'
 import type { ParticipantQuestion, SubmitAnswerPayload } from '../model/participantSession'
 
@@ -67,17 +68,17 @@ function QuestionnaireStep({
 
   if (isLoading && !currentQuestion) {
     return (
-      <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-6 shadow-sm">
+      <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
         <p className="text-sm text-gray-600" role="status">
           Loading question...
         </p>
-      </section>
+      </QuestionnaireView>
     )
   }
 
   if (!currentQuestion) {
     return (
-      <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-6 shadow-sm">
+      <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
         <p className="text-sm font-semibold text-emerald-700">
           You have answered every question.
         </p>
@@ -90,11 +91,11 @@ function QuestionnaireStep({
           type="button"
           disabled={!readyToSubmit || isCompleting}
           onClick={() => void onCompleteQuestionnaire()}
-          className="mt-4 rounded-sm bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="demo-button demo-button--primary mt-6"
         >
           {isCompleting ? 'Submitting...' : 'Submit questionnaire'}
         </button>
-      </section>
+      </QuestionnaireView>
     )
   }
 
@@ -106,11 +107,9 @@ function QuestionnaireStep({
   }
 
   return (
-    <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-emerald-700">
-        Question {currentQuestion.position + 1}
-      </p>
-      <h2 className="mt-1 text-lg font-semibold text-[#172033]">{currentQuestion.text}</h2>
+    <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
+      <fieldset>
+      <legend><span>{currentQuestion.position + 1}</span>{currentQuestion.text}</legend>
       {currentQuestion.required && (
         <p className="mt-1 text-xs font-medium text-gray-500">Required</p>
       )}
@@ -119,7 +118,7 @@ function QuestionnaireStep({
         {currentQuestion.questionType === 'SINGLE_CHOICE' && (
           <div className="flex flex-col gap-2">
             {currentQuestion.options.map((option) => (
-              <label key={option.optionId} className="flex items-center gap-2 text-sm text-gray-800">
+              <label key={option.optionId} className="participation-questionnaire__choice">
                 <input
                   type="radio"
                   name={`question-${currentQuestion.itemId}`}
@@ -137,7 +136,7 @@ function QuestionnaireStep({
             {currentQuestion.options.map((option) => {
               const selected = draft.optionIds?.includes(option.optionId) ?? false
               return (
-                <label key={option.optionId} className="flex items-center gap-2 text-sm text-gray-800">
+                <label key={option.optionId} className="participation-questionnaire__choice">
                   <input
                     type="checkbox"
                     checked={selected}
@@ -162,25 +161,19 @@ function QuestionnaireStep({
               <span>{currentQuestion.scaleMinLabel ?? currentQuestion.scaleMin}</span>
               <span>{currentQuestion.scaleMaxLabel ?? currentQuestion.scaleMax}</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="demo-scale participation-questionnaire__scale">
               {Array.from(
                 {
                   length: (currentQuestion.scaleMax ?? 0) - (currentQuestion.scaleMin ?? 0) + 1,
                 },
                 (_, index) => (currentQuestion.scaleMin ?? 0) + index,
               ).map((value) => (
-                <button
+                <label
                   key={value}
-                  type="button"
-                  onClick={() => setDraft({ ...EMPTY_ANSWER, scaleValue: value })}
-                  className={`h-10 w-10 rounded-sm border text-sm font-semibold ${
-                    draft.scaleValue === value
-                      ? 'border-emerald-700 bg-emerald-700 text-white'
-                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
                 >
-                  {value}
-                </button>
+                  <input type="radio" name={`question-${currentQuestion.itemId}`} aria-label={String(value)} checked={draft.scaleValue === value} onChange={() => setDraft({ ...EMPTY_ANSWER, scaleValue: value })} />
+                  <span>{value}</span>
+                </label>
               ))}
             </div>
           </div>
@@ -191,23 +184,26 @@ function QuestionnaireStep({
             value={draft.textValue ?? ''}
             onChange={(event) => setDraft({ ...EMPTY_ANSWER, textValue: event.target.value })}
             rows={4}
+            aria-label={currentQuestion.text}
+            placeholder="Your response"
             className="w-full rounded-sm border border-gray-300 px-3 py-2 text-sm"
           />
         )}
       </div>
 
+      </fieldset>
       {errorMessage && (
         <p className="mt-3 text-sm font-semibold text-red-700" role="alert">
           {errorMessage}
         </p>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-3">
+      <div className="demo-actions demo-actions--split">
         <button
           type="button"
           disabled={!canSubmit || isSubmitting}
           onClick={() => submit(draft)}
-          className="rounded-sm bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="demo-button demo-button--primary"
         >
           {isSubmitting ? 'Submitting...' : 'Next'}
         </button>
@@ -216,13 +212,13 @@ function QuestionnaireStep({
             type="button"
             disabled={isSubmitting}
             onClick={() => submit({ ...EMPTY_ANSWER, unanswered: true })}
-            className="rounded-sm border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            className="demo-button demo-button--quiet"
           >
             Skip
           </button>
         )}
       </div>
-    </section>
+    </QuestionnaireView>
   )
 }
 
