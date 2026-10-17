@@ -84,6 +84,7 @@ The current migration sequence is:
 - V15: participant sessions, consent metadata, and lifecycle state
 - V16: immutable answer paths and persisted participant answers
 - V17: study closure timestamps, preserving legacy closed records
+- V18: durable asset file cleanup tasks independent of deleted studies
 
 Legacy feature databases with V10 question-bank / V16 template-sync history
 must follow [the upgrade guide](../M4_M5_Migration_Upgrade_Guide.md), not an
@@ -250,7 +251,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V17, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V18, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test
@@ -507,3 +508,68 @@ H2 transactions and the real M5 bulk update. The PostgreSQL suite applies the
 Flyway migrations and tests both closure/answer concurrency orders using actual
 database lock waits. It requires Docker and is explicitly skipped when Docker
 is unavailable; H2 results do not establish PostgreSQL lock behavior.
+
+### FR-18: permanently delete a study
+
+Send `DELETE /api/studies/{studyId}?version=2` with a researcher Bearer JWT.
+Use the current study `version` returned by the details endpoint. No request
+body is required. The frontend must obtain explicit confirmation before sending
+this irreversible command; this backend change does not add frontend controls.
+
+The owner may delete a DRAFT, COLLECTING or CLOSED study. Success returns HTTP
+204 with no body. Missing, already deleted and foreign-owned studies return
+404 `STUDY_NOT_FOUND`; a stale version returns 409 `STUDY_VERSION_CONFLICT`.
+Missing, negative, fractional and out-of-range versions return 400. Errors use
+the existing global `{code, error}` response.
+
+The transaction locks the Study before deleting its feed, image metadata,
+questionnaire, branch rules, publication snapshot, participant sessions, steps
+and answers. Researcher accounts, reusable question-bank questions/options,
+global feed templates and other studies remain unchanged. Old participant links
+and sessions can no longer resolve the deleted study. An unexpected restrictive
+foreign key fails the transaction rather than leaving partially deleted data.
+
+Image storage keys are copied into `asset_file_cleanup_tasks` in the same
+transaction. These tasks have no foreign key to studies or assets. No files are
+deleted before commit; rollback preserves both database records and files.
+After commit, image metadata is absent so business endpoints cannot serve the
+images, even while physical cleanup is pending.
+
+The cleanup scheduler polls committed tasks every 30 seconds and processes up
+to 50 tasks per scan. Each task uses a separate transaction with
+`FOR UPDATE SKIP LOCKED`, preventing concurrent workers from claiming it.
+Successful deletion removes the task; an already absent file also succeeds.
+Failure retains the task with an attempt count, a safe error description and
+exponential retry delays from 30 seconds up to one hour. Tasks survive restarts.
+Application logs identify failed task IDs. A crash after file deletion but before
+task removal is safe because the next attempt accepts a missing file.
+
+Optional environment variables:
+
+```powershell
+$env:ASSET_CLEANUP_SCHEDULER_ENABLED = "true"
+$env:ASSET_CLEANUP_SCAN_INTERVAL = "30s"
+```
+
+Keep `ASSET_STORAGE_DIRECTORY` on persistent storage. If multiple backend
+instances share the database, their workers must access the same asset storage;
+independent local directories are not suitable for distributed cleanup.
+
+Future behavior/gaze persistence must check `ParticipantCollectionPolicy` in
+the same transaction as inserts and retain the Study-before-session lock order.
+Study-owned collection tables must use cascading foreign keys (normally through
+the participant session) or be explicitly included in `StudyDeletionRepository`.
+A missing study/session must reject writes, including delayed uploads and retries.
+Those collectors are not implemented by this deletion feature.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyDeletionControllerTest,StudyDeletionPersistenceTest,StudyDeletionPostgresIntegrationTest" test
+```
+
+The H2 suite checks real JPA/JDBC rollback, dependency deletion and isolation,
+committed-task visibility, file removal and persisted retries. It uses a reduced
+FK fixture and the actual V18 migration. The Docker-based PostgreSQL suite checks
+the actual migration history, deletion of published questionnaire data and both
+answer/deletion concurrency orders. It is skipped when Docker is unavailable.

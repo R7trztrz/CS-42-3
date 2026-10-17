@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Covers questionnaire mappings, constraints and the complete Flyway history through V17.
+ * Covers questionnaire mappings, constraints and the complete Flyway history through V18.
  *
  * @author Simon Tian
  */
@@ -83,7 +83,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV17() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV18() {
         List<String> versions = jdbcTemplate.queryForList(
                 """
                         SELECT version
@@ -96,7 +96,7 @@ class QuestionnaireRepositoryIntegrationTest {
         );
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"
         );
         assertThat(columnType("studies", "closed_at")).isEqualTo("timestamp with time zone");
         assertThat(studyRepository.findById(study.getId()).orElseThrow().getClosedAt()).isNull();
