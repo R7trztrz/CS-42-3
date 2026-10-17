@@ -5,6 +5,7 @@ import { useParticipantQuestionnaire } from '../hooks/useParticipantQuestionnair
 import type { ParticipantQuestion, SubmitAnswerPayload } from '../model/participantSession'
 
 type QuestionnaireStepProps = {
+  studyTitle?: string
   sessionToken: string
   onCompleteQuestionnaire: () => Promise<boolean>
   isCompleting: boolean
@@ -51,6 +52,7 @@ function isAnswerPresent(question: ParticipantQuestion, draft: SubmitAnswerPaylo
 }
 
 function QuestionnaireStep({
+  studyTitle,
   sessionToken,
   onCompleteQuestionnaire,
   isCompleting,
@@ -63,22 +65,29 @@ function QuestionnaireStep({
     isSubmitting,
     errorMessage,
     submitAnswer,
+    reload,
   } = useParticipantQuestionnaire(sessionToken)
   const [draft, setDraft] = useAnswerDraft(currentQuestion)
+  const description = studyTitle
+    ? `Please answer the questions for "${studyTitle}" about your experience.`
+    : 'Please answer the following questions about your experience.'
 
-  if (isLoading && !currentQuestion) {
+  if (!currentQuestion && !readyToSubmit) {
     return (
-      <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
-        <p className="text-sm text-gray-600" role="status">
-          Loading question...
-        </p>
+      <QuestionnaireView description={description} actions={<></>}>
+        {errorMessage ? <>
+          <p role="alert" className="text-sm text-red-700">{errorMessage}</p>
+          <button type="button" className="demo-button demo-button--quiet mt-6" disabled={isLoading} onClick={() => void reload()}>
+            Try again
+          </button>
+        </> : <p className="text-sm text-gray-600" role="status">Loading question...</p>}
       </QuestionnaireView>
     )
   }
 
   if (!currentQuestion) {
     return (
-      <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
+      <QuestionnaireView description={description} actions={<></>}>
         <p className="text-sm font-semibold text-emerald-700">
           You have answered every question.
         </p>
@@ -101,23 +110,22 @@ function QuestionnaireStep({
 
   const canSkip = !currentQuestion.required
   const canSubmit = isAnswerPresent(currentQuestion, draft)
+  const options = [...currentQuestion.options].sort((a, b) => a.order - b.order)
 
   const submit = (answer: SubmitAnswerPayload) => {
     void submitAnswer(currentQuestion.itemId, answer)
   }
 
   return (
-    <QuestionnaireView description="Please answer the following questions about your experience." actions={<></>}>
-      <fieldset>
+    <QuestionnaireView description={description} actions={<></>}>
+      <fieldset disabled={isSubmitting || isLoading || isCompleting} aria-busy={isSubmitting}>
       <legend><span>{currentQuestion.position + 1}</span>{currentQuestion.text}</legend>
-      {currentQuestion.required && (
-        <p className="mt-1 text-xs font-medium text-gray-500">Required</p>
-      )}
+      <p className="mt-1 text-xs font-medium text-gray-500">{currentQuestion.required ? 'Required' : 'Optional'}</p>
 
       <div className="mt-4">
         {currentQuestion.questionType === 'SINGLE_CHOICE' && (
           <div className="flex flex-col gap-2">
-            {currentQuestion.options.map((option) => (
+            {options.map((option) => (
               <label key={option.optionId} className="participation-questionnaire__choice">
                 <input
                   type="radio"
@@ -133,7 +141,7 @@ function QuestionnaireStep({
 
         {currentQuestion.questionType === 'MULTI_CHOICE' && (
           <div className="flex flex-col gap-2">
-            {currentQuestion.options.map((option) => {
+            {options.map((option) => {
               const selected = draft.optionIds?.includes(option.optionId) ?? false
               return (
                 <label key={option.optionId} className="participation-questionnaire__choice">
@@ -201,7 +209,7 @@ function QuestionnaireStep({
       <div className="demo-actions demo-actions--split">
         <button
           type="button"
-          disabled={!canSubmit || isSubmitting}
+          disabled={!canSubmit || isSubmitting || isLoading || isCompleting}
           onClick={() => submit(draft)}
           className="demo-button demo-button--primary"
         >
@@ -210,7 +218,7 @@ function QuestionnaireStep({
         {canSkip && (
           <button
             type="button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoading || isCompleting}
             onClick={() => submit({ ...EMPTY_ANSWER, unanswered: true })}
             className="demo-button demo-button--quiet"
           >

@@ -1,0 +1,101 @@
+.qf-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  color: #68798a;
+  font-size: 13px;
+}
+
+.qf-breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #047857;
+  font-weight: 600;
+}
+
+.qf-breadcrumb a:hover { text-decoration: underline; }
+
+.qf-heading {
+  padding-bottom: 26px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.qf-form { max-width: 760px; }
+
+.qf-form :is(select, textarea, input:not([type="checkbox"])) {
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #fff;
+  color: #172033;
+  font-size: 14px;
+}
+
+.qf-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.qf-form :is(input, select, textarea):focus {
+  border-color: #059669;
+  outline: 2px solid #a7f3d0;
+  outline-offset: 1px;
+}
+
+.qf-workspace main :is(button, a):focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 3px;
+}
+
+.qf-required input {
+  width: 16px;
+  height: 16px;
+  accent-color: #047857;
+}
+
+.qf-options, .qf-scale {
+  padding-top: 22px;
+  border-top: 1px solid #dce3e8;
+}
+
+.qf-options button { flex-shrink: 0; border-radius: 3px; }
+
+.qf-add-option {
+  min-height: 36px;
+  border-color: #a7cfbe;
+  background: #fff;
+  color: #047857;
+  font-weight: 600;
+}
+
+.qf-add-option:hover { background: #ecfdf5; }
+
+.qf-actions {
+  padding-top: 24px;
+  border-top: 1px solid #d1d5db;
+}
+
+.qf-button {
+  min-height: 40px;
+  padding: 9px 18px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qf-button--primary { background: #047857; color: #fff; }
+.qf-button--primary:hover:not(:disabled) { background: #065f46; }
+.qf-button--secondary { border-color: #d1d5db; background: #fff; color: #374151; }
+.qf-button--secondary:hover { background: #f9fafb; }
+.qf-form button:disabled { opacity: 0.4; cursor: not-allowed; }
+.qf-form [role="alert"] { border-radius: 3px; }
+
+@media (max-width: 540px) {
+  .qf-heading h2 { font-size: 26px; }
+}

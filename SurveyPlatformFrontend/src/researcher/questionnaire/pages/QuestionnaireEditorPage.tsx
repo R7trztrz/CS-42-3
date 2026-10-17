@@ -1,5 +1,7 @@
-import { useEffect, useReducer, useState, type FormEvent } from 'react'
-import { useBlocker, useParams } from 'react-router-dom'
+import { useEffect, useReducer, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useBlocker, useParams } from 'react-router-dom'
+import ResearcherHeader from '../../../components/researcher/ResearcherHeader'
+import './QuestionnaireEditorPage.css'
 import UnsavedChangesDialogTemplate from '../../../components/studies/UnsavedChangesDialogTemplate'
 import BranchRuleEditor from '../components/BranchRuleEditor'
 import { getQuestionnaire, saveQuestionnaire } from '../api/questionnaireApi'
@@ -31,6 +33,24 @@ function newClientId(): string {
 }
 
 const BANK_PICKER_PAGE_SIZE = 20
+
+function QuestionnaireWorkspace({ studyId, children }: { studyId?: string; children: ReactNode }) {
+  return (
+    <div className="qe-workspace min-h-screen bg-[#f3f6f8] text-[#172033]">
+      <ResearcherHeader activePage="studies" />
+      <main className="mx-auto w-full max-w-7xl px-5 py-8 md:px-8 md:py-10">
+        <nav aria-label="Questionnaire breadcrumb" className="qe-breadcrumb">
+          <Link to={studyId ? `/studies/${studyId}/edit` : '/studies'}>
+            <span aria-hidden="true">&larr;</span> Back to study
+          </Link>
+          <span aria-hidden="true">/</span>
+          <span>Questionnaire</span>
+        </nav>
+        {children}
+      </main>
+    </div>
+  )
+}
 
 export default function QuestionnaireEditorPage() {
   const { studyId } = useParams<{ studyId: string }>()
@@ -163,9 +183,9 @@ export default function QuestionnaireEditorPage() {
 
   if (!studyId) {
     return (
-      <p className="mx-auto max-w-4xl px-4 py-8 text-sm text-red-600">
+      <QuestionnaireWorkspace><p className="py-8 text-sm text-red-700" role="alert">
         Missing study identifier.
-      </p>
+      </p></QuestionnaireWorkspace>
     )
   }
 
@@ -303,29 +323,31 @@ export default function QuestionnaireEditorPage() {
   }
 
   if (isLoading) {
-    return <p className="mx-auto max-w-4xl px-4 py-8 text-sm text-gray-500">Loading...</p>
+    return <QuestionnaireWorkspace studyId={studyId}><p className="py-14 text-sm text-gray-500" role="status">Loading...</p></QuestionnaireWorkspace>
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <QuestionnaireWorkspace studyId={studyId}>
+      <section className="qe-page-heading">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Questionnaire editor</h1>
+          <p className="text-sm font-semibold text-emerald-700">Study questionnaire</p>
+          <h2 className="mt-1 text-3xl font-semibold text-[#172033]">Questionnaire editor</h2>
           {isDirty && !isReadOnly && (
             <p className="mt-1 text-xs font-medium text-amber-700">Unsaved changes</p>
           )}
         </div>
         {isReadOnly ? (
-          <span className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800">
+          <span className="qe-status qe-status--published">
             Published - read only
           </span>
         ) : (
-          <div className="flex gap-2">
+          <div className="qe-toolbar">
+            <span className="qe-status qe-status--draft">Draft</span>
             <button
               type="button"
               onClick={undoLastChange}
               disabled={isSaving || editor.past.length === 0}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+              className="qe-button qe-button--secondary"
             >
               Undo
             </button>
@@ -333,13 +355,13 @@ export default function QuestionnaireEditorPage() {
               type="button"
               onClick={() => void handleSave()}
               disabled={isSaving}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="qe-button qe-button--primary"
             >
               {isSaving ? 'Saving...' : 'Save questionnaire'}
             </button>
           </div>
         )}
-      </div>
+      </section>
 
       {isReadOnly && (
         <div className="mb-4 rounded-lg bg-sky-50 px-4 py-3 text-sm text-sky-800">
@@ -374,18 +396,26 @@ export default function QuestionnaireEditorPage() {
         </div>
       )}
 
-      <div className="mb-6 space-y-3">
+      <div className={`qe-columns${isReadOnly ? ' qe-columns--readonly' : ''}`}>
+      <section className="qe-question-list" aria-label="Questionnaire items">
+        <div className="qe-section-heading">
+          <h3>Questions</h3>
+          <span>{items.length} {items.length === 1 ? 'question' : 'questions'}</span>
+        </div>
         {items.length === 0 && (
           <p className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
-            No questions enabled yet. Add some from the question bank below.
+            No questions enabled yet. Add questions from the question bank.
           </p>
         )}
 
         {items.map((item, index) => (
-          <div key={item.clientId} className="rounded-lg border border-gray-200 bg-white p-4">
+          <div key={item.clientId} className="qe-question-item">
             <div className="mb-2 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-medium text-gray-400">Q{index + 1}</p>
+                <div className="qe-question-meta">
+                  <span className="qe-question-number">Q{index + 1}</span>
+                  {item.question && <><span>{QUESTION_TYPE_LABELS[item.question.type]}</span><span>{item.question.required ? 'Required' : 'Optional'}</span></>}
+                </div>
                 {item.missing || !item.question ? (
                   <p className="text-sm font-medium text-red-600">
                     This question was deleted from the bank. Remove it to publish.
@@ -401,6 +431,7 @@ export default function QuestionnaireEditorPage() {
                     onClick={() => moveItem(index, -1)}
                     disabled={isSaving || index === 0}
                     aria-label={`Move question ${index + 1} up`}
+                    title="Move question up"
                     className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
                   >
                     ↑
@@ -410,6 +441,7 @@ export default function QuestionnaireEditorPage() {
                     onClick={() => moveItem(index, 1)}
                     disabled={isSaving || index === items.length - 1}
                     aria-label={`Move question ${index + 1} down`}
+                    title="Move question down"
                     className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
                   >
                     ↓
@@ -445,12 +477,12 @@ export default function QuestionnaireEditorPage() {
             )}
           </div>
         ))}
-      </div>
+      </section>
 
       {!isReadOnly && (
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="mb-3 text-sm font-medium text-gray-700">Add from question bank</p>
-          <div className="mb-4 flex flex-wrap gap-2">
+        <aside className="qe-bank" aria-label="Question bank picker">
+          <div className="qe-section-heading"><h3>Add from question bank</h3></div>
+          <div className="qe-bank-filters">
             <select
               value={bankType}
               onChange={(event) => setBankType(event.target.value as QuestionType | '')}
@@ -465,7 +497,7 @@ export default function QuestionnaireEditorPage() {
                 </option>
               ))}
             </select>
-            <form onSubmit={handleBankSearch} className="flex min-w-64 flex-1 gap-2">
+            <form onSubmit={handleBankSearch} className="flex min-w-0 gap-2">
               <input
                 type="search"
                 value={bankSearchInput}
@@ -497,13 +529,13 @@ export default function QuestionnaireEditorPage() {
           ) : (
             <ul className="space-y-2">
               {availableToAdd.map((question) => (
-                <li key={question.questionId} className="flex items-center justify-between gap-4 text-sm">
-                  <span>{question.questionText}</span>
+                <li key={question.questionId} className="qe-bank-row">
+                  <span className="qe-bank-question"><span className="qe-bank-type">{QUESTION_TYPE_LABELS[question.type]}</span>{question.questionText}</span>
                   <button
                     type="button"
                     onClick={() => void addQuestion(question.questionId)}
                     disabled={isSaving || addingQuestionId !== null}
-                    className="shrink-0 text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    className="qe-button qe-button--add"
                   >
                     {addingQuestionId === question.questionId ? 'Adding...' : '+ Add'}
                   </button>
@@ -525,8 +557,9 @@ export default function QuestionnaireEditorPage() {
               Load more questions
             </button>
           )}
-        </div>
+        </aside>
       )}
+      </div>
 
       {blocker.state === 'blocked' && (
         <UnsavedChangesDialogTemplate
@@ -536,6 +569,6 @@ export default function QuestionnaireEditorPage() {
           onSaveAndLeave={() => void handleSaveAndLeave()}
         />
       )}
-    </div>
+    </QuestionnaireWorkspace>
   )
 }

@@ -252,7 +252,7 @@ describe('QuestionnaireStep', () => {
     expect(onCompleteQuestionnaire).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the submit button disabled when not yet readyToSubmit', () => {
+  it('shows loading instead of completion when not yet readyToSubmit', () => {
     useParticipantQuestionnaireMock.mockReturnValue(
       baseState({ currentQuestion: null, readyToSubmit: false }),
     )
@@ -266,8 +266,18 @@ describe('QuestionnaireStep', () => {
       />,
     )
 
-    expect(
-      (screen.getByRole('button', { name: 'Submit questionnaire' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    expect(screen.getByRole('status').textContent).toContain('Loading question')
+    expect(screen.queryByRole('button', { name: 'Submit questionnaire' })).toBeNull()
+    expect(screen.queryByText('You have answered every question.')).toBeNull()
+  })
+
+  it('offers retry after loading fails without claiming the questionnaire is complete', () => {
+    const reload = vi.fn()
+    useParticipantQuestionnaireMock.mockReturnValue(baseState({ errorMessage: 'Unable to load questionnaire.', reload }))
+    render(<QuestionnaireStep sessionToken="token" onCompleteQuestionnaire={vi.fn()} isCompleting={false} completeErrorMessage={null} />)
+    expect(screen.getByRole('alert').textContent).toBe('Unable to load questionnaire.')
+    expect(screen.queryByText('You have answered every question.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(reload).toHaveBeenCalledOnce()
   })
 })

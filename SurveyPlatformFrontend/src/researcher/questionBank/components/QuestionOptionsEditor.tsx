@@ -27,8 +27,8 @@ export default function QuestionOptionsEditor({
   }
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">Options</label>
+    <div className="qf-options space-y-3" role="group" aria-label="Options">
+      <p className="block text-sm font-semibold text-gray-700">Options</p>
 
       {options.map((option, index) => (
         <div key={option.optionId ?? `new-${index}`} className="flex items-center gap-2">
@@ -38,7 +38,8 @@ export default function QuestionOptionsEditor({
             value={option.optionText}
             onChange={(event) => updateOptionText(index, event.target.value)}
             placeholder={`Option ${index + 1}`}
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+            aria-label={`Option ${index + 1}`}
+            className="min-w-0 flex-1 border border-gray-300 px-3 py-2"
           />
           <button
             type="button"
@@ -54,7 +55,7 @@ export default function QuestionOptionsEditor({
       <button
         type="button"
         onClick={addOption}
-        className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600"
+        className="qf-add-option border px-3 py-1.5 text-sm"
       >
         + Add option
       </button>
