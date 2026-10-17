@@ -29,7 +29,11 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** PostgreSQL integration coverage for V11-V14 constraints and questionnaire mappings. */
+/**
+ * Covers questionnaire mappings, constraints and the complete Flyway history through V17.
+ *
+ * @author Simon Tian
+ */
 @SpringBootTest(properties = {
         "security.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "spring.jpa.properties.hibernate.generate_statistics=true"
@@ -79,7 +83,7 @@ class QuestionnaireRepositoryIntegrationTest {
     }
 
     @Test
-    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV16() {
+    void freshPostgresHasEverySuccessfulFlywayMigrationThroughV17() {
         List<String> versions = jdbcTemplate.queryForList(
                 """
                         SELECT version
@@ -92,8 +96,10 @@ class QuestionnaireRepositoryIntegrationTest {
         );
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17"
         );
+        assertThat(columnType("studies", "closed_at")).isEqualTo("timestamp with time zone");
+        assertThat(studyRepository.findById(study.getId()).orElseThrow().getClosedAt()).isNull();
     }
 
     @Test
