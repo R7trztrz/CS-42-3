@@ -793,21 +793,13 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                       <>
                         <div className="participation-flow__module">
                         <QuestionnaireStep
+                          key={participantSession.sessionToken}
+                          studyTitle={participation.title}
                           sessionToken={participantSession.sessionToken}
                           onCompleteQuestionnaire={participantSession.completeQuestionnaire}
                           isCompleting={participantSession.isActionPending}
                           completeErrorMessage={participantSession.actionErrorMessage}
                         />
-                        </div>
-                        <div className="mb-6">
-                          <button
-                            type="button"
-                            disabled={participantSession.isActionPending}
-                            onClick={() => void participantSession.abandon()}
-                            className="rounded-sm border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                          >
-                            Leave study
-                          </button>
                         </div>
                       </>
                     )}

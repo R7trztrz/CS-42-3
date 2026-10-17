@@ -1,10 +1,27 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import ResearcherHeader from '../../../components/researcher/ResearcherHeader'
 import QuestionOptionsEditor from '../components/QuestionOptionsEditor'
 import { createQuestion, getQuestion, updateQuestion } from '../api/questionBankApi'
 import { describeError } from '../../../shared/types/apiError'
 import type { QuestionFormValues, QuestionType } from '../../../shared/types/question'
 import { validateQuestionForm } from '../model/questionFormValidation'
+import './QuestionFormPage.css'
+
+function QuestionFormWorkspace({ children }: { children: ReactNode }) {
+  return (
+    <div className="qf-workspace min-h-screen bg-[#f3f6f8] text-[#172033]">
+      <ResearcherHeader activePage="questions" />
+      <main className="mx-auto w-full max-w-7xl px-5 py-8 md:px-8 md:py-10">
+        <nav aria-label="Question breadcrumb" className="qf-breadcrumb">
+          <Link to="/questions"><span aria-hidden="true">&larr;</span> Back to question bank</Link>
+          <span aria-hidden="true">/</span><span>Question editor</span>
+        </nav>
+        {children}
+      </main>
+    </div>
+  )
+}
 
 const EMPTY_FORM: QuestionFormValues = {
   type: 'SINGLE_CHOICE',
@@ -89,21 +106,26 @@ export default function QuestionFormPage() {
   }
 
   if (isLoading) {
-    return <p className="mx-auto max-w-2xl px-4 py-8 text-sm text-gray-500">Loading...</p>
+    return <QuestionFormWorkspace><p role="status" className="text-sm text-gray-500">Loading question...</p></QuestionFormWorkspace>
   }
 
   const isChoiceType = form.type === 'SINGLE_CHOICE' || form.type === 'MULTI_CHOICE'
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">
+    <QuestionFormWorkspace>
+      <div className="qf-heading">
+      <p className="mb-2 text-sm font-semibold text-emerald-700">Question bank</p>
+      <h2 className="text-3xl font-semibold">
         {isEditing ? 'Edit question' : 'New question'}
-      </h1>
+      </h2>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="qf-form space-y-6">
+        <fieldset disabled={isSubmitting} className="space-y-6 min-w-0">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Question type</label>
+          <label htmlFor="question-type" className="mb-2 block text-sm font-semibold text-gray-700">Question type</label>
           <select
+            id="question-type"
             value={form.type}
             onChange={(event) => updateType(event.target.value as QuestionType)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2"
@@ -123,17 +145,18 @@ export default function QuestionFormPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Question text</label>
+          <label htmlFor="question-text" className="mb-2 block text-sm font-semibold text-gray-700">Question text</label>
           <textarea
+            id="question-text"
             value={form.questionText}
             onChange={(event) => setForm({ ...form, questionText: event.target.value })}
             rows={3}
             required
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500"
+            className="w-full border border-gray-300 px-3 py-2"
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="qf-required flex items-center gap-3 text-sm text-gray-700">
           <input
             type="checkbox"
             checked={form.required}
@@ -150,10 +173,11 @@ export default function QuestionFormPage() {
         )}
 
         {form.type === 'SCALE' && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="qf-scale grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Minimum</label>
+              <label htmlFor="scale-min" className="mb-2 block text-sm font-semibold text-gray-700">Minimum</label>
               <input
+                id="scale-min"
                 type="number"
                 value={form.scaleMin ?? ''}
                 onChange={(event) =>
@@ -168,6 +192,7 @@ export default function QuestionFormPage() {
               />
               <input
                 type="text"
+                aria-label="Minimum label"
                 value={form.scaleMinLabel ?? ''}
                 onChange={(event) => setForm({ ...form, scaleMinLabel: event.target.value })}
                 placeholder="Minimum label (optional)"
@@ -175,8 +200,9 @@ export default function QuestionFormPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Maximum</label>
+              <label htmlFor="scale-max" className="mb-2 block text-sm font-semibold text-gray-700">Maximum</label>
               <input
+                id="scale-max"
                 type="number"
                 value={form.scaleMax ?? ''}
                 onChange={(event) =>
@@ -191,6 +217,7 @@ export default function QuestionFormPage() {
               />
               <input
                 type="text"
+                aria-label="Maximum label"
                 value={form.scaleMaxLabel ?? ''}
                 onChange={(event) => setForm({ ...form, scaleMaxLabel: event.target.value })}
                 placeholder="Maximum label (optional)"
@@ -199,6 +226,7 @@ export default function QuestionFormPage() {
             </div>
           </div>
         )}
+        </fieldset>
 
         {error && (
           <div role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -206,23 +234,23 @@ export default function QuestionFormPage() {
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="qf-actions flex flex-wrap gap-3">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="qf-button qf-button--primary"
           >
             {isSubmitting ? 'Saving...' : 'Save question'}
           </button>
           <button
             type="button"
             onClick={() => navigate('/questions')}
-            className="rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+            className="qf-button qf-button--secondary"
           >
             Cancel
           </button>
         </div>
       </form>
-    </div>
+    </QuestionFormWorkspace>
   )
 }
