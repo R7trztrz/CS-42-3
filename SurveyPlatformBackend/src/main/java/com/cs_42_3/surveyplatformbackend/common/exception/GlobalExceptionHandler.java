@@ -42,6 +42,13 @@ import java.time.Instant;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /** Rejects closure of a study that has not entered collection. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.StudyNotClosableException.class)
+    public ResponseEntity<ErrorResponse> handleStudyNotClosable(
+            com.cs_42_3.surveyplatformbackend.study.exception.StudyNotClosableException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ErrorCode.STUDY_NOT_CLOSABLE.code(), exception.getMessage()));
+    }
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException.class)
     public ResponseEntity<ErrorResponse> handleParticipation(
             com.cs_42_3.surveyplatformbackend.participation.exception.ParticipationException exception) {

@@ -83,6 +83,7 @@ The current migration sequence is:
 - V14: immutable, self-contained questionnaire publication snapshots
 - V15: participant sessions, consent metadata, and lifecycle state
 - V16: immutable answer paths and persisted participant answers
+- V17: study closure timestamps, preserving legacy closed records
 
 Legacy feature databases with V10 question-bank / V16 template-sync history
 must follow [the upgrade guide](../M4_M5_Migration_Upgrade_Guide.md), not an
@@ -249,7 +250,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V16, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V17, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test
@@ -439,7 +440,7 @@ Publishing returns 404 STUDY_NOT_FOUND for missing or foreign-owned studies, or
 Invalid versions return 400; framework error normalization is unchanged.
 
 M5 session/questionnaire execution is implemented separately as described above;
-the product close command remains outside this publication API. Questionnaire
+FR-16 closure uses the separate close endpoint documented below. Questionnaire
 saves use the study lock and DRAFT-only rule, and participant writes recheck state.
 
 Run the focused suite (isolated H2 storage and production security filter rules):
@@ -450,3 +451,59 @@ Run the focused suite (isolated H2 storage and production security filter rules)
 
 Live PostgreSQL/Flyway and frontend participation-page integration require
 separate verification.
+
+### FR-16: permanently close a study
+
+Send `POST /api/studies/{studyId}/close` with a researcher Bearer JWT and
+`Content-Type: application/json`. The request must carry the numeric version
+returned by the study details endpoint:
+
+```json
+{"version": 2}
+```
+
+Only the owner may close a COLLECTING study. Closure returns HTTP 200 with the
+current `StudyResponse`, including `status: "CLOSED"`, `closedAt`, `updatedAt`
+and the incremented `version`. The transition is irreversible. A missing or
+foreign-owned study returns 404 `STUDY_NOT_FOUND`; a draft returns 409
+`STUDY_NOT_CLOSABLE`; a stale version on a collecting study returns 409
+`STUDY_VERSION_CONFLICT`. Missing, string, negative, fractional or out-of-range
+versions return 400. Errors use the existing global `{code, error}` contract.
+
+Retrying closure of an already CLOSED, owned study returns its current details
+without changing timestamps, versions or sessions. A syntactically valid stale
+version is accepted for that retry. Legacy CLOSED rows may have a null
+`closedAt`; migration V17 does not invent historical timestamps.
+
+The command holds the Study write lock and invokes
+`ParticipantSessionLifecyclePort.abandonActiveSessionsForStudy` in the same
+transaction. Active sessions become ABANDONED with reason STUDY_CLOSED;
+completed and previously abandoned sessions remain unchanged. Existing answers,
+device information, published questionnaire snapshots, feed content and image
+assets are retained. Any failure rolls back both the study and session updates.
+
+Participant writes use the same Study-before-session lock order. An accepted
+write holding the shared Study lock commits before closure; a write waiting
+behind closure observes CLOSED and is rejected. The participation token and URL
+are retained for a clear 410 STUDY_CLOSED response from participant entry and
+content endpoints. The owner can still query study details. Existing pages are
+not forcibly disconnected; their subsequent participation requests are rejected.
+
+Future behavior/gaze persistence must call `ParticipantCollectionPolicy` in the
+same transaction as each batch insert, including retries and buffered uploads.
+The presence of this port does not mean those collectors are implemented.
+Closure does not add participant statistics, data exports or frontend controls.
+Frontend consumers should confirm the irreversible action before calling and
+refresh their study state after success.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyClosureServiceImplTest,StudyClosureControllerTest,StudyClosurePersistenceTest,StudyClosurePostgresIntegrationTest" test
+```
+
+The first three suites run without Docker; the persistence suite uses isolated
+H2 transactions and the real M5 bulk update. The PostgreSQL suite applies the
+Flyway migrations and tests both closure/answer concurrency orders using actual
+database lock waits. It requires Docker and is explicitly skipped when Docker
+is unavailable; H2 results do not establish PostgreSQL lock behavior.

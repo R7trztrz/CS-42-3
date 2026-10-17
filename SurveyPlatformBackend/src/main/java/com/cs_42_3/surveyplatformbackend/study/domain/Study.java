@@ -74,6 +74,9 @@ public class Study {
     @Column(name = "published_at", columnDefinition = "timestamptz")
     private Instant publishedAt;
 
+    @Column(name = "closed_at", columnDefinition = "timestamptz")
+    private Instant closedAt;
+
     @Column(name = "consent_document_version", length = 64)
     private String consentDocumentVersion;
 
@@ -86,6 +89,15 @@ public class Study {
         publishedAt = java.util.Objects.requireNonNull(time);
         consentDocumentVersion = java.util.Objects.requireNonNull(consentVersion);
         status = StudyStatus.COLLECTING;
+    }
+
+    /** Ends collection permanently while preserving publication metadata and saved data. */
+    public void close(Instant time) {
+        if (status != StudyStatus.COLLECTING) {
+            throw new com.cs_42_3.surveyplatformbackend.study.exception.StudyNotClosableException();
+        }
+        closedAt = java.util.Objects.requireNonNull(time);
+        status = StudyStatus.CLOSED;
     }
 
     // Managed by JPA; this is not a published content version.
