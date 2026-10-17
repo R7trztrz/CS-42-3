@@ -39,3 +39,6 @@ app:
     storage-directory: ${ASSET_STORAGE_DIRECTORY:./data/assets}
     max-pixels: 20000000
     max-dimension: 10000
+    cleanup:
+      scheduler-enabled: ${ASSET_CLEANUP_SCHEDULER_ENABLED:true}
+      scan-interval: ${ASSET_CLEANUP_SCAN_INTERVAL:30s}

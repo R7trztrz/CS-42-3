@@ -9,5 +9,6 @@ public interface AssetStorage {
     void write(String key, byte[] bytes);
     byte[] read(String key);
     boolean exists(String key);
+    /** Removes a key idempotently; an already absent file is considered successfully deleted. */
     void delete(String key);
 }

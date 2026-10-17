@@ -17,7 +17,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Upgrades real PostgreSQL V9/V10 baselines through study closure without rewriting history.
+ * Upgrades real PostgreSQL V9/V10 baselines through study deletion without rewriting history.
  *
  * @author Simon Tian
  */
@@ -28,7 +28,7 @@ class MainlineMigrationUpgradeIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"9", "10"})
-    void mainBaselineUpgradesThroughV17WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
+    void mainBaselineUpgradesThroughV18WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
         String schema = "main_upgrade_" + baseline;
         flyway(schema, baseline).migrate();
 
@@ -72,17 +72,19 @@ class MainlineMigrationUpgradeIntegrationTest {
             }
 
             var upgraded = flyway(schema, null);
-            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(17 - Integer.parseInt(baseline));
+            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(18 - Integer.parseInt(baseline));
             assertThat(upgraded.validateWithResult().validationSuccessful).isTrue();
             List<String> finalHistory = values(connection,
                     "SELECT version || ':' || script || ':' || checksum || ':' || success "
                     + "FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank");
-            assertThat(finalHistory).hasSize(17).startsWith(originalHistory.toArray(String[]::new));
+            assertThat(finalHistory).hasSize(18).startsWith(originalHistory.toArray(String[]::new));
             assertThat(values(connection, businessDigestSql)).isEqualTo(originalBusinessData);
             assertThat(values(connection,
-                    "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17') ORDER BY installed_rank"))
+                    "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17','18') ORDER BY installed_rank"))
                     .containsExactly(originalTemplateScript, "V11__create_question_bank_tables.sql",
-                            "V16__create_participant_questionnaire_runtime.sql", "V17__add_study_closure.sql");
+                            "V16__create_participant_questionnaire_runtime.sql", "V17__add_study_closure.sql",
+                            "V18__create_asset_file_cleanup_tasks.sql");
+            assertThat(values(connection, "SELECT count(*) FROM asset_file_cleanup_tasks")).containsExactly("0");
             // The additive closure migration must not invent timestamps for existing studies.
             assertThat(values(connection, "SELECT count(*) FROM studies WHERE closed_at IS NOT NULL"))
                     .containsExactly("0");
