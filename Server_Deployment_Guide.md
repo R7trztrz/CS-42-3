@@ -57,6 +57,7 @@ Fill the following values locally:
 # Web entry point; access through an HTTPS reverse proxy when deployed
 WEB_BIND_ADDRESS=127.0.0.1
 WEB_PORT=8088
+APP_PARTICIPANT_BASE_URL=http://localhost:8088
 
 POSTGRES_DB=survey_platform
 POSTGRES_USER=survey_user
@@ -95,6 +96,19 @@ The current M5 backend requires `CollectionCompletionGate`. Its no-op adapter
 is intentionally available only in `dev`/`test`; the base server configuration
 does not supply the production M6 adapter and must not be described as
 production-ready. For a demonstration, explicitly opt in:
+
+For the easiest local verification, open PowerShell at the repository root
+and run `.\scripts\verify-server-demo.ps1`. It creates temporary test
+credentials, builds and starts a uniquely named demo stack, verifies that the
+backend received the expected participant URL, checks the database and
+frontend health, then removes only that temporary stack and environment file.
+Docker Desktop must be running. The script uses public Turnstile test keys and
+does not modify a personal `.env.server` file.
+
+Expected output includes `PASS` for valid Compose configuration, healthy
+database and frontend, the backend participant URL, `/healthz`, and the app
+page. This smoke test is for local demonstration only; it does not validate
+production credentials, HTTPS, external access, or real participant research.
 
 ```bash
 docker compose -p survey-demo --env-file .env.server -f docker-compose.server.yml -f docker-compose.demo.yml config --quiet

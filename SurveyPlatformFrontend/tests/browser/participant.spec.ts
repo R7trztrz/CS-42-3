@@ -72,7 +72,7 @@ async function stubBackend(page: Page): Promise<Backend> {
     consentDocument,
     enteredAt: NOW,
     consentedAt: backend.phase === 'CONSENT' ? null : NOW,
-    calibrationCompletedAt: null,
+    calibrationCompletedAt: backend.completions.length > 0 ? NOW : null,
     browsingCompletedAt: null,
     completedAt: backend.status === 'COMPLETED' ? NOW : null,
     abandonedAt: null,
@@ -142,7 +142,8 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
   // localhost, not 127.0.0.1: WebGazer alerts on plain-http hosts other than localhost.
   await page.goto(`http://localhost:4186/participate/${STUDY_TOKEN}`)
 
-  await page.getByRole('button', { name: 'Start study' }).click()
+  await page.getByRole('button', { name: 'Begin study' }).click()
+  await page.getByLabel('I have read the participant information and agree to take part.').check()
   await page.getByRole('button', { name: 'I agree to participate' }).click()
   await page.getByRole('button', { name: 'Start calibration' }).click()
 
@@ -199,8 +200,10 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
   await expect(page.getByText('Its accuracy could not be measured.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recalibrate' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Continue to the study' }).click()
-  const leave = page.getByRole('button', { name: 'Continue', exact: true })
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue to activity' }).click()
+  await page.getByRole('button', { name: 'Start activity' }).click()
+  const leave = page.getByRole('button', { name: 'Finish browsing' })
   await expect(leave).toBeVisible()
   await expect(page.locator('[data-component-id]').first()).toBeAttached()
   const video = await page.evaluateHandle(() => document.getElementById('webgazerVideoFeed'))

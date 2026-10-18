@@ -61,3 +61,15 @@ This override enables the `dev`-only M6 completion gate. Consent is still a
 non-production placeholder, and real collection completion is not validated.
 Do not use it for real participant research. The unmodified server
 configuration remains fail-closed until a real M6 adapter is supplied.
+
+To validate the server-style demo locally from PowerShell, run:
+
+```powershell
+.\scripts\verify-server-demo.ps1
+```
+
+The script creates temporary test credentials and an isolated Compose project,
+checks the participant URL passed into the backend and the frontend health
+endpoints, then removes its containers, volumes and temporary environment file.
+It requires Docker Desktop to be running and uses public Turnstile test keys.
+It does not modify `.env.server` and is not a production deployment test.

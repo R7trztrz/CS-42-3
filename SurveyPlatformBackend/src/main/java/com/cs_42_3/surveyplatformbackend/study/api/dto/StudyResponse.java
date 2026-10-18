@@ -26,15 +26,17 @@ public record StudyResponse(
         Instant createdAt,
         @Schema(description = "Last modification timestamp in UTC.", format = "date-time", example = "2026-09-11T00:00:00Z")
         Instant updatedAt,
-        @Schema(description = "Expected edit version to send with PATCH; managed by the server.", example = "0")
+        @Schema(description = "Expected version for updates, publication and closure; managed by the server.", example = "0")
         Long version,
         @Schema(description = "Whether eye tracking is enabled. Defaults to false.")
         boolean eyeTrackingEnabled,
         @Schema(description = "Whether a questionnaire follows manual browsing completion. Defaults to false.")
         boolean questionnaireEnabled,
         Instant publishedAt,
-        @Schema(description = "Participant page URL; null before publication.")
-        String participationUrl
+        @Schema(description = "Participant page URL; null before publication. Retained after closure, when access returns STUDY_CLOSED.")
+        String participationUrl,
+        @Schema(description = "Closure timestamp in UTC; null before closure or for legacy closed records without a recorded time.", format = "date-time")
+        Instant closedAt
 ) {
     /**
      * Maps a persisted study to its API representation.
@@ -51,6 +53,6 @@ public record StudyResponse(
         return new StudyResponse(study.getId(), study.getTitle(), study.getDescription(),
                 study.getStatus(), study.getCreatedAt(), study.getUpdatedAt(),
                 study.getLockVersion(), study.isEyeTrackingEnabled(), study.isQuestionnaireEnabled(),
-                study.getPublishedAt(), participationUrl);
+                study.getPublishedAt(), participationUrl, study.getClosedAt());
     }
 }

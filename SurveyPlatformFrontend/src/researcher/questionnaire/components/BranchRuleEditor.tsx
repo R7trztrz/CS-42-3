@@ -83,7 +83,7 @@ export default function BranchRuleEditor({
   }
 
   return (
-    <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+    <div className="qe-branch-editor space-y-2">
       <p className="text-xs font-medium text-gray-600">
         Jump rules (default: continue to the next item)
       </p>

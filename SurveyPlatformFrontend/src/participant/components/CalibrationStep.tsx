@@ -12,6 +12,7 @@ import {
   type ParticipantEyeTracking,
   type ParticipantEyeTrackingSnapshot,
 } from '../../eyetracking/participant'
+import { CalibrationView } from '../../pages/participant/ParticipantDemoTemplate'
 import { useEyeTrackingSnapshot } from '../hooks/useParticipantEyeTracking'
 import './eyeTracking.css'
 
@@ -19,6 +20,8 @@ import './eyeTracking.css'
 // eye-tracking owner, then completes the phase on the server with the attempt
 // the participant continues with. Every outcome lets the participant continue:
 // a poor result, a skipped calibration and an unavailable camera included.
+// The set-up screen is the participant interface's CalibrationView; only the
+// nine-point run itself is a full-screen overlay.
 
 type CalibrationStepProps = {
   eyeTracking: ParticipantEyeTracking | null
@@ -26,11 +29,6 @@ type CalibrationStepProps = {
   errorMessage: string | null
   onComplete: (attempt: CalibrationAttempt) => Promise<boolean>
 }
-
-const PRIMARY_BUTTON =
-  'rounded-sm bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60'
-const SECONDARY_BUTTON =
-  'rounded-sm border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60'
 
 const UNAVAILABLE_REASONS: Record<EyeTrackingUnavailableReason, string> = {
   NO_CAMERA_API: 'This browser does not allow camera access on this page.',
@@ -41,67 +39,69 @@ const UNAVAILABLE_REASONS: Record<EyeTrackingUnavailableReason, string> = {
   INIT_TIMEOUT: 'The camera took too long to start.',
 }
 
-function Card({ children }: { children: ReactNode }) {
+function Notice({ title, children, live = false }: { title: string; children?: ReactNode; live?: boolean }) {
   return (
-    <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase text-emerald-700">Eye-tracking calibration</p>
-      {children}
-    </section>
+    <div className="demo-notice">
+      <div role={live ? 'status' : undefined}>
+        <strong>{title}</strong>
+        {children}
+      </div>
+    </div>
   )
 }
+
+const noop = () => {}
 
 function CalibrationStep({ eyeTracking, isCompleting, errorMessage, onComplete }: CalibrationStepProps) {
   const snapshot = useEyeTrackingSnapshot(eyeTracking)
 
   if (!eyeTracking || !snapshot) {
     return (
-      <Card>
-        <p className="mt-2 text-sm text-gray-600" role="status">
-          Preparing eye tracking...
-        </p>
-      </Card>
+      <CalibrationView
+        onNext={noop}
+        pending
+        previewStatus="Preparing"
+        previewCaption="Camera is not active"
+        notice={<Notice title="Preparing eye tracking..." live />}
+      />
     )
   }
 
   switch (snapshot.stage) {
     case 'IDLE':
       return (
-        <Card>
-          <h2 className="mt-1 text-xl font-semibold text-[#172033]">Calibrate the eye tracker</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-700">
-            This study uses your webcam to estimate where you look on the screen. The video is
-            processed in your browser and is never uploaded; only the estimated screen positions
-            are saved with your responses.
-          </p>
-          <ul className="mt-3 max-w-3xl list-disc space-y-1 pl-5 text-sm leading-6 text-gray-700">
-            <li>Sit about an arm&apos;s length from the screen with your face evenly lit.</li>
-            <li>Keep your head still and follow the dots with your eyes.</li>
-            <li>Nine dots appear one at a time. Look at each dot and click it five times.</li>
-          </ul>
-          <p className="mt-3 text-sm text-gray-600">
-            Your browser will ask for camera access. If the camera is unavailable, you can still
-            continue the study.
-          </p>
-          <div className="mt-5">
-            <button type="button" className={PRIMARY_BUTTON} onClick={() => void eyeTracking.calibrate()}>
-              Start calibration
-            </button>
-          </div>
-        </Card>
+        <CalibrationView
+          onNext={() => void eyeTracking.calibrate()}
+          nextLabel="Start calibration"
+          previewStatus="Off"
+          previewCaption="The camera starts when you begin calibration"
+          notice={
+            <Notice title="Your video stays in this browser">
+              <p>
+                This study uses your webcam to estimate where you look on the screen. The video is
+                never uploaded; only the estimated screen positions are saved with your responses.
+              </p>
+              <p>
+                Nine dots appear one at a time. Look at each dot and click it five times. If your
+                camera is unavailable, you can still continue the study.
+              </p>
+            </Notice>
+          }
+        />
       )
     case 'STARTING':
       return (
-        <Card>
-          <h2 className="mt-1 text-xl font-semibold text-[#172033]">Starting the camera...</h2>
-          <p className="mt-3 text-sm text-gray-700" role="status">
-            Allow camera access if your browser asks. This can take a few seconds.
-          </p>
-          <div className="mt-5">
-            <button type="button" className={SECONDARY_BUTTON} onClick={() => eyeTracking.skip()}>
-              Skip calibration
-            </button>
-          </div>
-        </Card>
+        <CalibrationView
+          onNext={() => eyeTracking.skip()}
+          nextLabel="Skip calibration"
+          previewStatus="Starting"
+          previewCaption="Allow camera access if your browser asks"
+          notice={
+            <Notice title="Starting the camera..." live>
+              <p>This can take a few seconds.</p>
+            </Notice>
+          }
+        />
       )
     case 'CALIBRATING':
       return (
@@ -124,11 +124,13 @@ function CalibrationStep({ eyeTracking, isCompleting, errorMessage, onComplete }
       ) : null
     default:
       return (
-        <Card>
-          <p className="mt-2 text-sm text-gray-600" role="status">
-            Continuing to the study...
-          </p>
-        </Card>
+        <CalibrationView
+          onNext={noop}
+          pending
+          previewStatus="Off"
+          previewCaption="Camera is not active"
+          notice={<Notice title="Continuing to the study..." live />}
+        />
       )
   }
 }
@@ -209,7 +211,7 @@ type CalibrationResultProps = {
   onComplete: (attempt: CalibrationAttempt) => Promise<boolean>
 }
 
-function resultText(attempt: CalibrationAttempt): { title: string; detail: string } {
+function resultText(attempt: CalibrationAttempt): { title: string; detail: string; status: string } {
   if (!attempt.trackingAvailable) {
     const reason = attempt.unavailableReason
       ? UNAVAILABLE_REASONS[attempt.unavailableReason]
@@ -217,23 +219,25 @@ function resultText(attempt: CalibrationAttempt): { title: string; detail: strin
     return {
       title: 'Eye tracking is not available',
       detail: `${reason} You can continue the study without eye tracking.`,
+      status: 'Unavailable',
     }
   }
   if (attempt.outcome === 'ABANDONED') {
     return {
       title: 'Calibration was not completed',
       detail: 'Eye tracking will continue, but its accuracy will be lower.',
+      status: 'Partial',
     }
   }
   switch (attempt.quality) {
     case 'GOOD':
-      return { title: 'Calibration complete', detail: 'Accuracy looks good.' }
+      return { title: 'Calibration complete', detail: 'Accuracy looks good.', status: 'Good' }
     case 'FAIR':
-      return { title: 'Calibration complete', detail: 'Accuracy is acceptable.' }
+      return { title: 'Calibration complete', detail: 'Accuracy is acceptable.', status: 'Fair' }
     case 'POOR':
-      return { title: 'Calibration complete', detail: 'Accuracy is low.' }
+      return { title: 'Calibration complete', detail: 'Accuracy is low.', status: 'Low accuracy' }
     default:
-      return { title: 'Calibration complete', detail: 'Its accuracy could not be measured.' }
+      return { title: 'Calibration complete', detail: 'Its accuracy could not be measured.', status: 'Not measured' }
   }
 }
 
@@ -245,43 +249,41 @@ function CalibrationResult({
   errorMessage,
   onComplete,
 }: CalibrationResultProps) {
-  const { title, detail } = resultText(attempt)
+  const { title, detail, status } = resultText(attempt)
 
   return (
-    <Card>
-      <h2 className="mt-1 text-xl font-semibold text-[#172033]">{title}</h2>
-      <p className="mt-3 text-sm text-gray-700">{detail}</p>
-      {snapshot.canRecalibrate && (
-        <p className="mt-2 text-sm text-gray-600">
-          You can recalibrate to improve accuracy, or continue now.
-        </p>
-      )}
-      {errorMessage && (
-        <p className="mt-3 text-sm font-semibold text-red-700" role="alert">
-          {errorMessage}
-        </p>
-      )}
-      <div className="mt-5 flex flex-wrap gap-3">
-        <button
-          type="button"
-          className={PRIMARY_BUTTON}
-          disabled={isCompleting}
-          onClick={() => void onComplete(attempt)}
-        >
-          {isCompleting ? 'Saving...' : 'Continue to the study'}
-        </button>
-        {snapshot.canRecalibrate && (
-          <button
-            type="button"
-            className={SECONDARY_BUTTON}
-            disabled={isCompleting}
-            onClick={() => void eyeTracking.calibrate()}
-          >
-            Recalibrate
-          </button>
-        )}
-      </div>
-    </Card>
+    <CalibrationView
+      onNext={() => void onComplete(attempt)}
+      nextLabel={isCompleting ? 'Saving...' : 'Continue'}
+      pending={isCompleting}
+      previewStatus={status}
+      previewCaption={attempt.trackingAvailable
+        ? 'Your camera stays on until you finish browsing'
+        : 'Camera is not active'}
+      notice={
+        <Notice title={title}>
+          <p>{detail}</p>
+          {snapshot.canRecalibrate && (
+            <>
+              <p>You can recalibrate to improve accuracy, or continue now.</p>
+              <button
+                type="button"
+                className="demo-button demo-button--quiet mt-3"
+                disabled={isCompleting}
+                onClick={() => void eyeTracking.calibrate()}
+              >
+                Recalibrate
+              </button>
+            </>
+          )}
+          {errorMessage && (
+            <p className="mt-3 font-semibold text-red-700" role="alert">
+              {errorMessage}
+            </p>
+          )}
+        </Notice>
+      }
+    />
   )
 }
 

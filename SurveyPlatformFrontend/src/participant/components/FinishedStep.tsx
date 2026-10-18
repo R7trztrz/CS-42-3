@@ -52,7 +52,9 @@ function FinishedStep({ status, abandonmentReason }: FinishedStepProps) {
   const { title, detail } = describeOutcome(status, abandonmentReason)
 
   return (
-    <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-10 text-center shadow-sm">
+    <section className="demo-complete">
+      {status === 'COMPLETED' && <div className="demo-complete__mark" aria-hidden="true" />}
+      <p className="demo-eyebrow">{status === 'COMPLETED' ? 'Study complete' : 'Session ended'}</p>
       <h2 className="text-xl font-semibold text-[#172033]">{title}</h2>
       <p className="mt-2 text-sm text-gray-600">{detail}</p>
     </section>

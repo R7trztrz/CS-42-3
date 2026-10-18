@@ -93,7 +93,7 @@ describe('CalibrationStep', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByText('Accuracy looks good.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Recalibrate' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to the study' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onComplete).toHaveBeenCalledWith(eyeTracking.getSnapshot().attempt)
     expect(recorded).toEqual([eyeTracking.getSnapshot().attempt])
   })
@@ -140,7 +140,7 @@ describe('CalibrationStep', () => {
     expect(screen.getByText(/Camera access was blocked/)).toBeTruthy()
     expect(screen.getByRole('alert').textContent).toContain('Something went wrong')
     expect(screen.queryByRole('button', { name: 'Recalibrate' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to the study' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({ outcome: 'UNAVAILABLE', unavailableReason: 'PERMISSION_DENIED' }),
     )
