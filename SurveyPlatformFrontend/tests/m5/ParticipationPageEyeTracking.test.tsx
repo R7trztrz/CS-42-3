@@ -6,9 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CalibrationAttempt } from '../../src/eyetracking'
 import type { ParticipantEyeTrackingSnapshot } from '../../src/eyetracking/participant'
 
-// M6 wiring on the participant page: which phases hold the eye-tracking owner, when gaze
-// collection starts, and that queued gaze is delivered before the session leaves BROWSING. The
-// owner itself is covered in tests/eyetracking.
+// M6 wiring on the participant page: which phases hold the eye-tracking owner, what the set-up
+// review says about the camera, when gaze collection starts, and that queued gaze is delivered
+// before the session leaves BROWSING. The owner itself is covered in tests/eyetracking.
 
 const { route, getParticipation, completeBrowsing, abandon, sessionView, owner, ownerRequests } = vi.hoisted(() => ({
   route: { token: 'study-a' },
@@ -111,6 +111,28 @@ describe('participation page eye tracking', () => {
     await screen.findByText('Eye study')
     expect(ownerRequests.length).toBeGreaterThan(0)
     expect(ownerRequests.every((request) => request === active)).toBe(true)
+  })
+
+  it('says on the set-up review that the camera stays on for the feed', async () => {
+    render(<ParticipationPage />)
+
+    expect(await screen.findByText('Calibration confirmed')).not.toBeNull()
+    expect(screen.getByText(/Eye tracking runs while you browse the feed/)).not.toBeNull()
+    expect(screen.getByText('Your camera stays on until you finish browsing')).not.toBeNull()
+    expect(screen.getByText('On', { selector: 'small' })).not.toBeNull()
+  })
+
+  it.each([
+    ['the camera was unavailable', { attempt: { trackingAvailable: false } as CalibrationAttempt }],
+    ['the page was reloaded after calibration', { stage: 'IDLE' as const, attempt: null }],
+  ])('says eye tracking is off when %s', async (_case, overrides) => {
+    owner.snapshot = snapshot(overrides)
+    render(<ParticipationPage />)
+
+    expect(await screen.findByText('Eye tracking is off for this session')).not.toBeNull()
+    expect(screen.getByText('Off', { selector: 'small' })).not.toBeNull()
+    expect(screen.getByText('Camera is not active on this screen')).not.toBeNull()
+    expect(screen.queryByText('Your camera stays on until you finish browsing')).toBeNull()
   })
 
   it('starts collecting gaze only once the feed is shown', async () => {

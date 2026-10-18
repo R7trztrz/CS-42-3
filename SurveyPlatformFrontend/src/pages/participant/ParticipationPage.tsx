@@ -622,6 +622,9 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
     eyeTrackingActive,
   )
   const eyeTrackingSnapshot = useEyeTrackingSnapshot(eyeTracking)
+  // The camera stays on between calibration and the feed, so the set-up page must say so.
+  const cameraOn = eyeTrackingSnapshot?.stage === 'FINISHED'
+    && eyeTrackingSnapshot.attempt?.trackingAvailable === true
 
   useEffect(() => {
     // Gaze is collected only while the feed is on screen. A no-op unless calibration on
@@ -828,6 +831,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                       <EyeTrackingPreparation
                         enabled={participation.eyeTrackingEnabled}
                         confirmed={Boolean(session?.calibrationCompletedAt)}
+                        cameraOn={cameraOn}
                         onContinue={continueFromSetup}
                       />
                     )}

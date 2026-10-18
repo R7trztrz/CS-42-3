@@ -199,14 +199,32 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
   expect(overlaps).toEqual([])
   await expect(page.getByText('Its accuracy could not be measured.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Recalibrate' })).toBeVisible()
+  const video = await page.evaluateHandle(() => document.getElementById('webgazerVideoFeed'))
+  // The camera stays on for browsing; WebGazer's preview and dot are for the targets only.
+  const cameraState = () =>
+    page.evaluate(() => {
+      const container = document.getElementById('webgazerVideoContainer')
+      const feed = document.getElementById('webgazerVideoFeed') as HTMLVideoElement | null
+      return {
+        tracks: ((feed?.srcObject as MediaStream | null)?.getTracks() ?? []).map((t) => t.readyState),
+        preview: container ? getComputedStyle(container).display : null,
+        gazeDot: (window as unknown as { webgazer?: { params?: { showGazeDot?: boolean } } }).webgazer
+          ?.params?.showGazeDot,
+      }
+    })
+  expect(await cameraState()).toEqual({ tracks: ['live'], preview: 'none', gazeDot: false })
 
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  // The set-up review that follows says the camera is still on.
+  await expect(page.getByText('Calibration confirmed')).toBeVisible()
+  await expect(page.getByText('Your camera stays on until you finish browsing')).toBeVisible()
+  expect(await cameraState()).toEqual({ tracks: ['live'], preview: 'none', gazeDot: false })
   await page.getByRole('button', { name: 'Continue to activity' }).click()
   await page.getByRole('button', { name: 'Start activity' }).click()
+
   const leave = page.getByRole('button', { name: 'Finish browsing' })
   await expect(leave).toBeVisible()
   await expect(page.locator('[data-component-id]').first()).toBeAttached()
-  const video = await page.evaluateHandle(() => document.getElementById('webgazerVideoFeed'))
   const browsing = await page.evaluate(() => {
     const container = document.getElementById('webgazerVideoContainer')
     return {

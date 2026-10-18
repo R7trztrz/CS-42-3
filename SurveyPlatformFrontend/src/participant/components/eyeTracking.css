@@ -6,7 +6,7 @@
  * target is under it on any viewport wider than about 600 px. It is stacked above the
  * calibration backdrop, so the participant can check their face is in view, and below the
  * targets, and it is kept out of elementFromPoint so it is never attributed as gaze content.
- * The preview is hidden once browsing starts.
+ * The preview is shown only while the targets are on screen: each attempt hides it when it ends.
  */
 #webgazerVideoContainer {
   position: fixed !important;

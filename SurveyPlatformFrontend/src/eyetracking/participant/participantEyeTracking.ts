@@ -160,6 +160,8 @@ export class ParticipantEyeTracking {
         this.progress = null
         if (this.stageValue === 'STARTING') {
           // The engine hides WebGazer's dot each time it starts; calibration shows it to everyone.
+          // The preview is shown again too: a finished attempt hid it.
+          this.showPreview()
           this.setGazeDot(true)
           this.setStage('CALIBRATING')
         } else this.publish()
@@ -185,6 +187,10 @@ export class ParticipantEyeTracking {
     this.attempt = attempt
     this.target = null
     this.progress = null
+    // The camera may stay on until browsing, but the result and set-up screens that follow show
+    // neither WebGazer's preview nor its dot.
+    this.hidePreview()
+    this.setGazeDot(false)
     this.setStage('FINISHED')
     return attempt
   }
@@ -343,7 +349,20 @@ export class ParticipantEyeTracking {
     this.setStage('STOPPED')
   }
 
-  /** WebGazer's preview helps during calibration but must not cover the feed while browsing. */
+  /** WebGazer's preview helps while the targets are shown; a recalibration shows it again. */
+  private showPreview(): void {
+    const webgazer = this.webgazer
+    if (!webgazer) return
+    try {
+      webgazer.showVideo?.(true)
+      webgazer.showFaceOverlay?.(true)
+      webgazer.showFaceFeedbackBox?.(true)
+    } catch (error) {
+      this.report({ stage: 'preview', error })
+    }
+  }
+
+  /** WebGazer's preview must not cover the pages after calibration or the feed while browsing. */
   private hidePreview(): void {
     const webgazer = this.webgazer
     if (!webgazer) return

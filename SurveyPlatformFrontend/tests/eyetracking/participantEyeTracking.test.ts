@@ -128,7 +128,7 @@ describe('ParticipantEyeTracking', () => {
     expect(owner.getSnapshot()).toBe(snapshot)
   })
 
-  it('shows the live gaze dot to every participant while calibrating', async () => {
+  it('shows the live gaze dot and the preview only while the targets are on screen', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
     const { owner, engine, webgazer } = setupOwner()
     const running = owner.calibrate()
@@ -136,11 +136,33 @@ describe('ParticipantEyeTracking', () => {
 
     expect(owner.stage).toBe('CALIBRATING')
     expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(true)
+    expect(webgazer.showVideo).toHaveBeenLastCalledWith(true)
     expect(owner.getSnapshot()).toMatchObject({ gazeDotVisible: true, canToggleGazeDot: false })
 
     await lookAndClickThrough(owner, engine)
     await running
-    expect(owner.getSnapshot()).toMatchObject({ stage: 'FINISHED', gazeDotVisible: true })
+    // The result and set-up screens that follow show neither, although the camera stays on.
+    expect(owner.getSnapshot()).toMatchObject({ stage: 'FINISHED', gazeDotVisible: false })
+    expect(webgazer.showPredictionPoints).toHaveBeenLastCalledWith(false)
+    expect(webgazer.showVideo).toHaveBeenLastCalledWith(false)
+    expect(webgazer.showFaceOverlay).toHaveBeenLastCalledWith(false)
+    expect(webgazer.showFaceFeedbackBox).toHaveBeenLastCalledWith(false)
+  })
+
+  it('shows the preview again for a recalibration', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    const { owner, engine, webgazer } = await calibrated(300)
+    expect(webgazer.showVideo).toHaveBeenLastCalledWith(false)
+
+    const retry = owner.calibrate()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(owner.stage).toBe('CALIBRATING')
+    expect(webgazer.showVideo).toHaveBeenLastCalledWith(true)
+    expect(owner.getSnapshot().gazeDotVisible).toBe(true)
+
+    await lookAndClickThrough(owner, engine, 300)
+    await retry
+    expect(webgazer.showVideo).toHaveBeenLastCalledWith(false)
   })
 
   it('offers one recalibration after a poor result and then no more', async () => {
