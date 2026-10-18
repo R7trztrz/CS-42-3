@@ -2,6 +2,8 @@ package com.cs_42_3.surveyplatformbackend.eyetracking;
 
 import com.cs_42_3.surveyplatformbackend.TestcontainersConfiguration;
 import com.cs_42_3.surveyplatformbackend.participation.auth.ParticipantSessionTokenService;
+import com.cs_42_3.surveyplatformbackend.researcher.repository.ResearcherRepository;
+import com.cs_42_3.surveyplatformbackend.researcher.service.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,12 +29,14 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -64,6 +68,10 @@ class EyeTrackingIntegrationTest {
     private JdbcTemplate jdbc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private ResearcherRepository researchers;
+    @Autowired
+    private JwtService jwtService;
 
     @Test
     void attemptsAreStoredIdempotentlyWithoutChangingThePhase() throws Exception {
@@ -420,16 +428,59 @@ class EyeTrackingIntegrationTest {
     @Test
     void deletingTheStudyRemovesItsEyeTrackingRecords() throws Exception {
         Participant participant = browsingParticipant();
-        submitBatch(participant, batch(participant, participant.attemptId()))
+        String batch = batch(participant, participant.attemptId());
+        submitBatch(participant, batch)
                 .andExpect(status().isCreated());
 
-        jdbc.update("DELETE FROM studies WHERE id = ?", participant.studyId());
+        // FR-18 through its endpoint: the M6 rows go with the session through cascading keys.
+        mockMvc.perform(delete("/api/studies/{studyId}", participant.studyId())
+                        .header("Authorization", "Bearer " + ownerToken(participant))
+                        .param("version", Long.toString(studyVersion(participant))))
+                .andExpect(status().isNoContent());
 
         for (String table : List.of("calibration_attempts", "calibration_attempt_reasons",
                 "calibration_point_residuals", "calibration_completions", "gaze_batches",
                 "gaze_events")) {
             assertThat(count(table, participant)).as(table).isZero();
         }
+        // A delayed upload from a page still open on the deleted study is refused.
+        submitBatch(participant, batch)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("PARTICIPANT_SESSION_UNAUTHORIZED"));
+    }
+
+    @Test
+    void closingTheStudyKeepsItsEyeTrackingRecordsAndRefusesLaterWrites() throws Exception {
+        Participant participant = browsingParticipant();
+        String batch = batch(participant, participant.attemptId());
+        submitBatch(participant, batch)
+                .andExpect(status().isCreated());
+        int events = count("gaze_events", participant);
+
+        mockMvc.perform(post("/api/studies/{studyId}/close", participant.studyId())
+                        .header("Authorization", "Bearer " + ownerToken(participant))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":" + studyVersion(participant) + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
+
+        // FR-16: the stored records stay, and later writes are refused, retries included.
+        submitBatch(participant, batch)
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("STUDY_CLOSED"));
+        UUID lateAttemptId = UUID.randomUUID();
+        recordAttempt(participant, lateAttemptId, attempt(participant, lateAttemptId))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.code").value("STUDY_CLOSED"));
+        assertThat(jdbc.queryForObject(
+                "SELECT status || '/' || abandonment_reason FROM participant_sessions WHERE id = ?",
+                String.class,
+                participant.sessionId()
+        )).isEqualTo("ABANDONED/STUDY_CLOSED");
+        assertThat(count("calibration_attempts", participant)).isOne();
+        assertThat(count("calibration_completions", participant)).isOne();
+        assertThat(count("gaze_batches", participant)).isOne();
+        assertThat(count("gaze_events", participant)).isEqualTo(events).isPositive();
     }
 
     private ResultActions recordAttempt(Participant participant, UUID attemptId, String body)
@@ -581,6 +632,18 @@ class EyeTrackingIntegrationTest {
                 participant.sessionId()
         );
         return count == null ? 0 : count;
+    }
+
+    /** A JWT for the study's owner, issued the way login issues it. */
+    private String ownerToken(Participant participant) {
+        UUID ownerId = jdbc.queryForObject(
+                "SELECT owner_id FROM studies WHERE id = ?", UUID.class, participant.studyId());
+        return jwtService.generateToken(researchers.findById(ownerId).orElseThrow());
+    }
+
+    private long studyVersion(Participant participant) {
+        return Objects.requireNonNull(jdbc.queryForObject(
+                "SELECT lock_version FROM studies WHERE id = ?", Long.class, participant.studyId()));
     }
 
     private String phase(Participant participant) {
