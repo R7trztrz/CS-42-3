@@ -247,6 +247,11 @@ import {
 
 import { useParticipantSession } from '../../participant/hooks/useParticipantSession'
 
+import {
+  useEyeTrackingSnapshot,
+  useParticipantEyeTracking,
+} from '../../participant/hooks/useParticipantEyeTracking'
+
 import type { ParticipantDeviceInfo } from '../../participant/model/participantSession'
 
 import ConsentStep from '../../participant/components/ConsentStep'
@@ -600,6 +605,51 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
     && participantSession.session?.status === 'IN_PROGRESS'
     && participantSession.session.phase === 'BROWSING'
     && !showPreparation && startedActivity === activityKey
+  // M6: for studies with eye tracking, one owner runs from CALIBRATION through
+  // BROWSING, so the engine calibrated in the first phase is the one that
+  // collects gaze in the second. Outside those phases it is released, which
+  // also turns the camera off.
+  const currentSession = participantSession.session
+  const eyeTrackingActive =
+    participantSession.stage === 'active' &&
+    currentSession !== null &&
+    currentSession.eyeTrackingEnabled &&
+    currentSession.status === 'IN_PROGRESS' &&
+    (currentSession.phase === 'CALIBRATION' || currentSession.phase === 'BROWSING')
+  const eyeTracking = useParticipantEyeTracking(
+    currentSession?.sessionId ?? null,
+    participantSession.sessionToken,
+    eyeTrackingActive,
+  )
+  const eyeTrackingSnapshot = useEyeTrackingSnapshot(eyeTracking)
+  // The camera stays on between calibration and the feed, so the set-up page must say so.
+  const cameraOn = eyeTrackingSnapshot?.stage === 'FINISHED'
+    && eyeTrackingSnapshot.attempt?.trackingAvailable === true
+
+  useEffect(() => {
+    // Gaze is collected only while the feed is on screen. A no-op unless calibration on
+    // this page handed over a usable engine.
+    if (eyeTracking && isActivityActive) {
+      eyeTracking.beginTracking()
+    }
+  }, [eyeTracking, isActivityActive])
+
+  const [isSavingGaze, setIsSavingGaze] = useState(false)
+
+  // Gaze still queued in the browser is delivered before the phase changes:
+  // once the session leaves BROWSING the server no longer accepts it.
+  const leaveBrowsing = async (action: () => Promise<boolean>) => {
+    if (eyeTracking) {
+      setIsSavingGaze(true)
+      try {
+        await eyeTracking.stopTracking()
+      } finally {
+        setIsSavingGaze(false)
+      }
+    }
+    await action()
+  }
+
   const phaseSteps: Record<string, DemoStep> = {
     CONSENT: 'consent',
     CALIBRATION: 'calibration',
@@ -767,7 +817,12 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                   {participantSession.session.status === 'IN_PROGRESS' &&
                     participantSession.session.phase === 'CALIBRATION' && (
                       <div className="participation-flow__module">
-                        <CalibrationStep onRefreshSession={participantSession.refreshSession} />
+                        <CalibrationStep
+                          eyeTracking={eyeTracking}
+                          isCompleting={participantSession.isActionPending}
+                          errorMessage={participantSession.actionErrorMessage}
+                          onComplete={participantSession.completeCalibration}
+                        />
                       </div>
                     )}
 
@@ -776,6 +831,8 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                       <EyeTrackingPreparation
                         enabled={participation.eyeTrackingEnabled}
                         confirmed={Boolean(session?.calibrationCompletedAt)}
+                        cameraOn={cameraOn}
+                        previewStream={cameraOn ? eyeTracking?.cameraStream() ?? null : null}
                         onContinue={continueFromSetup}
                       />
                     )}
@@ -813,11 +870,27 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                 isActivityActive &&
                 participantSession.session?.phase === 'BROWSING' && (
               <ExperienceView
-                onNext={() => void participantSession.completeBrowsing()}
-                pending={participantSession.isActionPending}
+                onNext={() => void leaveBrowsing(participantSession.completeBrowsing)}
+                pending={participantSession.isActionPending || isSavingGaze}
                 error={participantSession.actionErrorMessage}
                 actions={
-                  <button className="demo-button demo-button--quiet mt-3 w-full" type="button" disabled={participantSession.isActionPending} onClick={() => void participantSession.abandon()}>Leave study</button>
+                  <>
+                    <button className="demo-button demo-button--quiet mt-3 w-full" type="button" disabled={participantSession.isActionPending || isSavingGaze} onClick={() => void leaveBrowsing(participantSession.abandon)}>Leave study</button>
+                    {eyeTrackingSnapshot?.canToggleGazeDot && (
+                      // Test mode only (VITE_EYE_TRACKING_TEST_MODE); real participants never see it.
+                      <label className="mt-3 flex w-full items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={eyeTrackingSnapshot.gazeDotVisible}
+                          onChange={(event) => eyeTracking?.setGazeDotVisible(event.target.checked)}
+                        />
+                        Show the live gaze dot (test mode)
+                      </label>
+                    )}
+                    {isSavingGaze && (
+                      <p className="mt-3 text-sm" role="status">Saving eye-tracking data...</p>
+                    )}
+                  </>
                 }
               >
               <section className="participation-flow__feed [&_.cursor-move]:cursor-default">

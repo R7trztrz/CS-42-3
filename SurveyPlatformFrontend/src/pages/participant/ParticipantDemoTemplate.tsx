@@ -229,7 +229,7 @@ export function ConsentView({ onBack, onNext, document, confirmation, notice, pe
 }
 
 export function CalibrationView({ onBack, onNext, notice, nextLabel = 'Start calibration',
-  previewStatus = 'Ready', previewCaption = 'Your camera preview will appear here', pending = false }: {
+  previewStatus = 'Ready', previewCaption = 'Your camera preview will appear here', pending = false, preview }: {
   onBack?: () => void
   onNext: () => void
   notice?: ReactNode
@@ -237,6 +237,8 @@ export function CalibrationView({ onBack, onNext, notice, nextLabel = 'Start cal
   previewStatus?: string
   previewCaption?: string
   pending?: boolean
+  /** A live camera view; without it the panel shows the face-guide placeholder. */
+  preview?: ReactNode
 }) {
   return (
     <section className="demo-calibration">
@@ -254,15 +256,15 @@ export function CalibrationView({ onBack, onNext, notice, nextLabel = 'Start cal
         {notice}
       </div>
 
-      <div className="demo-camera-preview" aria-label="Camera preview placeholder">
+      <div className="demo-camera-preview" aria-label={preview ? 'Camera preview' : 'Camera preview placeholder'}>
         <div className="demo-camera-preview__top">
           <span><i /> Camera preview</span>
           <small>{previewStatus}</small>
         </div>
-        <div className="demo-face-guide">
+        {preview ?? <div className="demo-face-guide">
           <span className="demo-face-guide__head" />
           <span className="demo-face-guide__shoulders" />
-        </div>
+        </div>}
         <p>{previewCaption}</p>
       </div>
 

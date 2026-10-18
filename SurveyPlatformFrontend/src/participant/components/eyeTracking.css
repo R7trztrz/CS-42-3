@@ -1,0 +1,163 @@
+/* M6 eye-tracking UI. WebGazer appends #webgazerVideoContainer to <body> itself. */
+
+/*
+ * WebGazer's camera preview, 160 x 120 after the 0.5 scale. It sits on the bottom edge between
+ * the bottom-left and bottom-centre calibration targets (x = 12% and 50% of the viewport), so no
+ * target is under it on any viewport wider than about 600 px. It is stacked above the
+ * calibration backdrop, so the participant can check their face is in view, and below the
+ * targets, and it is kept out of elementFromPoint so it is never attributed as gaze content.
+ * The preview is shown only while the targets are on screen: each attempt hides it when it ends.
+ */
+#webgazerVideoContainer {
+  position: fixed !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: 16px !important;
+  left: calc(31vw - 80px) !important;
+  z-index: 10001 !important;
+  overflow: hidden;
+  border-radius: 8px;
+  transform: scale(0.5);
+  transform-origin: bottom left;
+  pointer-events: none !important;
+}
+
+#webgazerVideoContainer * {
+  pointer-events: none !important;
+}
+
+/*
+ * WebGazer's live gaze dot sits exactly on the predicted point. Without this it would take the
+ * click meant for a calibration target and be what elementFromPoint returns for every gaze event.
+ */
+#webgazerGazeDot {
+  pointer-events: none !important;
+}
+
+/*
+ * The calibration layer has no position or z-index of its own, so it does not create a stacking
+ * context: its children are stacked against WebGazer's preview at page level. Backdrop 10000,
+ * preview 10001, help, skip and targets 10003, WebGazer's gaze dot 99999 (set by WebGazer).
+ */
+.et-calibration-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #0c1413;
+}
+
+.et-calibration-help {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 10003;
+  display: flex;
+  max-width: calc(100vw - 32px);
+  align-items: center;
+  gap: 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px 14px;
+  color: #172033;
+  font-size: 14px;
+  transform: translateX(-50%);
+}
+
+.et-calibration-progress {
+  color: #047857;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.et-calibration-skip {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10003;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  background: transparent;
+  padding: 6px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.et-calibration-skip:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/*
+ * Drawn exactly on the controller's target centre, which is also what a click records. The
+ * centring transform must never animate: a moving dot would not mark its target.
+ */
+.et-calibration-target {
+  position: fixed;
+  z-index: 10003;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 4px solid #ffffff;
+  border-radius: 9999px;
+  background: #ef5a4c;
+  box-shadow: 0 0 0 10px rgba(239, 90, 76, 0.25);
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  transition:
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.et-calibration-target:hover:not(:disabled) {
+  box-shadow: 0 0 0 14px rgba(239, 90, 76, 0.32);
+}
+
+/* FR-49 ignores clicks during the settle window after a target appears; show that pause. */
+.et-calibration-target:disabled {
+  cursor: default;
+  opacity: 0.45;
+  box-shadow: 0 0 0 6px rgba(239, 90, 76, 0.15);
+}
+
+.et-calibration-target:focus-visible {
+  outline: 3px solid #fde68a;
+  outline-offset: 4px;
+}
+
+/*
+ * The participant's own camera view in the set-up panel (CameraPreview), in place of the
+ * placeholder face guide. Mirrored, like a mirror; the dashed guide on top marks where the face
+ * should be.
+ */
+.et-camera-preview {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 26px auto 12px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #0f1724;
+}
+
+.et-camera-preview__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.et-camera-preview__guide {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  width: 40%;
+  height: 76%;
+  border: 2px dashed rgba(128, 185, 174, 0.95);
+  border-radius: 48% 48% 40% 40%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

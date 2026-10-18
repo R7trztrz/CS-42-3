@@ -85,6 +85,8 @@ The current migration sequence is:
 - V16: immutable answer paths and persisted participant answers
 - V17: study closure timestamps, preserving legacy closed records
 - V18: durable asset file cleanup tasks independent of deleted studies
+- V19: eye-tracking calibration attempts, low-quality reasons, point residuals and the attempt each session continued with (FR-49)
+- V20: gaze batches and gaze events, plus the per-session eye-tracking quality view (FR-50, FR-51)
 
 Legacy feature databases with V10 question-bank / V16 template-sync history
 must follow [the upgrade guide](../M4_M5_Migration_Upgrade_Guide.md), not an
@@ -251,7 +253,7 @@ Linux or macOS:
 ./mvnw test
 ```
 
-With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V18, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
+With Docker available, the full command starts isolated PostgreSQL containers, applies Flyway V1 through V20, and runs repository, publication, migration-upgrade, and concurrency integration tests. Machine-dependent timing checks are opt-in:
 
 ```powershell
 .\mvnw.cmd -Pperformance test

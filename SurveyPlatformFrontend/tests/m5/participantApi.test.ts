@@ -15,6 +15,7 @@ vi.mock('../../src/participant/api/participantHttpClient', () => ({
 import {
   abandonParticipantSession,
   completeParticipantBrowsing,
+  completeParticipantCalibration,
   createParticipantSession,
   decideParticipantConsent,
   getCurrentParticipantQuestion,
@@ -99,6 +100,23 @@ describe('M5 participant API client', () => {
       undefined,
       { headers: { [PARTICIPANT_SESSION_TOKEN_HEADER]: 'session-token' } },
     )
+  })
+
+  it('POSTs the attempt the participant continued with to complete calibration', async () => {
+    const updated = makeSessionResponse('BROWSING')
+    httpClientMock.post.mockResolvedValue({ data: updated })
+    const attempt = { attemptId: 'attempt-1', outcome: 'UNAVAILABLE' } as unknown as Parameters<
+      typeof completeParticipantCalibration
+    >[1]
+
+    const result = await completeParticipantCalibration('session-token', attempt)
+
+    expect(httpClientMock.post).toHaveBeenCalledWith(
+      '/api/participant-session/calibration-completion',
+      attempt,
+      { headers: { [PARTICIPANT_SESSION_TOKEN_HEADER]: 'session-token' } },
+    )
+    expect(result).toEqual(updated)
   })
 
   it('gets the current question with the session token header', async () => {

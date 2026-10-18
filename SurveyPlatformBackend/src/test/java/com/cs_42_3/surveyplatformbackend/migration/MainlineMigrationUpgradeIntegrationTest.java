@@ -17,7 +17,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Upgrades real PostgreSQL V9/V10 baselines through study deletion without rewriting history.
+ * Upgrades real PostgreSQL V9/V10 baselines through the eye-tracking tables without rewriting history.
  *
  * @author Simon Tian
  */
@@ -28,7 +28,7 @@ class MainlineMigrationUpgradeIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"9", "10"})
-    void mainBaselineUpgradesThroughV18WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
+    void mainBaselineUpgradesThroughV20WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
         String schema = "main_upgrade_" + baseline;
         flyway(schema, baseline).migrate();
 
@@ -72,18 +72,20 @@ class MainlineMigrationUpgradeIntegrationTest {
             }
 
             var upgraded = flyway(schema, null);
-            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(18 - Integer.parseInt(baseline));
+            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(20 - Integer.parseInt(baseline));
             assertThat(upgraded.validateWithResult().validationSuccessful).isTrue();
             List<String> finalHistory = values(connection,
                     "SELECT version || ':' || script || ':' || checksum || ':' || success "
                     + "FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank");
-            assertThat(finalHistory).hasSize(18).startsWith(originalHistory.toArray(String[]::new));
+            assertThat(finalHistory).hasSize(20).startsWith(originalHistory.toArray(String[]::new));
             assertThat(values(connection, businessDigestSql)).isEqualTo(originalBusinessData);
             assertThat(values(connection,
-                    "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17','18') ORDER BY installed_rank"))
+                    "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17','18','19','20') "
+                    + "ORDER BY installed_rank"))
                     .containsExactly(originalTemplateScript, "V11__create_question_bank_tables.sql",
                             "V16__create_participant_questionnaire_runtime.sql", "V17__add_study_closure.sql",
-                            "V18__create_asset_file_cleanup_tasks.sql");
+                            "V18__create_asset_file_cleanup_tasks.sql", "V19__create_calibration_records.sql",
+                            "V20__create_gaze_records.sql");
             assertThat(values(connection, "SELECT count(*) FROM asset_file_cleanup_tasks")).containsExactly("0");
             // The additive closure migration must not invent timestamps for existing studies.
             assertThat(values(connection, "SELECT count(*) FROM studies WHERE closed_at IS NOT NULL"))
@@ -95,8 +97,10 @@ class MainlineMigrationUpgradeIntegrationTest {
                     "SELECT count(*) FROM information_schema.tables WHERE table_schema='" + schema + "' "
                     + "AND table_name IN ('questions','question_options','questionnaires','questionnaire_items',"
                     + "'questionnaire_branch_rules','questionnaire_publication_snapshots','participant_sessions',"
-                    + "'participant_questionnaire_steps','participant_answers')"))
-                    .containsExactly("9");
+                    + "'participant_questionnaire_steps','participant_answers','calibration_attempts',"
+                    + "'calibration_attempt_reasons','calibration_point_residuals','calibration_completions',"
+                    + "'gaze_batches','gaze_events')"))
+                    .containsExactly("15");
         }
     }
 
