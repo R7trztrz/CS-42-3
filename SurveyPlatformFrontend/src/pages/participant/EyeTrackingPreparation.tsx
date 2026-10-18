@@ -1,3 +1,4 @@
+import CameraPreview from '../../participant/components/CameraPreview'
 import { CalibrationView } from './ParticipantDemoTemplate'
 
 type Props = {
@@ -5,6 +6,8 @@ type Props = {
   confirmed: boolean
   /** M6: true while the calibrated camera stays on for the activity. */
   cameraOn?: boolean
+  /** M6: that camera's stream, shown in the preview panel while it is on. */
+  previewStream?: MediaStream | null
   onContinue: () => void
 }
 
@@ -50,7 +53,7 @@ function message(enabled: boolean, confirmed: boolean, cameraOn: boolean | undef
   }
 }
 
-export default function EyeTrackingPreparation({ enabled, confirmed, cameraOn, onContinue }: Props) {
+export default function EyeTrackingPreparation({ enabled, confirmed, cameraOn, previewStream, onContinue }: Props) {
   const preview = previewFor(enabled, confirmed, cameraOn)
   const { title, body } = message(enabled, confirmed, cameraOn)
   return (
@@ -59,6 +62,7 @@ export default function EyeTrackingPreparation({ enabled, confirmed, cameraOn, o
       nextLabel="Continue to activity"
       previewStatus={preview.status}
       previewCaption={preview.caption}
+      preview={cameraOn && previewStream ? <CameraPreview stream={previewStream} /> : undefined}
       notice={
         <div className="demo-notice">
           <div>

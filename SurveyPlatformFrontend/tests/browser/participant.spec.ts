@@ -145,7 +145,19 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
   await page.getByRole('button', { name: 'Begin study' }).click()
   await page.getByLabel('I have read the participant information and agree to take part.').check()
   await page.getByRole('button', { name: 'I agree to participate' }).click()
+
+  // The camera check: the participant's own view in the panel, before WebGazer is loaded.
+  await page.getByRole('button', { name: 'Turn on camera' }).click()
+  const selfView = page.getByLabel('Live camera preview')
+  await expect(selfView).toBeVisible()
+  const checkStream = await selfView.evaluateHandle((element) => (element as HTMLVideoElement).srcObject)
+  expect(await checkStream.evaluate((stream) =>
+    (stream as MediaStream).getVideoTracks().map((track) => track.readyState))).toEqual(['live'])
+  expect(await page.evaluate(() => document.getElementById('webgazerVideoFeed'))).toBeNull()
   await page.getByRole('button', { name: 'Start calibration' }).click()
+  // Calibration opens its own stream; the check's stream is closed.
+  expect(await checkStream.evaluate((stream) =>
+    (stream as MediaStream).getTracks().map((track) => track.readyState))).toEqual(['ended'])
 
   // The first target appears only after the script, the camera and the MediaPipe face mesh
   // (WASM and model files from the versioned asset directory) have all loaded.
@@ -213,12 +225,20 @@ test('calibrates with the real WebGazer build, browses, and releases the camera 
       }
     })
   expect(await cameraState()).toEqual({ tracks: ['live'], preview: 'none', gazeDot: false })
+  // The panel shows that same camera instead.
+  const showsWebGazerCamera = () =>
+    selfView.evaluate((element) =>
+      (element as HTMLVideoElement).srcObject !== null
+      && (element as HTMLVideoElement).srcObject
+        === (document.getElementById('webgazerVideoFeed') as HTMLVideoElement).srcObject)
+  expect(await showsWebGazerCamera()).toBe(true)
 
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  // The set-up review that follows says the camera is still on.
+  // The set-up review that follows says the camera is still on, and shows it.
   await expect(page.getByText('Calibration confirmed')).toBeVisible()
   await expect(page.getByText('Your camera stays on until you finish browsing')).toBeVisible()
   expect(await cameraState()).toEqual({ tracks: ['live'], preview: 'none', gazeDot: false })
+  expect(await showsWebGazerCamera()).toBe(true)
   await page.getByRole('button', { name: 'Continue to activity' }).click()
   await page.getByRole('button', { name: 'Start activity' }).click()
 

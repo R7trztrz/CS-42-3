@@ -268,6 +268,22 @@ export class ParticipantEyeTracking {
   }
 
   /**
+   * The camera stream WebGazer is using, while it is live, so the page can show the participant
+   * their own view in its own layout; WebGazer's floating preview stays hidden outside
+   * calibration. Null when no camera is on.
+   */
+  cameraStream(): MediaStream | null {
+    const webgazer = this.webgazer
+    if (this.disposedValue || !webgazer) return null
+    const element = globalThis.document?.getElementById(
+      webgazer.params?.videoElementId ?? 'webgazerVideoFeed',
+    )
+    const stream = (element as HTMLVideoElement | null)?.srcObject as MediaStream | null | undefined
+    if (!stream || typeof stream.getVideoTracks !== 'function') return null
+    return stream.getVideoTracks().some((track) => track.readyState === 'live') ? stream : null
+  }
+
+  /**
    * Stops collection and releases the camera. While tracking, resolves once queued gaze has been
    * offered to the server or the drain timeout passed; call it before leaving the browsing phase.
    */

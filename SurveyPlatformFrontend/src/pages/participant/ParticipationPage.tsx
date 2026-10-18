@@ -832,6 +832,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                         enabled={participation.eyeTrackingEnabled}
                         confirmed={Boolean(session?.calibrationCompletedAt)}
                         cameraOn={cameraOn}
+                        previewStream={cameraOn ? eyeTracking?.cameraStream() ?? null : null}
                         onContinue={continueFromSetup}
                       />
                     )}

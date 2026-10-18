@@ -13,21 +13,42 @@ import {
   type ParticipantEyeTrackingSnapshot,
 } from '../../eyetracking/participant'
 import { CalibrationView } from '../../pages/participant/ParticipantDemoTemplate'
+import { useCameraPreview, type CameraPreviewFailure } from '../hooks/useCameraPreview'
 import { useEyeTrackingSnapshot } from '../hooks/useParticipantEyeTracking'
+import CameraPreview from './CameraPreview'
 import './eyeTracking.css'
 
-// M6: the CALIBRATION phase. Runs FR-49 calibration through the session's
-// eye-tracking owner, then completes the phase on the server with the attempt
-// the participant continues with. Every outcome lets the participant continue:
-// a poor result, a skipped calibration and an unavailable camera included.
-// The set-up screen is the participant interface's CalibrationView; only the
-// nine-point run itself is a full-screen overlay.
+// M6: the CALIBRATION phase. A camera check comes first: the participant turns the camera on
+// and sees themselves in the face guide. Then FR-49 calibration runs through the session's
+// eye-tracking owner, and the phase is completed on the server with the attempt the participant
+// continues with. Every outcome lets the participant continue: a poor result, a skipped
+// calibration and an unavailable camera included. The set-up screen is the participant
+// interface's CalibrationView; only the nine-point run itself is a full-screen overlay.
 
 type CalibrationStepProps = {
   eyeTracking: ParticipantEyeTracking | null
   isCompleting: boolean
   errorMessage: string | null
   onComplete: (attempt: CalibrationAttempt) => Promise<boolean>
+}
+
+const CAMERA_CHECK_FAILURES: Record<CameraPreviewFailure, { title: string; detail: string }> = {
+  BLOCKED: {
+    title: 'Camera access was blocked',
+    detail: 'Allow camera access for this page in your browser and try again, or continue the study without eye tracking.',
+  },
+  NO_CAMERA: {
+    title: 'No camera was found',
+    detail: 'Connect a camera and try again, or continue the study without eye tracking.',
+  },
+  IN_USE: {
+    title: 'The camera could not be started',
+    detail: 'It may be in use by another app. Close that app and try again, or continue the study without eye tracking.',
+  },
+  FAILED: {
+    title: 'The camera could not be started',
+    detail: 'Try again, or continue the study without eye tracking.',
+  },
 }
 
 const UNAVAILABLE_REASONS: Record<EyeTrackingUnavailableReason, string> = {
@@ -69,26 +90,7 @@ function CalibrationStep({ eyeTracking, isCompleting, errorMessage, onComplete }
 
   switch (snapshot.stage) {
     case 'IDLE':
-      return (
-        <CalibrationView
-          onNext={() => void eyeTracking.calibrate()}
-          nextLabel="Start calibration"
-          previewStatus="Off"
-          previewCaption="The camera starts when you begin calibration"
-          notice={
-            <Notice title="Your video stays in this browser">
-              <p>
-                This study uses your webcam to estimate where you look on the screen. The video is
-                never uploaded; only the estimated screen positions are saved with your responses.
-              </p>
-              <p>
-                Nine dots appear one at a time. Look at each dot and click it five times. If your
-                camera is unavailable, you can still continue the study.
-              </p>
-            </Notice>
-          }
-        />
-      )
+      return <CameraCheck eyeTracking={eyeTracking} />
     case 'STARTING':
       return (
         <CalibrationView
@@ -130,6 +132,100 @@ function CalibrationStep({ eyeTracking, isCompleting, errorMessage, onComplete }
           previewStatus="Off"
           previewCaption="Camera is not active"
           notice={<Notice title="Continuing to the study..." live />}
+        />
+      )
+  }
+}
+
+/** The set-up screen before calibration: turn the camera on, check the position, then start. */
+function CameraCheck({ eyeTracking }: { eyeTracking: ParticipantEyeTracking }) {
+  const camera = useCameraPreview()
+  const { state } = camera
+
+  const startCalibration = () => {
+    // Calibration opens its own camera stream through WebGazer; the check's stream is closed first.
+    camera.stop()
+    void eyeTracking.calibrate()
+  }
+
+  switch (state.status) {
+    case 'on':
+      return (
+        <CalibrationView
+          onNext={startCalibration}
+          nextLabel="Start calibration"
+          previewStatus="On"
+          previewCaption="Keep your face inside the guide"
+          preview={<CameraPreview stream={state.stream} />}
+          notice={
+            <Notice title="Check your position">
+              <p>
+                Keep your face inside the guide and evenly lit, then start calibration. Nine dots
+                appear one at a time: look at each dot and click it five times.
+              </p>
+              <p>The video stays in this browser.</p>
+            </Notice>
+          }
+        />
+      )
+    case 'failed': {
+      const { title, detail } = CAMERA_CHECK_FAILURES[state.failure]
+      return (
+        <CalibrationView
+          onNext={startCalibration}
+          nextLabel="Continue"
+          previewStatus="Unavailable"
+          previewCaption="Camera is not active"
+          notice={
+            <Notice title={title}>
+              <p>{detail}</p>
+              <button
+                type="button"
+                className="demo-button demo-button--quiet mt-3"
+                onClick={() => void camera.start()}
+              >
+                Try again
+              </button>
+            </Notice>
+          }
+        />
+      )
+    }
+    case 'starting':
+      return (
+        <CalibrationView
+          onNext={noop}
+          nextLabel="Starting camera..."
+          pending
+          previewStatus="Starting"
+          previewCaption="Allow camera access if your browser asks"
+          notice={
+            <Notice title="Starting the camera..." live>
+              <p>Allow camera access if your browser asks.</p>
+            </Notice>
+          }
+        />
+      )
+    default:
+      return (
+        <CalibrationView
+          onNext={() => void camera.start()}
+          nextLabel="Turn on camera"
+          previewStatus="Off"
+          previewCaption="Turn on your camera to check your position"
+          notice={
+            <Notice title="Your video stays in this browser">
+              <p>
+                This study uses your webcam to estimate where you look on the screen. The video is
+                never uploaded; only the estimated screen positions are saved with your responses.
+              </p>
+              <p>
+                Turn on your camera and keep your face inside the guide. Then start calibration:
+                nine dots appear one at a time, and you look at each dot and click it five times.
+                If your camera is unavailable, you can still continue the study.
+              </p>
+            </Notice>
+          }
         />
       )
   }
@@ -250,6 +346,8 @@ function CalibrationResult({
   onComplete,
 }: CalibrationResultProps) {
   const { title, detail, status } = resultText(attempt)
+  // The camera is still on after a usable attempt; show it where the placeholder was.
+  const stream = attempt.trackingAvailable ? eyeTracking.cameraStream() : null
 
   return (
     <CalibrationView
@@ -260,6 +358,7 @@ function CalibrationResult({
       previewCaption={attempt.trackingAvailable
         ? 'Your camera stays on until you finish browsing'
         : 'Camera is not active'}
+      preview={stream ? <CameraPreview stream={stream} /> : undefined}
       notice={
         <Notice title={title}>
           <p>{detail}</p>

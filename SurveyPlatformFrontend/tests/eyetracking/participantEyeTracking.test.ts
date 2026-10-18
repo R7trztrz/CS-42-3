@@ -165,6 +165,33 @@ describe('ParticipantEyeTracking', () => {
     expect(webgazer.showVideo).toHaveBeenLastCalledWith(false)
   })
 
+  it('gives the page the live camera stream WebGazer is using, and none once it stops', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    // WebGazer's own video element, which holds its camera stream.
+    const track = { readyState: 'live' }
+    const stream = { getVideoTracks: () => [track] } as unknown as MediaStream
+    const feed = { srcObject: stream }
+    vi.stubGlobal('document', {
+      getElementById: (id: string) => (id === 'webgazerVideoFeed' ? feed : null),
+    })
+    try {
+      // Nothing is loaded before calibration starts.
+      expect(setupOwner().owner.cameraStream()).toBeNull()
+
+      const { owner } = await calibrated()
+      expect(owner.cameraStream()).toBe(stream)
+
+      track.readyState = 'ended'
+      expect(owner.cameraStream()).toBeNull()
+
+      track.readyState = 'live'
+      owner.dispose()
+      expect(owner.cameraStream()).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('offers one recalibration after a poor result and then no more', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
     const { owner, engine, attempt } = await calibrated(300)

@@ -125,3 +125,39 @@
   outline: 3px solid #fde68a;
   outline-offset: 4px;
 }
+
+/*
+ * The participant's own camera view in the set-up panel (CameraPreview), in place of the
+ * placeholder face guide. Mirrored, like a mirror; the dashed guide on top marks where the face
+ * should be.
+ */
+.et-camera-preview {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin: 26px auto 12px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #0f1724;
+}
+
+.et-camera-preview__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.et-camera-preview__guide {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  width: 40%;
+  height: 76%;
+  border: 2px dashed rgba(128, 185, 174, 0.95);
+  border-radius: 48% 48% 40% 40%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}

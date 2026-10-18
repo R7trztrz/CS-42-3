@@ -21,6 +21,7 @@ const { route, getParticipation, completeBrowsing, abandon, sessionView, owner, 
     beginTracking: vi.fn(),
     stopTracking: vi.fn(),
     setGazeDotVisible: vi.fn(),
+    cameraStream: vi.fn(),
   },
   ownerRequests: [] as boolean[],
 }))
@@ -113,13 +114,16 @@ describe('participation page eye tracking', () => {
     expect(ownerRequests.every((request) => request === active)).toBe(true)
   })
 
-  it('says on the set-up review that the camera stays on for the feed', async () => {
+  it('says on the set-up review that the camera stays on for the feed, and shows it', async () => {
+    const stream = new MediaStream()
+    owner.cameraStream.mockReturnValue(stream)
     render(<ParticipationPage />)
 
     expect(await screen.findByText('Calibration confirmed')).not.toBeNull()
     expect(screen.getByText(/Eye tracking runs while you browse the feed/)).not.toBeNull()
     expect(screen.getByText('Your camera stays on until you finish browsing')).not.toBeNull()
     expect(screen.getByText('On', { selector: 'small' })).not.toBeNull()
+    expect((screen.getByLabelText('Live camera preview') as HTMLVideoElement).srcObject).toBe(stream)
   })
 
   it.each([
@@ -127,9 +131,11 @@ describe('participation page eye tracking', () => {
     ['the page was reloaded after calibration', { stage: 'IDLE' as const, attempt: null }],
   ])('says eye tracking is off when %s', async (_case, overrides) => {
     owner.snapshot = snapshot(overrides)
+    owner.cameraStream.mockReturnValue(null)
     render(<ParticipationPage />)
 
     expect(await screen.findByText('Eye tracking is off for this session')).not.toBeNull()
+    expect(screen.queryByLabelText('Live camera preview')).toBeNull()
     expect(screen.getByText('Off', { selector: 'small' })).not.toBeNull()
     expect(screen.getByText('Camera is not active on this screen')).not.toBeNull()
     expect(screen.queryByText('Your camera stays on until you finish browsing')).toBeNull()
