@@ -1,5 +1,6 @@
 package com.cs_42_3.surveyplatformbackend.linkpreview;
 
+import com.cs_42_3.surveyplatformbackend.asset.repository.StudyAssetRepository;
 import com.cs_42_3.surveyplatformbackend.linkpreview.exception.LinkPreviewException;
 import com.cs_42_3.surveyplatformbackend.linkpreview.infrastructure.RemoteDocument;
 import com.cs_42_3.surveyplatformbackend.linkpreview.infrastructure.SafeHttpFetcher;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -31,6 +33,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
+import java.util.UUID;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 
@@ -68,10 +71,16 @@ class LinkPreviewIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
     private ResearcherRepository researcherRepository;
 
     @Autowired
     private JwtEncoder jwtEncoder;
+
+    @Autowired
+    private StudyAssetRepository studyAssetRepository;
 
     @MockitoBean
     private SafeHttpFetcher safeHttpFetcher;
@@ -199,6 +208,144 @@ class LinkPreviewIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code")
                         .value("PREVIEW_URL_INVALID"));
+    }
+
+    /** Verifies that a closed study rejects link preview without changing persisted data. */
+    @Test
+    void shouldRejectLinkPreviewAfterStudyClosure() throws Exception {
+
+        // Create a populated draft study so publication does not depend on an empty feed.
+        String createResponse = mockMvc.perform(
+                        post("/api/studies")
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "title": "Closed Link Preview Test",
+                                  "description": "M3 CLOSED regression",
+                                  "templateCode": "facebook"
+                                }
+                                """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String studyId = JsonPath.read(createResponse, "$.id");
+
+        // Read the current study version, which is separate from the feed version.
+        String studyResponse = mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number studyVersion = JsonPath.read(studyResponse, "$.version");
+
+        // Publish through the real endpoint and use its returned version for closure.
+        String publicationResponse = mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(studyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number publishedStudyVersion = JsonPath.read(publicationResponse, "$.version");
+
+        // Close the study through the real endpoint before exercising the protected API.
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/close", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(publishedStudyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+
+        // Capture persisted rows after closure, including versions and timestamps.
+        String studyBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        String feedBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        long assetCountBefore = studyAssetRepository.count();
+
+        // Use a valid public URL so malformed input cannot explain the rejection.
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/link-previews", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "url": "https://example.com/"
+                                }
+                                """)
+                )
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STUDY_NOT_EDITABLE"));
+
+        // Closure must be checked before attempting any remote document or image fetch.
+        org.mockito.Mockito.verifyNoInteractions(safeHttpFetcher);
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                assetCountBefore,
+                studyAssetRepository.count(),
+                "A rejected preview must not create an image asset record."
+        );
+
+        // Read PostgreSQL directly so the assertions do not reuse cached entities.
+        org.junit.jupiter.api.Assertions.assertEquals(
+                studyBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected link preview must not change the closed study row."
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                feedBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected link preview must not change feed content, version or timestamps."
+        );
+
+        mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
     }
 
     /** Verifies that link previews cannot be generated after a study is published. */
