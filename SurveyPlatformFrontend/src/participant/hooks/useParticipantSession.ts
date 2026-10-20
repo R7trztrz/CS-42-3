@@ -9,9 +9,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { CalibrationAttempt } from '../../eyetracking'
 import {
   abandonParticipantSession,
   completeParticipantBrowsing,
+  completeParticipantCalibration,
   createParticipantSession,
   decideParticipantConsent,
   getCurrentParticipantSession,
@@ -54,6 +56,7 @@ export type UseParticipantSessionResult = {
   // succeeded; failures are surfaced through actionError* below rather
   // than resetting `stage`, since the bootstrap session is still valid.
   decideConsent: (accepted: boolean) => Promise<boolean>
+  completeCalibration: (attempt: CalibrationAttempt) => Promise<boolean>
   completeBrowsing: () => Promise<boolean>
   completeQuestionnaire: () => Promise<boolean>
   abandon: () => Promise<boolean>
@@ -357,6 +360,12 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
     [applySessionAction],
   )
 
+  const completeCalibration = useCallback(
+    (attempt: CalibrationAttempt) =>
+      applySessionAction((token) => completeParticipantCalibration(token, attempt)),
+    [applySessionAction],
+  )
+
   const completeBrowsing = useCallback(
     () => applySessionAction((token) => completeParticipantBrowsing(token)),
     [applySessionAction],
@@ -391,6 +400,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
     createSession,
     retry,
     decideConsent,
+    completeCalibration,
     completeBrowsing,
     completeQuestionnaire,
     abandon,

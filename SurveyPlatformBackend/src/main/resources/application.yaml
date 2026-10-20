@@ -35,6 +35,10 @@ app:
     timeout-scheduler-enabled: ${PARTICIPANT_TIMEOUT_SCHEDULER_ENABLED:true}
     max-device-info-bytes: ${PARTICIPANT_MAX_DEVICE_INFO_BYTES:4096}
     consent-document-version: ${PARTICIPANT_CONSENT_DOCUMENT_VERSION:platform-default-v1}
+  eye-tracking:
+    max-gaze-events-per-batch: ${EYE_TRACKING_MAX_GAZE_EVENTS_PER_BATCH:1000}
+    max-gaze-payload-chars: ${EYE_TRACKING_MAX_GAZE_PAYLOAD_CHARS:2000000}
+    max-calibration-attempts-per-session: ${EYE_TRACKING_MAX_CALIBRATION_ATTEMPTS_PER_SESSION:20}
   assets:
     storage-directory: ${ASSET_STORAGE_DIRECTORY:./data/assets}
     max-pixels: 20000000

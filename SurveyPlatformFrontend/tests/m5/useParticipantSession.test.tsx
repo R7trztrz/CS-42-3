@@ -200,6 +200,31 @@ describe('useParticipantSession', () => {
     expect(result.current.session?.phase).toBe('QUESTIONNAIRE')
   })
 
+  it('completeCalibration moves the session to BROWSING using the completion response', async () => {
+    storeSessionToken(studyToken, 'token')
+    httpClientMock.get.mockResolvedValue({ data: makeSessionResponse('CALIBRATION') })
+    httpClientMock.post.mockResolvedValue({ data: makeSessionResponse('BROWSING') })
+    const attempt = { attemptId: 'attempt-1' } as unknown as Parameters<
+      ReturnType<typeof useParticipantSession>['completeCalibration']
+    >[0]
+
+    const { result } = renderHook(() => useParticipantSession(studyToken))
+    await waitFor(() => expect(result.current.session?.phase).toBe('CALIBRATION'))
+
+    let succeeded = false
+    await act(async () => {
+      succeeded = await result.current.completeCalibration(attempt)
+    })
+
+    expect(succeeded).toBe(true)
+    expect(httpClientMock.post).toHaveBeenCalledWith(
+      '/api/participant-session/calibration-completion',
+      attempt,
+      expect.anything(),
+    )
+    expect(result.current.session?.phase).toBe('BROWSING')
+  })
+
   it('abandon() moves the session to ABANDONED/PARTICIPANT_EXIT', async () => {
     storeSessionToken(studyToken, 'token')
     httpClientMock.get.mockResolvedValue({ data: makeSessionResponse('BROWSING') })
