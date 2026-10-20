@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -76,6 +77,9 @@ class StudyAssetIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private ResearcherRepository researcherRepository;
@@ -583,6 +587,151 @@ class StudyAssetIntegrationTest {
                 studyAssetRepository.count(),
                 "Only the authorized upload should create an asset record."
         );
+    }
+
+    /** Verifies that a closed study rejects asset upload without changing persisted data. */
+    @Test
+    void shouldRejectAssetUploadAfterStudyClosure() throws Exception {
+
+        // Create a populated draft study so publication does not depend on an empty feed.
+        String createResponse = mockMvc.perform(
+                        post("/api/studies")
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "title": "Closed Asset Upload Test",
+                                  "description": "M3 CLOSED regression",
+                                  "templateCode": "facebook"
+                                }
+                                """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String studyId = JsonPath.read(createResponse, "$.id");
+
+        // Read the current study version, which is separate from the feed version.
+        String studyResponse = mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number studyVersion = JsonPath.read(studyResponse, "$.version");
+
+        // Publish through the real endpoint and use its returned version for closure.
+        String publicationResponse = mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(studyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number publishedStudyVersion = JsonPath.read(publicationResponse, "$.version");
+
+        // Close the study through the real endpoint before exercising the protected API.
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/close", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(publishedStudyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+
+        // Capture persisted rows after closure, including versions and timestamps.
+        String studyBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        String feedBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        // Use valid PNG bytes so invalid file content cannot explain the rejection.
+        BufferedImage image =
+                new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        assertTrue(ImageIO.write(image, "png", output));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "after-closure.png",
+                "image/png",
+                output.toByteArray()
+        );
+
+        long assetCountBefore = studyAssetRepository.count();
+
+        // A valid owner upload must be rejected after closure.
+        mockMvc.perform(
+                        multipart("/api/studies/{studyId}/assets", studyId)
+                                .file(file)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STUDY_NOT_EDITABLE"));
+
+        assertEquals(
+                assetCountBefore,
+                studyAssetRepository.count(),
+                "A rejected upload must not create an asset record."
+        );
+
+        // Read PostgreSQL directly so the assertions do not reuse cached entities.
+        org.junit.jupiter.api.Assertions.assertEquals(
+                studyBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected asset upload must not change the closed study row."
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                feedBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected asset upload must not change feed content, version or timestamps."
+        );
+
+        mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
     }
 
     /** Verifies that publishing a study prevents any further image uploads. */

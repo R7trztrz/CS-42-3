@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -28,6 +29,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -60,6 +62,9 @@ class StudyFeedIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private ResearcherRepository researcherRepository;
@@ -644,6 +649,171 @@ class StudyFeedIntegrationTest {
                 versionAfterAttempt.longValue(),
                 "Rejected requests must not change the feed version."
         );
+    }
+
+    /** Verifies that a closed study rejects feed modification without changing persisted data. */
+    @Test
+    void shouldRejectFeedModificationAfterClosure() throws Exception {
+
+        // Create a populated draft study so publication does not depend on an empty feed.
+        String createResponse = mockMvc.perform(
+                        post("/api/studies")
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "title": "Closed Feed Modification Test",
+                                  "description": "M3 CLOSED regression",
+                                  "templateCode": "facebook"
+                                }
+                                """)
+                )
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String studyId = JsonPath.read(createResponse, "$.id");
+
+        // Read the current study version, which is separate from the feed version.
+        String studyResponse = mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number studyVersion = JsonPath.read(studyResponse, "$.version");
+
+        // Publish through the real endpoint and use its returned version for closure.
+        String publicationResponse = mockMvc.perform(
+                        post("/api/studies/{studyId}/publish", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(studyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COLLECTING"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number publishedStudyVersion = JsonPath.read(publicationResponse, "$.version");
+
+        // Close the study through the real endpoint before exercising the protected API.
+        mockMvc.perform(
+                        post("/api/studies/{studyId}/close", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                {
+                                  "version": %d
+                                }
+                                """.formatted(publishedStudyVersion.longValue()))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"))
+                .andExpect(jsonPath("$.closedAt").isNotEmpty());
+
+        // Capture persisted rows after closure, including versions and timestamps.
+        String studyBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        String feedBeforeAttempt = jdbcTemplate.queryForObject(
+                "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                String.class,
+                UUID.fromString(studyId)
+        );
+
+        // Use the CURRENT feed version and a valid non-empty replacement document.
+        String closedFeed = mockMvc.perform(
+                        get("/api/studies/{studyId}/feed", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Number feedVersion = JsonPath.read(closedFeed, "$.version");
+
+        String forbiddenUpdate = """
+                {
+                  "content": {
+                    "ROOT": {
+                      "type": {
+                        "resolvedName": "ResearcherEditCanvas"
+                      },
+                      "isCanvas": true,
+                      "props": {},
+                      "nodes": ["closedStudyText"],
+                      "linkedNodes": {}
+                    },
+                    "closedStudyText": {
+                      "type": {
+                        "resolvedName": "TextWidget"
+                      },
+                      "isCanvas": false,
+                      "props": {
+                        "text": "This change must not be saved",
+                        "styleId": "facebook"
+                      },
+                      "parent": "ROOT",
+                      "nodes": [],
+                      "linkedNodes": {}
+                    }
+                  },
+                  "version": %d
+                }
+                """.formatted(feedVersion.longValue());
+
+        // The owner must still be rejected because the study is CLOSED.
+        mockMvc.perform(
+                        put("/api/studies/{studyId}/feed", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(forbiddenUpdate)
+                )
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STUDY_NOT_EDITABLE"));
+
+        // Read PostgreSQL directly so the assertions do not reuse cached entities.
+        org.junit.jupiter.api.Assertions.assertEquals(
+                studyBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(s)::text FROM studies s WHERE id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected feed modification must not change the closed study row."
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                feedBeforeAttempt,
+                jdbcTemplate.queryForObject(
+                        "SELECT row_to_json(f)::text FROM study_feeds f WHERE study_id = ?",
+                        String.class,
+                        UUID.fromString(studyId)
+                ),
+                "A rejected feed modification must not change feed content, version or timestamps."
+        );
+
+        mockMvc.perform(
+                        get("/api/studies/{studyId}", studyId)
+                                .header("Authorization", "Bearer " + researcherToken)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CLOSED"));
     }
 
     /** Verifies that a published study rejects feed edits without changing saved content. */
