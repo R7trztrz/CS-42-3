@@ -587,7 +587,7 @@ function ResearcherEditCanvas({
 
       }}
 
-      className="min-h-[36rem] rounded-md border border-dashed border-[#b8c6d4] bg-[#f0f2f5] p-6"
+      className="min-h-[48rem] rounded-md border border-dashed border-[#b8c6d4] bg-[#f0f2f5] p-6"
 
     >
 

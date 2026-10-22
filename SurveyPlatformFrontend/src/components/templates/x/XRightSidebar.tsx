@@ -50,6 +50,7 @@ const suggestions = [
 
 function XRightSidebar() {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
@@ -62,9 +63,16 @@ function XRightSidebar() {
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="XRightSidebar"
       className="h-full w-[360px] shrink-0 overflow-y-auto bg-black px-5 py-3"
     >
-      <div className="flex h-[48px] items-center gap-3 rounded-full bg-[#202327] px-5 text-[#71767b]">
+      <div
+        data-component-id={`${nodeId}:search`}
+        data-parent-component-id={nodeId}
+        data-component-type="XSearch"
+        className="flex h-[48px] items-center gap-3 rounded-full bg-[#202327] px-5 text-[#71767b]"
+      >
         <XIcon
           name="search"
           size={20}
@@ -75,15 +83,23 @@ function XRightSidebar() {
         </span>
       </div>
 
-      <section className="mt-4 overflow-hidden rounded-[18px] border border-[#2f3336] bg-[#16181c]">
+      <section
+        data-component-id={`${nodeId}:trends`}
+        data-parent-component-id={nodeId}
+        data-component-type="XTrends"
+        className="mt-4 overflow-hidden rounded-[18px] border border-[#2f3336] bg-[#16181c]"
+      >
         <h2 className="border-b border-[#2f3336] px-5 py-4 text-[20px] font-extrabold">
           What's happening
         </h2>
 
         {trends.map(
-          (trend) => (
+          (trend, index) => (
             <div
               key={trend.title}
+              data-component-id={`${nodeId}:trend-${index}`}
+              data-parent-component-id={nodeId}
+              data-component-type="TrendItem"
               className="border-b border-[#2f3336] px-5 py-4 last:border-b-0"
             >
               <p className="text-[13px] text-[#71767b]">
@@ -101,20 +117,33 @@ function XRightSidebar() {
           ),
         )}
 
-        <div className="px-5 py-4 text-[14px] text-[#1d9bf0]">
+        <div
+          data-component-id={`${nodeId}:trends-show-more`}
+          data-parent-component-id={nodeId}
+          data-component-type="XSidebarAction"
+          className="px-5 py-4 text-[14px] text-[#1d9bf0]"
+        >
           Show more
         </div>
       </section>
 
-      <section className="mt-5 overflow-hidden rounded-[18px] border border-[#2f3336] bg-[#16181c]">
+      <section
+        data-component-id={`${nodeId}:suggestions`}
+        data-parent-component-id={nodeId}
+        data-component-type="XSuggestions"
+        className="mt-5 overflow-hidden rounded-[18px] border border-[#2f3336] bg-[#16181c]"
+      >
         <h2 className="border-b border-[#2f3336] px-5 py-4 text-[20px] font-extrabold">
           Who to follow
         </h2>
 
         {suggestions.map(
-          (person) => (
+          (person, index) => (
             <div
               key={person.handle}
+              data-component-id={`${nodeId}:suggestion-${index}`}
+              data-parent-component-id={nodeId}
+              data-component-type="SuggestionItem"
               className="flex items-center gap-3 border-b border-[#2f3336] px-5 py-4 last:border-b-0"
             >
               <div
@@ -139,6 +168,9 @@ function XRightSidebar() {
 
               <button
                 type="button"
+                data-component-id={`${nodeId}:suggestion-${index}-follow`}
+                data-parent-component-id={nodeId}
+                data-component-type="SuggestionAction"
                 className="rounded-full bg-white px-5 py-2 text-[13px] font-bold text-black"
               >
                 Follow
@@ -147,7 +179,12 @@ function XRightSidebar() {
           ),
         )}
 
-        <div className="px-5 py-4 text-[14px] text-[#1d9bf0]">
+        <div
+          data-component-id={`${nodeId}:suggestions-show-more`}
+          data-parent-component-id={nodeId}
+          data-component-type="XSidebarAction"
+          className="px-5 py-4 text-[14px] text-[#1d9bf0]"
+        >
           Show more
         </div>
       </section>

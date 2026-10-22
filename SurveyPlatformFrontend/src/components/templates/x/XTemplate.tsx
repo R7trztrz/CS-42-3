@@ -29,6 +29,7 @@ function XTemplate({
       CanvasContainer,
 }: XTemplateProps) {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
@@ -41,6 +42,8 @@ function XTemplate({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="XTemplate"
       className="w-full overflow-x-auto"
     >
       <Element
@@ -53,8 +56,12 @@ function XTemplate({
           is={XDesktopShell}
           canvas
         >
-          <div className="flex h-full w-full bg-black text-white">
-
+          <div
+            data-component-id={`${nodeId}:workspace`}
+            data-parent-component-id={nodeId}
+            data-component-type="XWorkspace"
+            className="flex h-full w-full bg-black text-white"
+          >
             <XSidebar />
 
             <Element
@@ -62,9 +69,18 @@ function XTemplate({
               is={XMainFeed}
               canvas
             >
-              <div className="sticky top-0 z-20 grid h-[64px] shrink-0 grid-cols-2 border-b border-[#2f3336] bg-black">
-
-                <div className="relative flex h-full items-center justify-center">
+              <div
+                data-component-id={`${nodeId}:top-tabs`}
+                data-parent-component-id={nodeId}
+                data-component-type="XTopTabs"
+                className="sticky top-0 z-20 grid h-[64px] shrink-0 grid-cols-2 border-b border-[#2f3336] bg-black"
+              >
+                <div
+                  data-component-id={`${nodeId}:tab-for-you`}
+                  data-parent-component-id={nodeId}
+                  data-component-type="XTab"
+                  className="relative flex h-full items-center justify-center"
+                >
                   <span className="text-[15px] font-semibold text-[#e7e9ea]">
                     For You
                   </span>
@@ -72,12 +88,16 @@ function XTemplate({
                   <span className="absolute bottom-0 h-[4px] w-[64px] rounded-full bg-[#1d9bf0]" />
                 </div>
 
-                <div className="flex h-full items-center justify-center">
+                <div
+                  data-component-id={`${nodeId}:tab-following`}
+                  data-parent-component-id={nodeId}
+                  data-component-type="XTab"
+                  className="flex h-full items-center justify-center"
+                >
                   <span className="text-[15px] font-medium text-[#71767b]">
                     Following
                   </span>
                 </div>
-
               </div>
 
               <XComposer />
@@ -116,7 +136,6 @@ function XTemplate({
             </Element>
 
             <XRightSidebar />
-
           </div>
         </Element>
       </Element>

@@ -14,6 +14,7 @@ export function XDesktopShell({
   children,
 }: ChildrenProps) {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
@@ -26,6 +27,8 @@ export function XDesktopShell({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="XDesktopShell"
       className="mx-auto h-[860px] w-[1340px] overflow-hidden bg-black text-white"
     >
       {children}
@@ -41,6 +44,7 @@ export function XMainFeed({
   children,
 }: ChildrenProps) {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
@@ -53,9 +57,17 @@ export function XMainFeed({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="XMainFeed"
       className="h-full w-[700px] shrink-0 overflow-y-auto border-x border-[#2f3336] bg-black"
     >
-      {children}
+      <div
+        data-component-id={`${nodeId}:feed-content`}
+        data-parent-component-id={nodeId}
+        data-component-type="XFeedContent"
+      >
+        {children}
+      </div>
     </main>
   )
 }
@@ -68,6 +80,7 @@ export function XPostList({
   children,
 }: ChildrenProps) {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
@@ -80,6 +93,8 @@ export function XPostList({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="XPostList"
       className="flex w-full flex-col"
     >
       {children}

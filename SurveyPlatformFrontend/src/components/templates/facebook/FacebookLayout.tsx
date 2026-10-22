@@ -90,17 +90,25 @@ FacebookDesktopShell.craft = {
  * Newly dragged Post
  *
  * PostWidget itself should NOT have mt-* / mb-*.
+ *
+ * Eye tracking:
+ * - Main feed background uses the Craft node id.
+ * - Inner feed content uses `${nodeId}:feed-content`.
  */
 
 export function FacebookMainFeed({
   children,
 }: ChildrenProps) {
   const {
+    id: nodeId,
     connectors: {
       connect,
     },
     selected,
-  } = useCraftContainer()
+  } = useNode((node) => ({
+    selected:
+      node.events.selected,
+  }))
 
 
   return (
@@ -110,13 +118,20 @@ export function FacebookMainFeed({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="FacebookMainFeed"
       className={`min-w-0 flex-1 overflow-y-auto bg-[#f0f2f5] ${
         selected
           ? 'ring-1 ring-inset ring-emerald-300'
           : ''
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[580px] flex-col gap-3 px-3 py-4">
+      <div
+        data-component-id={`${nodeId}:feed-content`}
+        data-parent-component-id={nodeId}
+        data-component-type="FacebookFeedContent"
+        className="mx-auto flex w-full max-w-[580px] flex-col gap-3 px-3 py-4"
+      >
         {children}
       </div>
     </main>

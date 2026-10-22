@@ -17,11 +17,9 @@ import {
   TikTokMainArea,
 } from './TikTokLayout'
 
-
 type TikTokTemplateProps = {
   canvasComponent?: React.ElementType
 }
-
 
 function TikTokTemplate({
   canvasComponent:
@@ -29,6 +27,7 @@ function TikTokTemplate({
       CanvasContainer,
 }: TikTokTemplateProps) {
   const {
+    id: nodeId,
     connectors: { connect },
   } = useNode()
 
@@ -39,6 +38,8 @@ function TikTokTemplate({
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="TikTokTemplate"
       className="w-full"
     >
       <Element
@@ -51,11 +52,14 @@ function TikTokTemplate({
           is={TikTokDesktopShell}
           canvas
         >
-          <div className="flex h-full w-full overflow-hidden">
-
+          <div
+            data-component-id={`${nodeId}:workspace`}
+            data-parent-component-id={nodeId}
+            data-component-type="TikTokWorkspace"
+            className="flex h-full w-full overflow-hidden"
+          >
             {/* Sidebar */}
             <TikTokSidebar />
-
 
             {/* Main area */}
             <Element
@@ -63,13 +67,18 @@ function TikTokTemplate({
               is={TikTokMainArea}
               canvas
             >
-
               {/* Top tabs */}
-              <div className="flex h-[72px] shrink-0 items-center justify-center border-b border-[#1f1f1f] bg-[#0f0f0f]">
-
+              <div
+                data-component-id={`${nodeId}:top-tabs`}
+                data-parent-component-id={nodeId}
+                data-component-type="TikTokTopTabs"
+                className="flex h-[72px] shrink-0 items-center justify-center border-b border-[#1f1f1f] bg-[#0f0f0f]"
+              >
                 <div className="flex h-full items-center gap-9">
-
                   <span
+                    data-component-id={`${nodeId}:tab-following`}
+                    data-parent-component-id={nodeId}
+                    data-component-type="TikTokTab"
                     className="flex h-full items-center text-[14px] font-semibold"
                     style={{
                       color:
@@ -79,8 +88,10 @@ function TikTokTemplate({
                     Following
                   </span>
 
-
                   <span
+                    data-component-id={`${nodeId}:tab-for-you`}
+                    data-parent-component-id={nodeId}
+                    data-component-type="TikTokTab"
                     className="flex h-full items-center border-b-2 border-white px-1 text-[14px] font-semibold"
                     style={{
                       color:
@@ -89,11 +100,8 @@ function TikTokTemplate({
                   >
                     For You
                   </span>
-
                 </div>
-
               </div>
-
 
               {/* Editable feed */}
               <Element
@@ -115,18 +123,14 @@ function TikTokTemplate({
                   shares={8}
                   sound="Original Sound · Emma Wilson"
                 />
-
               </Element>
-
             </Element>
-
           </div>
         </Element>
       </Element>
     </div>
   )
 }
-
 
 TikTokTemplate.craft = {
   displayName:
@@ -137,6 +141,5 @@ TikTokTemplate.craft = {
       CanvasContainer,
   },
 }
-
 
 export default TikTokTemplate

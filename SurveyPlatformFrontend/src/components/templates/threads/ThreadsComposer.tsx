@@ -2,6 +2,7 @@ import { useNode } from '@craftjs/core'
 
 function ThreadsComposer() {
   const {
+    id: nodeId,
     connectors: { connect },
   } = useNode()
 
@@ -10,25 +11,61 @@ function ThreadsComposer() {
       ref={(ref) => {
         if (ref) connect(ref)
       }}
+      data-component-id={nodeId}
+      data-component-type="ThreadsComposer"
       className="border-b border-[#eeeeee] bg-white px-4 pb-5 pt-4"
     >
-      <div className="flex gap-3">
-        <div className="relative flex w-[44px] shrink-0 flex-col items-center">
+      <div
+        data-component-id={`${nodeId}:composer-row`}
+        data-parent-component-id={nodeId}
+        data-component-type="ThreadsComposerRow"
+        className="flex gap-3"
+      >
+        <div
+          data-component-id={`${nodeId}:avatar-thread`}
+          data-parent-component-id={nodeId}
+          data-component-type="ThreadsComposerAvatar"
+          className="relative flex w-[44px] shrink-0 flex-col items-center"
+        >
           <div className="flex h-[40px] w-[40px] items-center justify-center rounded-full bg-[#eef0f3] text-[10px] font-bold text-[#5d6570]">
             You
           </div>
+
           <div className="mt-2 h-[18px] w-px bg-[#d9dce1]" />
+
           <div className="mt-2 h-[18px] w-[18px] rounded-full bg-[#e3e5e8]" />
         </div>
 
-        <div className="min-w-0 flex-1 pt-[1px]">
-          <p className="text-[14px] font-semibold text-[#111111]">
+        <div
+          data-component-id={`${nodeId}:content`}
+          data-parent-component-id={nodeId}
+          data-component-type="ThreadsComposerContent"
+          className="min-w-0 flex-1 pt-[1px]"
+        >
+          <p
+            data-component-id={`${nodeId}:author`}
+            data-parent-component-id={nodeId}
+            data-component-type="ThreadsComposerAuthor"
+            className="text-[14px] font-semibold text-[#111111]"
+          >
             yourname
           </p>
-          <p className="mt-2 text-[15px] text-[#a4a8b0]">
+
+          <p
+            data-component-id={`${nodeId}:input`}
+            data-parent-component-id={nodeId}
+            data-component-type="ThreadsComposerInput"
+            className="mt-2 text-[15px] text-[#a4a8b0]"
+          >
             Start a thread...
           </p>
-          <p className="mt-7 text-[14px] text-[#a4a8b0]">
+
+          <p
+            data-component-id={`${nodeId}:add-thread`}
+            data-parent-component-id={nodeId}
+            data-component-type="ThreadsComposerAction"
+            className="mt-7 text-[14px] text-[#a4a8b0]"
+          >
             Add to thread
           </p>
         </div>
