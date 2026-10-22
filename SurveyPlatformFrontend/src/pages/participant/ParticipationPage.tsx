@@ -22,6 +22,14 @@ import {
 
 } from 'react-router-dom'
 
+import {
+
+  startBehaviorCollection,
+
+  stopBehaviorCollection,
+
+} from '../../interaction/behaviorCollector'
+
 import CanvasContainer from '../../components/editor/CanvasContainer'
 
 import InterfaceErrorBoundary from '../../components/editor/InterfaceErrorBoundary'
@@ -633,6 +641,18 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
       eyeTracking.beginTracking()
     }
   }, [eyeTracking, isActivityActive])
+
+  useEffect(() => {
+    if (!isActivityActive) {
+      return
+    }
+
+    startBehaviorCollection()
+
+    return () => {
+      stopBehaviorCollection()
+    }
+  }, [isActivityActive])
 
   const [isSavingGaze, setIsSavingGaze] = useState(false)
 

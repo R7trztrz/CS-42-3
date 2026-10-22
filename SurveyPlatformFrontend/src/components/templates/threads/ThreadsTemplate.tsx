@@ -1,38 +1,108 @@
-import { Element, useNode } from '@craftjs/core'
+import {
+  Element,
+  useNode,
+} from '@craftjs/core'
+
 import CanvasContainer from '../../editor/CanvasContainer'
 import { PostWidget } from '../../widgets'
+
 import ThreadsSidebar from './ThreadsSidebar'
 import ThreadsComposer from './ThreadsComposer'
-import { ThreadsDesktopShell, ThreadsMainFeed, ThreadsPostList } from './ThreadsLayout'
+
+import {
+  ThreadsDesktopShell,
+  ThreadsMainFeed,
+  ThreadsPostList,
+} from './ThreadsLayout'
 
 type ThreadsTemplateProps = {
   canvasComponent?: React.ElementType
 }
 
 function ThreadsTemplate({
-  canvasComponent: CanvasComponent = CanvasContainer,
+  canvasComponent:
+    CanvasComponent =
+      CanvasContainer,
 }: ThreadsTemplateProps) {
-  const { connectors: { connect } } = useNode()
+  const {
+    id: nodeId,
+    connectors: { connect },
+  } = useNode()
 
   return (
-    <div ref={(ref) => { if (ref) connect(ref) }} className="w-full overflow-x-auto">
-      <Element id="threads-root" is={CanvasComponent} canvas>
-        <Element id="threads-shell" is={ThreadsDesktopShell} canvas>
-          <div className="flex h-full w-full bg-white">
+    <div
+      ref={(ref) => {
+        if (ref) connect(ref)
+      }}
+      data-component-id={nodeId}
+      data-component-type="ThreadsTemplate"
+      className="w-full overflow-x-auto"
+    >
+      <Element
+        id="threads-root"
+        is={CanvasComponent}
+        canvas
+      >
+        <Element
+          id="threads-shell"
+          is={ThreadsDesktopShell}
+          canvas
+        >
+          <div
+            data-component-id={`${nodeId}:workspace`}
+            data-parent-component-id={nodeId}
+            data-component-type="ThreadsWorkspace"
+            className="flex h-full w-full bg-white"
+          >
             <ThreadsSidebar />
-            <div className="flex min-w-0 flex-1 justify-center">
-              <Element id="threads-main-feed" is={ThreadsMainFeed} canvas>
-                <div className="sticky top-0 z-20 grid h-[62px] grid-cols-2 border-b border-[#eeeeee] bg-white/95 backdrop-blur">
-                  <div className="relative flex items-center justify-center">
-                    <span className="text-[15px] font-semibold text-[#111111]">For you</span>
+
+            <div
+              data-component-id={`${nodeId}:center-stage`}
+              data-parent-component-id={nodeId}
+              data-component-type="ThreadsCenterStage"
+              className="flex min-w-0 flex-1 justify-center"
+            >
+              <Element
+                id="threads-main-feed"
+                is={ThreadsMainFeed}
+                canvas
+              >
+                <div
+                  data-component-id={`${nodeId}:top-tabs`}
+                  data-parent-component-id={nodeId}
+                  data-component-type="ThreadsTopTabs"
+                  className="sticky top-0 z-20 grid h-[62px] grid-cols-2 border-b border-[#eeeeee] bg-white/95 backdrop-blur"
+                >
+                  <div
+                    data-component-id={`${nodeId}:tab-for-you`}
+                    data-parent-component-id={nodeId}
+                    data-component-type="ThreadsTab"
+                    className="relative flex items-center justify-center"
+                  >
+                    <span className="text-[15px] font-semibold text-[#111111]">
+                      For you
+                    </span>
+
                     <span className="absolute bottom-0 h-[3px] w-[54px] rounded-full bg-[#111111]" />
                   </div>
-                  <div className="flex items-center justify-center text-[15px] font-medium text-[#9ca3af]">Following</div>
+
+                  <div
+                    data-component-id={`${nodeId}:tab-following`}
+                    data-parent-component-id={nodeId}
+                    data-component-type="ThreadsTab"
+                    className="flex items-center justify-center text-[15px] font-medium text-[#9ca3af]"
+                  >
+                    Following
+                  </div>
                 </div>
 
                 <ThreadsComposer />
 
-                <Element id="threads-post-list" is={ThreadsPostList} canvas>
+                <Element
+                  id="threads-post-list"
+                  is={ThreadsPostList}
+                  canvas
+                >
                   <PostWidget
                     styleId="threads"
                     displayName="Emma Wilson"
@@ -45,6 +115,7 @@ function ThreadsTemplate({
                     comments={12}
                     shares={8}
                   />
+
                   <PostWidget
                     styleId="threads"
                     displayName="Alex Chen"
@@ -57,6 +128,7 @@ function ThreadsTemplate({
                     comments={21}
                     shares={34}
                   />
+
                   <PostWidget
                     styleId="threads"
                     displayName="Jordan Lee"
@@ -80,8 +152,13 @@ function ThreadsTemplate({
 }
 
 ThreadsTemplate.craft = {
-  displayName: 'Threads Template',
-  props: { canvasComponent: CanvasContainer },
+  displayName:
+    'Threads Template',
+
+  props: {
+    canvasComponent:
+      CanvasContainer,
+  },
 }
 
 export default ThreadsTemplate

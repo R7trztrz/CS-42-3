@@ -1,6 +1,5 @@
 import { useNode } from '@craftjs/core'
 
-
 const suggestions = [
   {
     username: '@emmaw',
@@ -34,9 +33,9 @@ const suggestions = [
   },
 ]
 
-
 function InstagramSuggestions() {
   const {
+    id: nodeId,
     connectors: { connect },
   } = useNode()
 
@@ -47,10 +46,16 @@ function InstagramSuggestions() {
           connect(ref)
         }
       }}
+      data-component-id={nodeId}
+      data-component-type="InstagramSuggestions"
       className="w-[270px] shrink-0 px-5 py-7"
     >
-      <div className="mb-7 flex items-center gap-3">
-
+      <div
+        data-component-id={`${nodeId}:profile`}
+        data-parent-component-id={nodeId}
+        data-component-type="InstagramProfileSummary"
+        className="mb-7 flex items-center gap-3"
+      >
         <div className="rounded-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-[2px]">
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-gray-700">
             You
@@ -61,7 +66,6 @@ function InstagramSuggestions() {
           <p className="text-xs font-semibold text-[#262626]">
             yourprofile
           </p>
-
           <p className="text-[11px] text-[#8e8e8e]">
             Your account
           </p>
@@ -69,74 +73,87 @@ function InstagramSuggestions() {
 
         <button
           type="button"
+          data-component-id={`${nodeId}:switch-account`}
+          data-parent-component-id={nodeId}
+          data-component-type="InstagramAccountAction"
           className="text-[11px] font-semibold text-[#0095f6]"
         >
           Switch
         </button>
       </div>
 
+      <section
+        data-component-id={`${nodeId}:suggestions`}
+        data-parent-component-id={nodeId}
+        data-component-type="InstagramSuggestionList"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-[#8e8e8e]">
+            Suggested for you
+          </p>
 
-      <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            data-component-id={`${nodeId}:see-all`}
+            data-parent-component-id={nodeId}
+            data-component-type="InstagramSuggestionAction"
+            className="text-[11px] font-semibold text-[#262626]"
+          >
+            See all
+          </button>
+        </div>
 
-        <p className="text-[11px] font-semibold text-[#8e8e8e]">
-          Suggested for you
-        </p>
-
-        <button
-          type="button"
-          className="text-[11px] font-semibold text-[#262626]"
-        >
-          See all
-        </button>
-
-      </div>
-
-
-      <div className="space-y-4">
-
-        {suggestions.map(
-          ({
-            username,
-            name,
-            initials,
-            bg,
-          }) => (
-            <div
-              key={username}
-              className="flex items-center gap-3"
-            >
+        <div className="space-y-4">
+          {suggestions.map(
+            ({
+              username,
+              name,
+              initials,
+              bg,
+            }, index) => (
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-bold text-white ${bg}`}
+                key={username}
+                data-component-id={`${nodeId}:suggestion-${index}`}
+                data-parent-component-id={nodeId}
+                data-component-type="SuggestionItem"
+                className="flex items-center gap-3"
               >
-                {initials}
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-[9px] font-bold text-white ${bg}`}
+                >
+                  {initials}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-[#262626]">
+                    {username}
+                  </p>
+                  <p className="truncate text-[10px] text-[#8e8e8e]">
+                    {name}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  data-component-id={`${nodeId}:suggestion-${index}-follow`}
+                  data-parent-component-id={nodeId}
+                  data-component-type="SuggestionAction"
+                  className="text-[10px] font-semibold text-[#0095f6]"
+                >
+                  Follow
+                </button>
               </div>
+            ),
+          )}
+        </div>
+      </section>
 
-              <div className="min-w-0 flex-1">
-
-                <p className="truncate text-[11px] font-semibold text-[#262626]">
-                  {username}
-                </p>
-
-                <p className="truncate text-[10px] text-[#8e8e8e]">
-                  {name}
-                </p>
-
-              </div>
-
-              <button
-                type="button"
-                className="text-[10px] font-semibold text-[#0095f6]"
-              >
-                Follow
-              </button>
-            </div>
-          ),
-        )}
-
-      </div>
-
-
-      <p className="mt-8 text-[9px] leading-4 text-[#c7c7c7]">
+      <p
+        data-component-id={`${nodeId}:disclaimer`}
+        data-parent-component-id={nodeId}
+        data-component-type="InstagramDisclaimer"
+        className="mt-8 text-[9px] leading-4 text-[#c7c7c7]"
+      >
         This is a simulated research prototype.
         All accounts and content are fictional.
       </p>
@@ -144,11 +161,9 @@ function InstagramSuggestions() {
   )
 }
 
-
 InstagramSuggestions.craft = {
   displayName:
     'Instagram Suggestions',
 }
-
 
 export default InstagramSuggestions
