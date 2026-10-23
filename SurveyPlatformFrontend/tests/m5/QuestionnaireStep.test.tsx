@@ -34,6 +34,13 @@ function baseState(overrides: Record<string, unknown> = {}) {
 }
 
 describe('QuestionnaireStep', () => {
+  it('shows the closed outcome without answer, skip, retry or submit controls', () => {
+    useParticipantQuestionnaireMock.mockReturnValue(baseState({ isClosed: true }))
+    render(<QuestionnaireStep sessionToken="token" onCompleteQuestionnaire={vi.fn()} isCompleting={false} completeErrorMessage={null} />)
+    expect(screen.getByRole('heading', { name: 'This study is closed' })).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.queryByRole('textbox')).toBeNull()
+  })
   it('renders SINGLE_CHOICE options and submits the selected optionId', () => {
     const submitAnswer = vi.fn().mockResolvedValue(true)
     useParticipantQuestionnaireMock.mockReturnValue(

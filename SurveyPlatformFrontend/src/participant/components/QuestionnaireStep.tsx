@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { QuestionnaireView } from '../../pages/participant/ParticipantDemoTemplate'
+import FinishedStep from './FinishedStep'
 import { useParticipantQuestionnaire } from '../hooks/useParticipantQuestionnaire'
 import type { ParticipantQuestion, SubmitAnswerPayload } from '../model/participantSession'
 
@@ -64,6 +65,7 @@ function QuestionnaireStep({
     isLoading,
     isSubmitting,
     errorMessage,
+    isClosed,
     submitAnswer,
     reload,
   } = useParticipantQuestionnaire(sessionToken)
@@ -71,6 +73,8 @@ function QuestionnaireStep({
   const description = studyTitle
     ? `Please answer the questions for "${studyTitle}" about your experience.`
     : 'Please answer the following questions about your experience.'
+
+  if (isClosed) return <FinishedStep status="ABANDONED" abandonmentReason="STUDY_CLOSED" />
 
   if (!currentQuestion && !readyToSubmit) {
     return (

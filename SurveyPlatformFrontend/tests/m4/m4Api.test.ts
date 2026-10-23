@@ -20,6 +20,7 @@ import {
   saveQuestionnaire,
 } from '../../src/researcher/questionnaire/api/questionnaireApi'
 import { asApiError } from '../../src/shared/types/apiError'
+import { closeStudy, deleteStudy } from '../../src/services/studyApi'
 import { makeQuestionnaire, makeQuestionnaireItem, makeQuestion } from './fixtures'
 
 function apiError(status: number, code: string) {
@@ -41,6 +42,19 @@ function apiError(status: number, code: string) {
 describe('M4 API adapters', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('closes a study using its numeric version and returns the server state', async () => {
+    const closed = { id: 'study-1', status: 'CLOSED', version: 4, closedAt: '2026-10-23T00:00:00Z' }
+    apiMock.post.mockResolvedValueOnce({ data: closed })
+    await expect(closeStudy('study-1', 3)).resolves.toBe(closed)
+    expect(apiMock.post).toHaveBeenCalledWith('/api/studies/study-1/close', { version: 3 })
+  })
+
+  it('deletes a study with its version in the query and accepts an empty response', async () => {
+    apiMock.delete.mockResolvedValueOnce({ status: 204 })
+    await expect(deleteStudy('study-1', 4)).resolves.toBeUndefined()
+    expect(apiMock.delete).toHaveBeenCalledWith('/api/studies/study-1', { params: { version: 4 } })
   })
 
   it('returns the question page envelope and forwards page, search, and type parameters', async () => {

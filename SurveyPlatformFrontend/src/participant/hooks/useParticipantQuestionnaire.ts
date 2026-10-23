@@ -15,6 +15,7 @@ import {
   submitParticipantAnswer,
 } from '../api/participantApi'
 import type { ParticipantQuestion, SubmitAnswerPayload } from '../model/participantSession'
+import { isStudyClosedError, notifyStudyClosed, subscribeToStudyClosure } from '../model/studyClosure'
 
 export type UseParticipantQuestionnaireResult = {
   currentQuestion: ParticipantQuestion | null
@@ -23,6 +24,7 @@ export type UseParticipantQuestionnaireResult = {
   isSubmitting: boolean
   errorCode: string | null
   errorMessage: string | null
+  isClosed: boolean
   submitAnswer: (itemId: string, answer: SubmitAnswerPayload) => Promise<boolean>
   reload: () => Promise<void>
 }
@@ -68,6 +70,8 @@ export function useParticipantQuestionnaire(
   const activeRequestRef = useRef(0)
   const submissionRequestRef = useRef(0)
   const submissionInFlightRef = useRef(false)
+  const closedRef = useRef(false)
+  const [isClosed, setIsClosed] = useState(false)
   const [currentQuestion, setCurrentQuestion] = useState<ParticipantQuestion | null>(null)
   const [readyToSubmit, setReadyToSubmit] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -85,6 +89,8 @@ export function useParticipantQuestionnaire(
 
   useEffect(() => {
     currentScopeRef.current = sessionScope
+    closedRef.current = false
+    setIsClosed(false)
     ++activeRequestRef.current
     ++submissionRequestRef.current
     submissionInFlightRef.current = false
@@ -104,8 +110,29 @@ export function useParticipantQuestionnaire(
     }
   }, [sessionScope])
 
+  const closeQuestionnaire = useCallback((broadcast = true) => {
+    if (!sessionToken || !isCurrentSession() || closedRef.current) return
+    closedRef.current = true
+    ++activeRequestRef.current
+    ++submissionRequestRef.current
+    submissionInFlightRef.current = false
+    setCurrentQuestion(null)
+    setReadyToSubmit(false)
+    setIsLoading(false)
+    setIsSubmitting(false)
+    setIsClosed(true)
+    setErrorCode('STUDY_CLOSED')
+    setErrorMessage('This study is closed and is no longer accepting responses.')
+    if (broadcast) notifyStudyClosed(sessionToken)
+  }, [sessionToken, isCurrentSession])
+
+  useEffect(() => {
+    if (!sessionToken) return
+    return subscribeToStudyClosure(sessionToken, () => closeQuestionnaire(false))
+  }, [sessionToken, closeQuestionnaire])
+
   const load = useCallback(async (duringSubmission = false) => {
-    if (!sessionToken || !isCurrentSession() || (submissionInFlightRef.current && !duringSubmission)) {
+    if (!sessionToken || !isCurrentSession() || closedRef.current || (submissionInFlightRef.current && !duringSubmission)) {
       return
     }
 
@@ -122,6 +149,7 @@ export function useParticipantQuestionnaire(
       setReadyToSubmit(state.readyToSubmit)
     } catch (error) {
       if (!isCurrentRequest()) return
+      if (isStudyClosedError(error)) { closeQuestionnaire(); return }
       const code = getParticipantErrorCode(error)
       const status = getParticipantErrorStatus(error)
       setErrorCode(code)
@@ -129,7 +157,7 @@ export function useParticipantQuestionnaire(
     } finally {
       if (isCurrentRequest()) setIsLoading(false)
     }
-  }, [sessionToken, isCurrentSession])
+  }, [sessionToken, isCurrentSession, closeQuestionnaire])
 
   useEffect(() => {
     void load()
@@ -137,7 +165,7 @@ export function useParticipantQuestionnaire(
 
   const submitAnswer = useCallback(
     async (itemId: string, answer: SubmitAnswerPayload): Promise<boolean> => {
-      if (!sessionToken || !isCurrentSession() || submissionInFlightRef.current) {
+      if (!sessionToken || !isCurrentSession() || closedRef.current || submissionInFlightRef.current) {
         return false
       }
 
@@ -166,6 +194,7 @@ export function useParticipantQuestionnaire(
         return true
       } catch (error) {
         if (!isCurrentRequest()) return false
+        if (isStudyClosedError(error)) { closeQuestionnaire(); return false }
         const code = getParticipantErrorCode(error)
         const status = getParticipantErrorStatus(error)
 
@@ -186,7 +215,7 @@ export function useParticipantQuestionnaire(
         }
       }
     },
-    [sessionToken, load, isCurrentSession],
+    [sessionToken, load, isCurrentSession, closeQuestionnaire],
   )
 
   const reload = useCallback(() => load(), [load])
@@ -198,6 +227,7 @@ export function useParticipantQuestionnaire(
     isSubmitting,
     errorCode,
     errorMessage,
+    isClosed,
     submitAnswer,
     reload,
   }

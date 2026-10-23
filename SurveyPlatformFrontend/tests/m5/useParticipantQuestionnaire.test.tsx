@@ -15,6 +15,7 @@ vi.mock('../../src/participant/api/participantHttpClient', () => ({
 }))
 
 import { useParticipantQuestionnaire } from '../../src/participant/hooks/useParticipantQuestionnaire'
+import { notifyStudyClosed } from '../../src/participant/model/studyClosure'
 import type { SubmitAnswerPayload } from '../../src/participant/model/participantSession'
 import { axiosError, deferred, makeQuestion } from './fixtures'
 
@@ -27,6 +28,43 @@ const EMPTY_ANSWER: SubmitAnswerPayload = {
 }
 
 describe('useParticipantQuestionnaire', () => {
+  it.each(['load', 'answer'])('treats a closure during %s as terminal, not retryable', async operation => {
+    httpClientMock.get.mockImplementation(() => operation === 'load'
+      ? Promise.reject(axiosError(410, 'STUDY_CLOSED'))
+      : Promise.resolve({ data: { currentQuestion: makeQuestion(), readyToSubmit: false } }))
+    httpClientMock.put.mockRejectedValue(axiosError(410, 'STUDY_CLOSED'))
+    const { result, unmount } = renderHook(() => useParticipantQuestionnaire('closing-session'))
+    if (operation === 'answer') {
+      await waitFor(() => expect(result.current.currentQuestion).not.toBeNull())
+      await act(async () => { expect(await result.current.submitAnswer('item-1', EMPTY_ANSWER)).toBe(false) })
+    }
+    await waitFor(() => expect(result.current.isClosed).toBe(true))
+    expect(result.current.currentQuestion).toBeNull()
+    expect(result.current.readyToSubmit).toBe(false)
+    await act(async () => {
+      await result.current.reload()
+      expect(await result.current.submitAnswer('item-1', EMPTY_ANSWER)).toBe(false)
+    })
+    expect(httpClientMock.get).toHaveBeenCalledTimes(1)
+    expect(httpClientMock.put).toHaveBeenCalledTimes(operation === 'answer' ? 1 : 0)
+    unmount()
+  })
+
+  it('discards a pending answer when another module reports closure for the same session', async () => {
+    const late = deferred<{ data: { currentQuestion: null; readyToSubmit: boolean } }>()
+    httpClientMock.get.mockResolvedValue({ data: { currentQuestion: makeQuestion(), readyToSubmit: false } })
+    httpClientMock.put.mockReturnValue(late.promise)
+    const { result, unmount } = renderHook(() => useParticipantQuestionnaire('closing-session'))
+    await waitFor(() => expect(result.current.currentQuestion).not.toBeNull())
+    let pending!: Promise<boolean>
+    act(() => { pending = result.current.submitAnswer('item-1', EMPTY_ANSWER) })
+    act(() => { notifyStudyClosed('closing-session') })
+    expect(result.current.isSubmitting).toBe(false)
+    expect(result.current.isClosed).toBe(true)
+    await act(async () => { late.resolve({ data: { currentQuestion: null, readyToSubmit: true } }); expect(await pending).toBe(false) })
+    expect(result.current.readyToSubmit).toBe(false)
+    unmount()
+  })
   beforeEach(() => {
     vi.resetAllMocks()
   })

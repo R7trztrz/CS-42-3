@@ -31,6 +31,7 @@ export type StudyResponse = {
   questionnaireEnabled: boolean
   publishedAt: string | null
   participationUrl: string | null
+  closedAt: string | null
 }
 
 export type StudySummaryResponse = {
@@ -137,6 +138,15 @@ export async function publishStudy(studyId: string, version: number) {
     version,
   })
   return response.data
+}
+
+export async function closeStudy(studyId: string, version: number) {
+  const response = await api.post<StudyResponse>(`/api/studies/${studyId}/close`, { version })
+  return response.data
+}
+
+export async function deleteStudy(studyId: string, version: number) {
+  await api.delete(`/api/studies/${studyId}`, { params: { version } })
 }
 
 export async function getParticipation(token: string) {

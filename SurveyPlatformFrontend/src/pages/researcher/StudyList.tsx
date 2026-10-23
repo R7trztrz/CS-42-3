@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import ResearcherHeader from '../../components/researcher/ResearcherHeader'
+import StudyActionsMenu from '../../components/studies/StudyActionsMenu'
 import CreateStudyDialog, {
   type StudyTemplateId,
 } from '../../components/studies/CreateStudyDialog'
@@ -66,6 +67,7 @@ function StudyList() {
   const [errorMessage, setErrorMessage] = useState('')
   const [requestVersion, setRequestVersion] = useState(0)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -185,7 +187,7 @@ function StudyList() {
                       <th className="px-6 py-3.5">Study</th>
                       <th className="px-5 py-3.5">Status</th>
                       <th className="px-5 py-3.5">Last updated</th>
-                      <th className="px-6 py-3.5 text-right">Continue</th>
+                      <th className="px-6 py-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -213,12 +215,13 @@ function StudyList() {
                           {formatUpdatedAt(study.updatedAt)}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <Link
-                            to={`/studies/${study.id}/edit`}
-                            className="inline-flex rounded-sm border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
-                          >
-                            Open study
-                          </Link>
+                          <StudyActionsMenu study={study} open={openMenuId === study.id}
+                            onOpenChange={open => setOpenMenuId(open ? study.id : null)}
+                            onChanged={updated => setAllStudies(current => sortStudies(current.map(item => item.id === updated.id ? updated : item)))}
+                            onDeleted={id => {
+                              setAllStudies(current => current.filter(item => item.id !== id))
+                              setPage(current => Math.min(current, Math.max(0, Math.ceil((totalStudies - 1) / PAGE_SIZE) - 1)))
+                            }} />
                         </td>
                       </tr>
                     ))}

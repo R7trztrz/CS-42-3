@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import ResearcherHeader from '../../components/researcher/ResearcherHeader'
+import StudyActionsMenu from '../../components/studies/StudyActionsMenu'
 import {
   listStudies,
   type StudyStatus,
@@ -111,6 +112,7 @@ function ResearcherDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [requestVersion, setRequestVersion] = useState(0)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   useEffect(() => {
     let ignore = false
@@ -247,24 +249,24 @@ function ResearcherDashboard() {
                     <th className="px-6 py-3.5">Study</th>
                     <th className="px-5 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Last updated</th>
-                    <th className="px-6 py-3.5 text-right">Continue</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentStudies.map((study, index) => (
                     <tr
                       key={study.id}
-                      role="link"
-                      tabIndex={0}
-                      aria-label={`Open ${study.title}`}
-                      onClick={() => openStudy(study.id)}
+                      role={study.status === 'CLOSED' ? undefined : 'link'}
+                      tabIndex={study.status === 'CLOSED' ? undefined : 0}
+                      aria-label={study.status === 'CLOSED' ? undefined : `Open ${study.title}`}
+                      onClick={study.status === 'CLOSED' ? undefined : () => openStudy(study.id)}
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
+                        if (event.target === event.currentTarget && study.status !== 'CLOSED' && (event.key === 'Enter' || event.key === ' ')) {
                           event.preventDefault()
                           openStudy(study.id)
                         }
                       }}
-                      className={`cursor-pointer border-b border-gray-100 outline-none last:border-b-0 hover:bg-emerald-50 focus-visible:bg-emerald-50 ${
+                      className={`border-b border-gray-100 outline-none last:border-b-0 ${study.status !== 'CLOSED' ? 'cursor-pointer hover:bg-emerald-50 focus-visible:bg-emerald-50' : ''} ${
                         index % 2 === 0 ? 'bg-white' : 'bg-[#fafcfd]'
                       }`}
                     >
@@ -285,9 +287,10 @@ function ResearcherDashboard() {
                         {formatUpdatedAt(study.updatedAt)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className="inline-flex rounded-sm border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-700">
-                          Open study
-                        </span>
+                        <StudyActionsMenu study={study} open={openMenuId === study.id}
+                          onOpenChange={open => setOpenMenuId(open ? study.id : null)}
+                          onChanged={updated => setStudies(current => sortStudies(current.map(item => item.id === updated.id ? updated : item)))}
+                          onDeleted={id => setStudies(current => current.filter(item => item.id !== id))} />
                       </td>
                     </tr>
                   ))}
