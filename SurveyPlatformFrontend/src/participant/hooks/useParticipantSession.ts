@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { CalibrationAttempt } from '../../eyetracking'
+import { notifyStudyClosed, subscribeToStudyClosure } from '../model/studyClosure'
 import {
   abandonParticipantSession,
   completeParticipantBrowsing,
@@ -97,6 +98,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
   const creationInFlightRef = useRef(false)
   const actionInFlightRef = useRef(false)
   const sessionTokenRef = useRef<string | null>(null)
+  const closedRef = useRef(false)
   const [stage, setStage] = useState<ParticipantSessionStage>('checking')
   const [session, setSession] = useState<ParticipantSessionResponse | null>(null)
   const [sessionToken, setSessionTokenState] = useState<string | null>(null)
@@ -121,6 +123,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
 
   useEffect(() => {
     currentScopeRef.current = studyScope
+    closedRef.current = false
     ++activeRequestRef.current
     ++actionRequestRef.current
     creationInFlightRef.current = false
@@ -142,6 +145,29 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
       sessionTokenRef.current = null
     }
   }, [studyScope, setSessionToken])
+
+  const markStudyClosed = useCallback(() => {
+    if (!isCurrentStudy() || closedRef.current) return
+    closedRef.current = true
+    const token = sessionTokenRef.current
+    ++activeRequestRef.current
+    ++actionRequestRef.current
+    creationInFlightRef.current = false
+    actionInFlightRef.current = false
+    setSessionToken(null)
+    setIsActionPending(false)
+    setActionErrorCode(null)
+    setActionErrorMessage(null)
+    setErrorCode('STUDY_CLOSED')
+    setErrorMessage(describeError('STUDY_CLOSED', 410))
+    setStage('closed')
+    if (token) notifyStudyClosed(token)
+  }, [isCurrentStudy, setSessionToken])
+
+  useEffect(() => {
+    if (!sessionToken) return
+    return subscribeToStudyClosure(sessionToken, markStudyClosed)
+  }, [sessionToken, markStudyClosed])
 
   const restore = useCallback(
     async (token: string) => {
@@ -172,9 +198,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         const status = getParticipantErrorStatus(error)
 
         if (status === 410 || code === 'STUDY_CLOSED') {
-          setErrorCode(code)
-          setErrorMessage(describeError(code, status))
-          setStage('closed')
+          markStudyClosed()
           return
         }
 
@@ -200,7 +224,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         setStage('error')
       }
     },
-    [studyToken, isCurrentStudy, setSessionToken],
+    [studyToken, isCurrentStudy, setSessionToken, markStudyClosed],
   )
 
   useEffect(() => {
@@ -225,7 +249,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
 
   const createSession = useCallback(
     async (deviceInfo: ParticipantDeviceInfo | null = null) => {
-      if (!studyToken || !isCurrentStudy() || creationInFlightRef.current || stage === 'checking' || stage === 'creating' || stage === 'active') {
+      if (!studyToken || !isCurrentStudy() || closedRef.current || creationInFlightRef.current || stage === 'checking' || stage === 'creating' || stage === 'active') {
         return
       }
 
@@ -256,9 +280,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         const status = getParticipantErrorStatus(error)
 
         if (status === 410 || code === 'STUDY_CLOSED') {
-          setErrorCode(code)
-          setErrorMessage(describeError(code, status))
-          setStage('closed')
+          markStudyClosed()
           return
         }
 
@@ -269,11 +291,11 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         if (isCurrentStudy()) creationInFlightRef.current = false
       }
     },
-    [studyToken, stage, restore, isCurrentStudy],
+    [studyToken, stage, restore, isCurrentStudy, markStudyClosed],
   )
 
   const retry = useCallback(async () => {
-    if (!studyToken || !isCurrentStudy() || creationInFlightRef.current) {
+    if (!studyToken || !isCurrentStudy() || closedRef.current || creationInFlightRef.current) {
       return
     }
 
@@ -299,7 +321,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
     async (action: (token: string) => Promise<ParticipantSessionResponse>): Promise<boolean> => {
       const token = sessionTokenRef.current
 
-      if (!studyToken || !token || !isCurrentStudy() || actionInFlightRef.current) {
+      if (!studyToken || !token || !isCurrentStudy() || closedRef.current || actionInFlightRef.current) {
         return false
       }
 
@@ -323,9 +345,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         const status = getParticipantErrorStatus(error)
 
         if (status === 410 || code === 'STUDY_CLOSED') {
-          setErrorCode(code)
-          setErrorMessage(describeError(code, status))
-          setStage('closed')
+          markStudyClosed()
           return false
         }
 
@@ -352,7 +372,7 @@ export function useParticipantSession(studyToken: string | undefined): UsePartic
         }
       }
     },
-    [studyToken, setSessionToken, isCurrentStudy],
+    [studyToken, setSessionToken, isCurrentStudy, markStudyClosed],
   )
 
   const decideConsent = useCallback(

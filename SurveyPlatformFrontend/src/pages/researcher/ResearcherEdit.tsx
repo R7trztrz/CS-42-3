@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import StudyClosureControl from '../../components/studies/StudyClosureControl'
 
 import {
 
@@ -2355,6 +2356,8 @@ function ResearcherEdit() {
 
               )}
 
+              {!isTemplatePreview && <StudyClosureControl key={study.id} study={study} onStudyChange={setStudy} />}
+
               {isEditable && !isTemplatePreview && (
 
                 <div className="flex flex-col items-end gap-1">
@@ -2477,7 +2480,7 @@ function ResearcherEdit() {
 
                   <p className="text-xs font-semibold uppercase text-emerald-700">
 
-                    Participation link
+                    {study.status === 'CLOSED' ? 'Participation link - inactive' : 'Participation link'}
 
                   </p>
 
@@ -2493,6 +2496,9 @@ function ResearcherEdit() {
 
                 </div>
 
+                {study.status === 'CLOSED' && <p className="text-sm font-semibold text-sky-800">This study is closed. The participant link is no longer active.</p>}
+
+                {study.status !== 'CLOSED' && (
                 <div className="flex shrink-0 gap-2">
 
                   <button
@@ -2538,6 +2544,7 @@ function ResearcherEdit() {
                   </a>
 
                 </div>
+                )}
 
               </div>
 

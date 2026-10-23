@@ -3,6 +3,7 @@
 // React; this hook only leases it and subscribes to its snapshots.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { subscribeToStudyClosure } from '../model/studyClosure'
 
 import {
   createHttpEyeTrackingTransport,
@@ -48,7 +49,8 @@ export function useParticipantEyeTracking(
     )
     setOwner(lease.owner)
 
-    return () => lease.release()
+    const unsubscribe = subscribeToStudyClosure(sessionToken, () => lease.owner.endForStudyClosure())
+    return () => { unsubscribe(); lease.release() }
   }, [active, sessionId, sessionToken])
 
   return owner

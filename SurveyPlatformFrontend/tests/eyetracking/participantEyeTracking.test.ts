@@ -25,6 +25,7 @@ function fakeTransport() {
   const attempts: CalibrationAttempt[] = []
   const batches: GazeEventBatch[] = []
   const transport: EyeTrackingTransport = {
+    cancelPendingDelivery: vi.fn(),
     recordCalibrationAttempt: vi.fn(async (attempt: CalibrationAttempt) => {
       attempts.push(attempt)
     }),
@@ -104,6 +105,20 @@ async function calibrated(offset = 0, options: Partial<ParticipantEyeTrackingOpt
 }
 
 describe('ParticipantEyeTracking', () => {
+  it('cancels delivery and stops the engine immediately when a study closes', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'performance', 'Date'] })
+    const { owner, engine, transport } = await calibrated()
+    expect(owner.beginTracking()).toBe(true)
+    const stops = engine.stop.mock.calls.length
+    owner.endForStudyClosure()
+    expect(transport.cancelPendingDelivery).toHaveBeenCalledOnce()
+    expect(engine.stop.mock.calls.length).toBeGreaterThan(stops)
+    expect(engine.listener).toBeNull()
+    expect(owner.disposed).toBe(true)
+    expect(owner.cameraStream()).toBeNull()
+    expect(owner.beginTracking()).toBe(false)
+    await vi.advanceTimersByTimeAsync(0)
+  })
   afterEach(() => {
     disposeAllParticipantEyeTracking()
     vi.useRealTimers()

@@ -683,6 +683,12 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
       : phaseSteps[session.phase] ?? 'introduction'
     : 'introduction'
 
+  if (participantSession.stage === 'closed') {
+    return <ParticipationFlowLayout step={flowStep} title={participation?.title ?? session?.studyTitle}>
+      <FinishedStep status="ABANDONED" abandonmentReason="STUDY_CLOSED" />
+    </ParticipationFlowLayout>
+  }
+
   if (!isLoading && participation && (
     participantSession.stage === 'landing' || participantSession.stage === 'creating'
   )) {
@@ -761,8 +767,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
               {(participantSession.stage === 'checking' ||
                 participantSession.stage === 'landing' ||
                 participantSession.stage === 'creating' ||
-                participantSession.stage === 'error' ||
-                participantSession.stage === 'closed') && (
+                participantSession.stage === 'error') && (
                 <section className="mb-6 rounded-md border border-gray-200 bg-white px-6 py-5 shadow-sm">
                   {participantSession.stage === 'checking' && (
                     <p className="text-sm text-gray-600" role="status">
@@ -791,7 +796,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                     </p>
                   )}
 
-                  {(participantSession.stage === 'error' || participantSession.stage === 'closed') && (
+                  {participantSession.stage === 'error' && (
                     <div className="flex flex-col items-start gap-3">
                       <p className="text-sm text-red-700" role="alert">
                         {participantSession.errorMessage}

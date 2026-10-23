@@ -315,6 +315,12 @@ export class ParticipantEyeTracking {
     void this.stopTracking()
   }
 
+  /** Closure is terminal: release the engine without uploading queued data to a closed study. */
+  endForStudyClosure(): void {
+    this.options.transport.cancelPendingDelivery?.()
+    this.dispose()
+  }
+
   private async createController(): Promise<CalibrationController> {
     const loading = new AbortController()
     this.loading = loading

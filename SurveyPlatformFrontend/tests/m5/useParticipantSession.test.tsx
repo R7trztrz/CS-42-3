@@ -16,11 +16,38 @@ vi.mock('../../src/participant/api/participantHttpClient', () => ({
 }))
 
 import { useParticipantSession } from '../../src/participant/hooks/useParticipantSession'
+import { notifyStudyClosed } from '../../src/participant/model/studyClosure'
 import { readStoredSessionToken, storeSessionToken } from '../../src/participant/model/participantSession'
 import { axiosError, deferred, makeCreateSessionResponse, makeSessionResponse } from './fixtures'
 
 describe('useParticipantSession', () => {
   const studyToken = 'study-token-abc'
+
+  it('ends on a matching module notification and ignores late success or further actions', async () => {
+    storeSessionToken(studyToken, 'stored-token')
+    const late = deferred<{ data: ReturnType<typeof makeSessionResponse> }>()
+    httpClientMock.get.mockResolvedValueOnce({ data: makeSessionResponse('BROWSING') }).mockReturnValueOnce(late.promise)
+    const { result, unmount } = renderHook(() => useParticipantSession(studyToken))
+    await waitFor(() => expect(result.current.stage).toBe('active'))
+    let pending!: Promise<boolean>
+    act(() => { pending = result.current.refreshSession() })
+    act(() => { notifyStudyClosed('different-token') })
+    expect(result.current.stage).toBe('active')
+    act(() => { notifyStudyClosed('stored-token') })
+    expect(result.current.stage).toBe('closed')
+    expect(result.current.isActionPending).toBe(false)
+    expect(result.current.sessionToken).toBeNull()
+    await act(async () => { late.resolve({ data: makeSessionResponse('BROWSING') }); expect(await pending).toBe(false) })
+    await act(async () => {
+      await result.current.retry()
+      await result.current.createSession()
+      expect(await result.current.completeBrowsing()).toBe(false)
+    })
+    expect(result.current.stage).toBe('closed')
+    expect(httpClientMock.post).not.toHaveBeenCalled()
+    expect(httpClientMock.get).toHaveBeenCalledTimes(2)
+    unmount()
+  })
 
   beforeEach(() => {
     vi.resetAllMocks()

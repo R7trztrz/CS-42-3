@@ -1,6 +1,7 @@
 import axios, { type AxiosInstance } from 'axios'
 import participantHttpClient from '../../participant/api/participantHttpClient'
 import { PARTICIPANT_SESSION_TOKEN_HEADER } from '../../participant/model/participantSession'
+import { isStudyClosedError, notifyStudyClosed } from '../../participant/model/studyClosure'
 import type { GazeEventBatch } from '../gaze/types'
 import type { CalibrationAttempt } from '../types/calibration'
 
@@ -8,6 +9,7 @@ import type { CalibrationAttempt } from '../types/calibration'
 export interface EyeTrackingTransport {
   recordCalibrationAttempt(attempt: CalibrationAttempt): Promise<void>
   sendGazeBatch(batch: GazeEventBatch): Promise<void>
+  cancelPendingDelivery?(): void
 }
 
 export interface DeliveryRetryPolicy {
@@ -34,6 +36,7 @@ export const DEFAULT_DELIVERY_RETRY_POLICY: DeliveryRetryPolicy = Object.freeze(
  * Other 4xx answers are final.
  */
 export function isRetryableDeliveryError(error: unknown): boolean {
+  if (isStudyClosedError(error) || axios.isCancel(error)) return false
   if (!axios.isAxiosError(error)) return false
   const status = error.response?.status
   if (status === undefined) return true
@@ -64,22 +67,48 @@ export function createHttpEyeTrackingTransport(
   policy: DeliveryRetryPolicy = DEFAULT_DELIVERY_RETRY_POLICY,
   client: Pick<AxiosInstance, 'put' | 'post'> = participantHttpClient,
 ): EyeTrackingTransport {
+  const abort = new AbortController()
+  let terminalError: unknown = null
+  let stopped = false
   const config = {
     headers: { [PARTICIPANT_SESSION_TOKEN_HEADER]: sessionToken },
     timeout: policy.requestTimeoutMs,
+    signal: abort.signal,
   }
+
+  async function deliver(send: () => Promise<unknown>): Promise<void> {
+    try {
+      await deliverWithRetries(() => {
+        if (stopped) return Promise.reject(terminalError)
+        return send()
+      }, policy)
+    } catch (error) {
+      if (isStudyClosedError(error) && !stopped) {
+        stopped = true
+        terminalError = error
+        abort.abort()
+        notifyStudyClosed(sessionToken)
+      }
+      throw error
+    }
+  }
+
   return {
+    cancelPendingDelivery() {
+      stopped = true
+      terminalError ??= new Error('Eye-tracking delivery has ended.')
+      abort.abort()
+    },
     recordCalibrationAttempt: (attempt) =>
-      deliverWithRetries(
+      deliver(
         () =>
           client.put(
             `${CALIBRATION_ATTEMPTS_PATH}/${encodeURIComponent(attempt.attemptId)}`,
             attempt,
             config,
           ),
-        policy,
       ),
     sendGazeBatch: (batch) =>
-      deliverWithRetries(() => client.post(GAZE_BATCHES_PATH, batch, config), policy),
+      deliver(() => client.post(GAZE_BATCHES_PATH, batch, config)),
   }
 }
