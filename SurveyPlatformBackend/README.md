@@ -575,3 +575,69 @@ committed-task visibility, file removal and persisted retries. It uses a reduced
 FK fixture and the actual V18 migration. The Docker-based PostgreSQL suite checks
 the actual migration history, deletion of published questionnaire data and both
 answer/deletion concurrency orders. It is skipped when Docker is unavailable.
+
+### FR-19: participation overview and anonymous progress list
+
+Send the following request with a researcher Bearer JWT:
+
+```http
+GET /api/studies/{studyId}/participation?page=0&size=20&sortBy=enteredAt&direction=desc
+```
+
+The owner can query a DRAFT, COLLECTING or CLOSED study. Missing and foreign-owned
+studies return 404 `STUDY_NOT_FOUND`. The response uses `Cache-Control: no-store`
+and contains `summary` and `sessions`:
+
+```json
+{
+  "summary": {"total": 0, "inProgress": 0, "completed": 0, "abandoned": 0},
+  "sessions": {
+    "content": [],
+    "page": 0,
+    "size": 20,
+    "totalElements": 0,
+    "totalPages": 0
+  }
+}
+```
+
+The example shows a study with no sessions. Each actual list entry contains only `sessionId`,
+`anonymousParticipantId`, `status`, `enteredAt` and `completedAt`. Use `sessionId`
+for the subsequent session-details feature. Completion time is null for sessions
+that have not completed. Device payloads, session tokens/hashes, answers and raw
+behavior/gaze data are never returned by this endpoint.
+
+Counts describe persisted sessions, including declined-consent sessions, rather
+than link clicks or distinct human participants. Re-entering with a new session
+can increase the count. `total` equals `inProgress + completed + abandoned`.
+An owned study with no sessions returns zero counts and an empty page. This query
+does not infer timeouts, mutate M5 status, or update study timestamps.
+
+Parameters default to `page=0`, `size=20`, `sortBy=enteredAt`, `direction=desc`.
+Pages are zero-based; size must be between 1 and 100. The page offset must fit a
+32-bit integer. Only `enteredAt` and `status` are accepted sort fields, and only
+lowercase `asc`/`desc` are accepted directions. Invalid values return 400 through
+the existing global error handler.
+
+Status ascending order is `IN_PROGRESS`, `COMPLETED`, `ABANDONED`; descending
+reverses that order. Status ties use entry time descending, then session UUID
+ascending. Entry-time sorting also uses session UUID ascending to break ties.
+Sorting and pagination execute in the database; only the requested page is
+loaded. Existing V15 indexes remain unchanged pending PostgreSQL query-plan
+evidence for additional indexes.
+
+Ownership, counts and the page are read in one read-only REPEATABLE READ
+transaction without explicit write locks. Concurrent writes appear on the next
+request, keeping counts and rows consistent within one response. Separate page
+requests may observe newly created or updated sessions.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyParticipationControllerTest,StudyParticipationPersistenceTest,StudyParticipationPostgresIntegrationTest" test
+```
+
+The controller and H2 suites run without Docker. The PostgreSQL suite uses the
+actual Flyway schema and checks snapshot consistency while another transaction
+updates a session and inserts a new one. It is skipped without Docker. This
+feature adds no frontend page, session-details endpoint or export pipeline.
