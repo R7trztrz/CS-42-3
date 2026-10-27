@@ -641,3 +641,71 @@ The controller and H2 suites run without Docker. The PostgreSQL suite uses the
 actual Flyway schema and checks snapshot consistency while another transaction
 updates a session and inserts a new one. It is skipped without Docker. This
 feature adds no frontend page, session-details endpoint or export pipeline.
+
+### FR-20: participant session details
+
+Use a session ID returned by FR-19 and authenticate with a researcher Bearer JWT:
+
+```http
+GET /api/studies/{studyId}/participants/{sessionId}
+```
+
+Only the study owner can read the session. Missing and foreign-owned studies
+return 404 `STUDY_NOT_FOUND`; missing sessions and sessions outside the specified
+study return 404 `PARTICIPANT_SESSION_NOT_FOUND`. Invalid UUIDs return 400;
+authentication and role failures return 401/403. CLOSED studies remain readable.
+Deleting the study makes its session details unavailable.
+
+The response includes:
+
+- `studyId`, `sessionId` and `anonymousParticipantId`;
+- `status`, `phase` and `abandonmentReason`;
+- `enteredAt`, `consentedAt`, `calibrationCompletedAt`, `browsingCompletedAt`,
+  `completedAt`, `abandonedAt` and `lastActivityAt`;
+- `deviceInfo`, restricted to `browser`, `browserVersion`, `os`, `screenWidth`,
+  `screenHeight` and `timezone`;
+- `eyeTracking`, containing `enabled`, `calibrationState`,
+  `calibrationAttemptCount`, `completedAttemptId`, `trackingAvailable`,
+  `unavailableReason`, `quality`, `qualityBasis` and `lowQualityReasons`.
+
+Missing timestamps stay null. Device information is null when not supplied or
+cleared after consent refusal. Unknown device JSON keys are ignored rather than
+passed through. No questionnaire answers, behavior/gaze events, calibration
+point measurements, session credentials or download URLs are returned.
+
+The eye-tracking module reads the existing `eye_tracking_session_quality` view
+from V20. The final grade and availability belong to the attempt referenced by
+`calibration_completions`, not the most recently uploaded attempt. No score is
+recalculated, and provisional attempts are not substituted for a missing final
+record. The summary distinguishes these states:
+
+| `calibrationState` | Meaning |
+|---|---|
+| `DISABLED` | Eye tracking is disabled for the study. |
+| `NOT_STARTED` | Eye tracking is enabled, but no attempt has been stored. |
+| `IN_PROGRESS` | Attempts exist, but no final attempt has been selected. |
+| `RECORDED` | A final attempt has been selected, including abandoned or unavailable outcomes. |
+
+Without a final record, availability and quality fields remain null and
+`lowQualityReasons` is empty. A recorded unavailable attempt instead returns
+`trackingAvailable: false` and its stored reason. Available tracking is not proof
+that gaze events were saved. The response intentionally contains no raw event
+counts or claims that the captured data is complete.
+
+The query uses one read-only REPEATABLE READ transaction for the JPA session
+projection and M6 JDBC summary. It does not infer timeouts, transition session
+states, update timestamps, acquire write locks or start an export. Responses use
+`Cache-Control: no-store`. This feature introduces no database migration and no
+frontend page; FR-21 and M7 remain separate work.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyParticipantDetailControllerTest,StudyParticipantDetailPersistenceTest,StudyParticipantDetailPostgresIntegrationTest,StudyParticipationControllerTest,StudyParticipationPersistenceTest" test
+```
+
+The H2 suite uses the actual V19 tables and a reduced, H2-compatible calibration
+view. It verifies missing data, device allow-listing, session/study isolation,
+read-only behavior and final-attempt selection. The PostgreSQL suite uses the
+actual V20 view and checks the shared JPA/JDBC snapshot during concurrent
+calibration completion. It is explicitly skipped without Docker.
