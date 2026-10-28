@@ -1,6 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.export.service;
 
 import com.cs_42_3.surveyplatformbackend.export.domain.ExportDataType;
+import com.cs_42_3.surveyplatformbackend.export.domain.ExportSessionRecord;
 import com.cs_42_3.surveyplatformbackend.export.storage.ExportArchive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,35 +28,47 @@ public class ExportArchiveWriter {
                       OutputStream output) throws IOException {
         var session = sessions.read(study, sessionId);
         try (var archive = new ExportArchive(output)) {
-            sessions.write(archive, session, snapshotAt);
-            StringBuilder readme = new StringBuilder(commonSchema(study, sessionId, types, snapshotAt));
-            if (types.contains(ExportDataType.QUESTIONNAIRE)) {
-                readme.append("\n## Questionnaire data\n").append(questionnaire.write(archive, session))
-                        .append("\n").append(questionnaireSchema());
-            } else {
-                readme.append("\nresponses.csv was omitted: QUESTIONNAIRE was not selected.\n");
-            }
-            if (types.contains(ExportDataType.GAZE)) {
-                readme.append("\n## Eye-tracking data\n").append(gaze.write(archive, session))
-                        .append("\n").append(gazeSchema());
-            } else {
-                readme.append("\nEye-tracking CSV files were omitted: GAZE was not selected.\n");
-            }
-            if (types.contains(ExportDataType.BEHAVIOR)) {
-                readme.append("\n## Behavior data\n").append(behavior.write(archive, session))
-                        .append("\n").append(behaviorSchema());
-            } else {
-                readme.append("\nBehavior CSV files were omitted: BEHAVIOR was not selected.\n");
-            }
-            archive.text("README.md", readme.toString());
+            String notes = writeRows(archive, session, types, snapshotAt);
+            archive.text("README.md", schema(study, sessionId, types, snapshotAt) + notes);
         }
+    }
+
+    /** Appends one session using exactly the same validation and row writers for either scope. */
+    public String writeRows(ExportArchive archive, ExportSessionRecord session, Set<ExportDataType> types,
+                            Instant snapshotAt) throws IOException {
+        sessions.write(archive, session, snapshotAt);
+        StringBuilder readme = new StringBuilder();
+        if (types.contains(ExportDataType.QUESTIONNAIRE)) {
+            readme.append("\n## Questionnaire data\n").append(questionnaire.write(archive, session));
+        } else {
+            readme.append("\nresponses.csv was omitted: QUESTIONNAIRE was not selected.\n");
+        }
+        if (types.contains(ExportDataType.GAZE)) {
+            readme.append("\n## Eye-tracking data\n").append(gaze.write(archive, session));
+        } else {
+            readme.append("\nEye-tracking CSV files were omitted: GAZE was not selected.\n");
+        }
+        if (types.contains(ExportDataType.BEHAVIOR)) {
+            readme.append("\n## Behavior data\n").append(behavior.write(archive, session));
+        } else {
+            readme.append("\nBehavior CSV files were omitted: BEHAVIOR was not selected.\n");
+        }
+        return readme.toString();
+    }
+
+    public String schema(UUID study, UUID session, Set<ExportDataType> types, Instant snapshotAt) {
+        return commonSchema(study, session, types, snapshotAt)
+                + (types.contains(ExportDataType.QUESTIONNAIRE) ? questionnaireSchema() : "")
+                + (types.contains(ExportDataType.GAZE) ? gazeSchema() : "")
+                + (types.contains(ExportDataType.BEHAVIOR) ? behaviorSchema() : "");
     }
 
     private String commonSchema(UUID study, UUID session, Set<ExportDataType> types, Instant snapshot) {
         return """
-                # Session data export — schema v3
+                # Research data export — schema v4
 
                 Study: %s
+                Scope: %s
                 Session: %s
                 Snapshot transaction started at: %s
                 Selected categories: %s
@@ -76,7 +89,8 @@ public class ExportArchiveWriter {
                 unavailable_reason and low_quality_reasons describe the final selected calibration.
                 Missing final metadata stays blank; low_quality_reasons is a JSON string array.
                 tracking_available is not proof of saved gaze events. snapshot_at is export read time.
-                """.formatted(study, session, snapshot, ExportDataType.encode(types));
+                """.formatted(study, session == null ? "STUDY" : "SESSION", session == null ? "ALL" : session,
+                snapshot, ExportDataType.encode(types));
     }
 
     private String questionnaireSchema() {

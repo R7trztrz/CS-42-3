@@ -20,6 +20,18 @@ public class ExportSnapshotService {
     private final ExportArchiveWriter archive;
     private final ExportStorage storage;
     private final Clock clock;
+    private final StudyExportWriter studies;
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true,
+            isolation = Isolation.REPEATABLE_READ, rollbackFor = IOException.class)
+    public Instant generateStudy(UUID id, UUID study, Set<ExportDataType> types) throws IOException {
+        Instant snapshot = clock.instant();
+        var workspace = storage.createWorkspace(id);
+        try (var output = storage.createTemporary(id)) {
+            studies.write(study, types, snapshot, output, workspace);
+        }
+        return snapshot;
+    }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true,
             isolation = Isolation.REPEATABLE_READ, rollbackFor = IOException.class)

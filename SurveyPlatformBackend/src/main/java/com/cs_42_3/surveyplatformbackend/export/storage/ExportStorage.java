@@ -1,6 +1,7 @@
 package com.cs_42_3.surveyplatformbackend.export.storage;
 
 import java.io.*;
+import java.nio.file.Path;
 import java.util.UUID;
 
 /**
@@ -10,6 +11,7 @@ import java.util.UUID;
  */
 public interface ExportStorage {
     OutputStream createTemporary(UUID id) throws IOException;
+    Path createWorkspace(UUID id) throws IOException;
     void publish(UUID id) throws IOException;
     InputStream open(UUID id) throws IOException;
     void delete(UUID id) throws IOException;

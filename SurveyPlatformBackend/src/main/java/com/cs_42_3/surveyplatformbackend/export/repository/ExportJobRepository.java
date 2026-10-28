@@ -42,9 +42,10 @@ public class ExportJobRepository {
     public ExportJobResponse insert(UUID study, UUID session, Set<ExportDataType> types, Instant now) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO export_jobs(id, study_id, session_id, data_types, status, created_at)
-                VALUES (?, ?, ?, ?, 'PENDING', ?)
-                """, id, study, session, ExportDataType.encode(types), Timestamp.from(now));
+                INSERT INTO export_jobs(id, study_id, session_id, data_types, status, created_at, scope)
+                VALUES (?, ?, ?, ?, 'PENDING', ?, ?)
+                """, id, study, session, ExportDataType.encode(types), Timestamp.from(now),
+                session == null ? ExportScope.STUDY.name() : ExportScope.SESSION.name());
         return get(study, id, false);
     }
 
@@ -83,10 +84,14 @@ public class ExportJobRepository {
     }
 
     public void fail(UUID id, String code, String message, Instant now) {
+        fail(id, code, message, now, null);
+    }
+
+    public void fail(UUID id, String code, String message, Instant now, UUID failedSession) {
         jdbc.update("""
-                UPDATE export_jobs SET status = 'FAILED', completed_at = ?, error_code = ?, error_message = ?
+                UPDATE export_jobs SET status = 'FAILED', completed_at = ?, error_code = ?, error_message = ?, failed_session_id = ?
                 WHERE id = ?
-                """, Timestamp.from(now), code, message, id);
+                """, Timestamp.from(now), code, message, failedSession, id);
         enqueueCleanup(id, now);
     }
 
@@ -114,7 +119,8 @@ public class ExportJobRepository {
                 rs.getObject("session_id", UUID.class), ExportDataType.decode(rs.getString("data_types")),
                 ExportStatus.valueOf(rs.getString("status")), instant(rs, "created_at"),
                 instant(rs, "started_at"), instant(rs, "snapshot_at"), instant(rs, "completed_at"),
-                instant(rs, "expires_at"), rs.getString("error_code"), rs.getString("error_message"));
+                instant(rs, "expires_at"), rs.getString("error_code"), rs.getString("error_message"),
+                ExportScope.valueOf(rs.getString("scope")), rs.getObject("failed_session_id", UUID.class));
     }
 
     private Instant instant(ResultSet rs, String column) throws SQLException {

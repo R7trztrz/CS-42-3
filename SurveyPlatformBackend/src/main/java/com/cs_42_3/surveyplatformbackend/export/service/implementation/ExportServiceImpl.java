@@ -32,16 +32,28 @@ public class ExportServiceImpl implements ExportService {
 
     @Override
     @Transactional
+    public ExportJobResponse createStudy(UUID owner, UUID study, CreateExportRequest request) {
+        jobs.requireOwner(owner, study, true);
+        validateCategories(request);
+        return jobs.insert(study, null, Set.copyOf(request.dataTypes()), clock.instant());
+    }
+
+    @Override
+    @Transactional
     public ExportJobResponse create(UUID owner, UUID study, UUID session, CreateExportRequest request) {
         // Study-first shared locking serializes creation with permanent aggregate deletion.
         jobs.requireOwner(owner, study, true);
         jobs.requireSession(study, session);
+        validateCategories(request);
+        return jobs.insert(study, session, Set.copyOf(request.dataTypes()), clock.instant());
+    }
+
+    private void validateCategories(CreateExportRequest request) {
         if (request == null || request.dataTypes() == null
                 || request.dataTypes().isEmpty() || request.dataTypes().stream().anyMatch(Objects::isNull)) {
             throw new ExportException(ErrorCode.EXPORT_CATEGORY_UNSUPPORTED, HttpStatus.BAD_REQUEST,
                     "Select at least one supported category: QUESTIONNAIRE, GAZE or BEHAVIOR.");
         }
-        return jobs.insert(study, session, Set.copyOf(request.dataTypes()), clock.instant());
     }
 
     @Override
@@ -52,7 +64,7 @@ public class ExportServiceImpl implements ExportService {
         if (job.status() == ExportStatus.COMPLETED && !clock.instant().isBefore(job.expiresAt())) {
             return new ExportJobResponse(job.id(), job.studyId(), job.sessionId(), job.dataTypes(),
                     ExportStatus.EXPIRED, job.createdAt(), job.startedAt(), job.snapshotAt(), job.completedAt(),
-                    job.expiresAt(), job.errorCode(), job.errorMessage());
+                    job.expiresAt(), job.errorCode(), job.errorMessage(), job.scope(), job.failedSessionId());
         }
         return job;
     }
