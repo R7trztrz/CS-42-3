@@ -710,7 +710,7 @@ read-only behavior and final-attempt selection. The PostgreSQL suite uses the
 actual V20 view and checks the shared JPA/JDBC snapshot during concurrent
 calibration completion. It is explicitly skipped without Docker.
 
-## Single-session questionnaire exports (M7, first increment)
+## Single-session questionnaire and eye-tracking exports (M7)
 
 All export endpoints require the owning researcher's Bearer JWT and the
 `RESEARCHER` role. The frontend export UI is not included in this increment.
@@ -723,7 +723,7 @@ All export endpoints require the owning researcher's Bearer JWT and the
    ```
 
    The response is `202 Accepted` with task metadata and a `Location` polling URI.
-   Only `QUESTIONNAIRE` is supported; other categories are rejected. Sessions
+   Select `QUESTIONNAIRE`, `GAZE`, or both. Other categories are rejected. Sessions
    may be in progress, completed or abandoned, including sessions in closed studies.
 2. Poll `GET /api/studies/{studyId}/exports/{exportId}`. States are `PENDING`,
    `RUNNING`, `COMPLETED`, `FAILED` and `EXPIRED`. Failed tasks include a safe
@@ -734,8 +734,24 @@ All export endpoints require the owning researcher's Bearer JWT and the
    an attachment filename. Downloads return 409 before completion, 410 after
    expiry/file loss and 404 for missing/foreign tasks or deleted studies.
 
-Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v1, and
-`responses.csv` when saved questionnaire submissions exist. Questions and option
+For gaze-only exports, use `{"dataTypes":["GAZE"]}`. For a combined export, use
+`{"dataTypes":["QUESTIONNAIRE","GAZE"]}`. The selected categories are persisted
+with the task and returned unchanged by polling. Each writer runs only when its
+category was selected: gaze-only exports do not read or validate questionnaires.
+
+Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v2, and the
+selected category files below when records exist. Existing schema-v1 archives
+remain downloadable until their original expiry. Session and response CSV
+columns are unchanged from v1.
+
+| File | Contents |
+|---|---|
+| `responses.csv` | Saved questionnaire steps and answers, when `QUESTIONNAIRE` is selected. |
+| `gaze_events.csv` | One row per saved gaze prediction, when `GAZE` is selected. |
+| `gaze_batches.csv` | Original received batch metadata and browser-reported dropped counts. |
+| `calibration_attempts.csv` | All stored attempts, including unavailable/abandoned outcomes and the final-selection flag. |
+
+Questions and option
 labels come from the immutable publication snapshot, never the current question
 bank. One response row represents one saved step: `ANSWERED` includes the raw
 answer JSON and readable value, while `SKIPPED` represents an optional unanswered
@@ -744,11 +760,36 @@ Multi-choice readable values are JSON string arrays. If the questionnaire was
 disabled or has no saved submissions, the response file is omitted and the reason
 is recorded in README. Partial sessions are legitimate, not validation failures.
 Session metadata includes stored lifecycle timestamps and final calibration
-quality metadata; it includes no credentials, device payloads or raw gaze data.
+quality metadata; it includes no credentials, device payloads or raw gaze coordinates.
+
+Gaze events retain `x/y` in viewport CSS pixels, scroll offsets, viewport size,
+device ratio, page ID, widget attribution, browser wall-clock timestamp and
+`session_elapsed_ms`. Values are not rounded, clamped or filtered by grade or
+widget attribution. Order is `session_elapsed_ms`, then `batch_sequence`, then
+`event_index`; negative elapsed values and equal timestamps are valid. Each event's
+quality/basis/reasons come from its own `calibration_attempt_id`, which may differ
+from the final attempt described in `sessions.csv`. No heatmaps, fixation metrics
+or new grades are computed. Attempt CSV includes stored thresholds, counts,
+reported medians, viewport and timestamps; per-target residual rows are not
+included in this increment. No camera images or video are exported.
+
+Empty eye-tracking files are omitted with explanations in README. Calibration
+attempts are still included when present even if no gaze predictions were saved.
+Study-disabled, camera-unavailable and not-yet-started sessions are legitimate
+empty-data cases. A usable calibration does not prove predictions were delivered.
+Batch sequence gaps and browser-reported dropped events produce README warnings
+while saved predictions remain available. Cumulative dropped counts must not be
+summed across batches; reloads can reset browser counters. There is no persisted
+final expected sequence, so lost tail batches and wholly lost streams cannot be
+detected from these tables. An export is evidence of stored records, not a claim
+of complete browser delivery.
 
 Generation uses a read-only REPEATABLE READ transaction and a JDBC cursor for
-steps/answers. Invalid item references, answer types/options, branch paths or
-submission ordering fail the task instead of publishing a partial archive.
+steps/answers and gaze rows. Invalid item references, answer types/options,
+branch paths, submission ordering, batch/event count or index mismatches,
+cross-session calibration references and non-finite gaze values fail the task
+instead of publishing a partial archive. Browser wall-clock timestamps are not
+compared to server timestamps because client clocks can differ.
 CSV uses RFC 4180 escaping, UTC ISO-8601 timestamps and UTF-8 without BOM.
 Research text is preserved, including formula-like prefixes: import columns as
 text when opening raw exports in spreadsheet software.
@@ -767,7 +808,9 @@ EXPORT_SCHEDULER_ENABLED=true
 EXPORT_SCAN_INTERVAL=2s
 ```
 
-V21 adds durable task and independent file-cleanup tables. A dedicated scheduler
+V21 adds durable task and independent file-cleanup tables. V22 extends the
+category constraint without changing V21 tasks and adds the gaze ordering index.
+A dedicated scheduler
 claims tasks using PostgreSQL row locks and `SKIP LOCKED`. A committed `RUNNING`
 task without a live processing lock is recovered after restart; temporary files
 are overwritten safely. The worker retains the task lock while a separate
@@ -786,11 +829,11 @@ Already-open downloads may finish; new downloads after deletion/expiry are denie
 Focused verification:
 
 ```powershell
-.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
+.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,GazeExportWriterTest,ExportDataTypeTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
 ```
 
 The application-wiring test starts an isolated H2 context with migrations and schema
 validation disabled; it verifies component injection and scheduler separation only.
 The PostgreSQL suite uses actual Flyway migrations and is skipped without Docker.
-Study-wide exports, other data categories and frontend integration remain future
+Study-wide exports, behavior exports and frontend integration remain future
 increments; this increment does not claim completion of all M7 requirements.

@@ -37,11 +37,11 @@ public class ExportServiceImpl implements ExportService {
         jobs.requireOwner(owner, study, true);
         jobs.requireSession(study, session);
         if (request == null || request.dataTypes() == null
-                || !request.dataTypes().equals(Set.of(ExportDataType.QUESTIONNAIRE))) {
+                || request.dataTypes().isEmpty() || request.dataTypes().stream().anyMatch(Objects::isNull)) {
             throw new ExportException(ErrorCode.EXPORT_CATEGORY_UNSUPPORTED, HttpStatus.BAD_REQUEST,
-                    "Select QUESTIONNAIRE; other export categories are not supported yet.");
+                    "Select at least one supported category: QUESTIONNAIRE or GAZE.");
         }
-        return jobs.insert(study, session, clock.instant());
+        return jobs.insert(study, session, Set.copyOf(request.dataTypes()), clock.instant());
     }
 
     @Override

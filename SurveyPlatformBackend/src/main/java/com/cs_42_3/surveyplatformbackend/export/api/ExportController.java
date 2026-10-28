@@ -30,8 +30,8 @@ public class ExportController {
     private final CurrentResearcher researcher;
 
     @PostMapping("/participants/{sessionId}/exports")
-    @Operation(summary = "Create a questionnaire export for one session",
-            description = "Returns a durable asynchronous task, not the ZIP. Currently supports only QUESTIONNAIRE. "
+    @Operation(summary = "Create a data export for one session",
+            description = "Returns a durable asynchronous task, not the ZIP. Select QUESTIONNAIRE, GAZE or both. "
                     + "Partial, completed and abandoned sessions are supported in collecting or closed studies.")
     @ApiResponses({@ApiResponse(responseCode = "202", description = "Task queued; poll the Location URI."),
             @ApiResponse(responseCode = "400", description = "Invalid UUID, body or unsupported category."),
@@ -56,7 +56,9 @@ public class ExportController {
     @GetMapping(value = "/exports/{exportId}/download", produces = "application/zip")
     @Operation(summary = "Download my completed export ZIP",
             description = "Requires the owning researcher's JWT on every download. Contains sessions.csv, README.md "
-                    + "and responses.csv when saved steps exist. Credentials are never included. "
+                    + "and selected category files when records exist: responses.csv, gaze_events.csv, gaze_batches.csv "
+                    + "and calibration_attempts.csv. Omitted files and delivery warnings are explained in README. "
+                    + "Credentials are never included. "
                     + "Returns 409 before completion, 410 after expiry or file loss, and 404 after study deletion.")
     public ResponseEntity<InputStreamResource> download(@PathVariable UUID studyId, @PathVariable UUID exportId) {
         var file = service.download(researcher.getId(), studyId, exportId);

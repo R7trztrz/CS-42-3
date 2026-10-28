@@ -48,7 +48,7 @@ public class ExportWorker {
         var job = pending.get();
         try {
             // The outer job lock prevents deletion and duplicate writers. Participant writes remain unlocked.
-            Instant snapshot = snapshots.generate(job.id(), job.studyId(), job.sessionId());
+            Instant snapshot = snapshots.generate(job.id(), job.studyId(), job.sessionId(), job.dataTypes());
             storage.publish(job.id());
             Instant now = clock.instant();
             jobs.complete(job.id(), snapshot, now, now.plus(retention));
