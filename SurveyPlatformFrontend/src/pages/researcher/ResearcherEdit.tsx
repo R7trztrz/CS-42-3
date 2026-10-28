@@ -2358,7 +2358,7 @@ function ResearcherEdit() {
               )}
 
               {!isTemplatePreview && <StudyClosureControl key={study.id} study={study} onStudyChange={setStudy} />}
-              {!isTemplatePreview && <StudyDataExportButton status={study.status} />}
+              {!isTemplatePreview && <StudyDataExportButton studyId={study.id} studyTitle={study.title} status={study.status} />}
 
               {isEditable && !isTemplatePreview && (
 

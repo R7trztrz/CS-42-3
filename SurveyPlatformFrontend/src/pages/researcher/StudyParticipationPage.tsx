@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import axios from 'axios'
 import ResearcherHeader from '../../components/researcher/ResearcherHeader'
+import StudyDataExportButton from '../../components/studies/StudyDataExportButton'
 import { getStudy, getStudyParticipation, type StudyResponse, type StudyParticipationResponse, type StudyParticipantStatus, type ParticipationSort } from '../../services/studyApi'
 import './ParticipationOverviewDemo.css'
 
@@ -98,11 +99,11 @@ export default function StudyParticipationPage() {
               <div className="pod-page-size"><label htmlFor="participation-size">Rows per page</label><select id="participation-size" value={size} onChange={event => { setSize(Number(event.target.value)); setPage(0) }}>{[10, 20, 50].map(value => <option key={value} value={value}>{value}</option>)}</select></div>
             </div>
             <div className="pod-table-scroll" role="region" aria-label="Participant records" tabIndex={0}>
-              <table><thead><tr><th>Participant ID</th><th>Status</th><th>Entered at</th><th>Completed at</th></tr></thead>
+              <table><thead><tr><th>Participant ID</th><th>Status</th><th>Entered at</th><th>Export data</th></tr></thead>
                 <tbody>{data.sessions.content.map(session => <tr key={session.sessionId}>
                   <td><div className="pod-participant"><div><span className="pod-participant-id" title={session.anonymousParticipantId}>{session.anonymousParticipantId.slice(0, 8)}<span aria-hidden="true">...</span><span className="sr-only">{session.anonymousParticipantId.slice(8)}</span></span><small>{session.sessionId}</small></div><button className="pod-copy" aria-label={`Copy participant ID ${session.anonymousParticipantId}`} onClick={() => void copyId(session.anonymousParticipantId)}>⧉</button></div></td>
                   <td><span className={`pod-session-status pod-session-status--${session.status.toLowerCase()}`}><i aria-hidden="true" />{labels[session.status]}</span></td>
-                  <td><time dateTime={session.enteredAt}>{formatDate(session.enteredAt)}</time></td><td>{session.completedAt ? <time dateTime={session.completedAt}>{formatDate(session.completedAt)}</time> : <span aria-label="Not completed">—</span>}</td>
+                  <td><time dateTime={session.enteredAt}>{formatDate(session.enteredAt)}</time></td><td>{study && <StudyDataExportButton studyId={study.id} studyTitle={study.title} status={study.status} session={{ sessionId: session.sessionId, participantId: session.anonymousParticipantId }} />}</td>
                 </tr>)}{data.sessions.content.length === 0 && <tr><td colSpan={4}>No participant sessions yet.</td></tr>}</tbody>
               </table>
             </div>

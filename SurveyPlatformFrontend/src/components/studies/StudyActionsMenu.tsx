@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type { StudyResponse, StudySummaryResponse } from '../../services/studyApi'
 import StudyActionDialog from './StudyActionDialog'
 import StudyDataExportButton from './StudyDataExportButton'
+import StudyExportDialog from './StudyExportDialog'
 
 type Props = {
   study: StudySummaryResponse
@@ -20,6 +21,7 @@ export default function StudyActionsMenu({ study, open, onOpenChange, onChanged,
   const menu = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [action, setAction] = useState<'close' | 'delete' | null>(null)
+  const [exportOpen, setExportOpen] = useState(false)
 
   function showMenu() {
     const rect = trigger.current?.getBoundingClientRect()
@@ -70,13 +72,14 @@ export default function StudyActionsMenu({ study, open, onOpenChange, onChanged,
           }}>
           <button role="menuitem" type="button" disabled={study.status === 'CLOSED'} className={itemClass} onClick={() => { onOpenChange(false); navigate(`/studies/${study.id}/edit`) }}>Open study</button>
           <button role="menuitem" type="button" disabled={study.status === 'DRAFT'} className={itemClass} onClick={() => { onOpenChange(false); navigate(`/studies/${study.id}/participation`) }}>Participation overview</button>
-          <StudyDataExportButton status={study.status} menuItem className={itemClass} onActivate={() => { onOpenChange(false); trigger.current?.focus() }} />
+          <StudyDataExportButton studyId={study.id} studyTitle={study.title} status={study.status} menuItem className={itemClass} onActivate={() => { onOpenChange(false); setExportOpen(true) }} />
           <button role="menuitem" type="button" disabled={study.status !== 'COLLECTING'} className={itemClass} onClick={() => { onOpenChange(false); setAction('close') }}>Close study</button>
           <div role="separator" className="my-1 border-t border-gray-200" />
           <button role="menuitem" type="button" className={`${itemClass} text-red-700 hover:bg-red-50 focus:bg-red-50`} onClick={() => { onOpenChange(false); setAction('delete') }}>Delete study</button>
         </div>, document.body,
       )}
       {action && <StudyActionDialog studyId={study.id} action={action} onChanged={onChanged} onDeleted={onDeleted} onCancel={() => { setAction(null); trigger.current?.focus() }} />}
+      <StudyExportDialog key={study.id} studyId={study.id} studyTitle={study.title} status={study.status} open={exportOpen} onClose={() => { setExportOpen(false); trigger.current?.focus() }} />
     </div>
   )
 }
