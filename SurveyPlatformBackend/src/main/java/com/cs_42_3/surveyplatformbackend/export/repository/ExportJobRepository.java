@@ -39,12 +39,12 @@ public class ExportJobRepository {
         }
     }
 
-    public ExportJobResponse insert(UUID study, UUID session, Instant now) {
+    public ExportJobResponse insert(UUID study, UUID session, Set<ExportDataType> types, Instant now) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO export_jobs(id, study_id, session_id, data_types, status, created_at)
-                VALUES (?, ?, ?, 'QUESTIONNAIRE', 'PENDING', ?)
-                """, id, study, session, Timestamp.from(now));
+                VALUES (?, ?, ?, ?, 'PENDING', ?)
+                """, id, study, session, ExportDataType.encode(types), Timestamp.from(now));
         return get(study, id, false);
     }
 
@@ -111,7 +111,7 @@ public class ExportJobRepository {
 
     private ExportJobResponse map(ResultSet rs, int n) throws SQLException {
         return new ExportJobResponse(rs.getObject("id", UUID.class), rs.getObject("study_id", UUID.class),
-                rs.getObject("session_id", UUID.class), Set.of(ExportDataType.QUESTIONNAIRE),
+                rs.getObject("session_id", UUID.class), ExportDataType.decode(rs.getString("data_types")),
                 ExportStatus.valueOf(rs.getString("status")), instant(rs, "created_at"),
                 instant(rs, "started_at"), instant(rs, "snapshot_at"), instant(rs, "completed_at"),
                 instant(rs, "expires_at"), rs.getString("error_code"), rs.getString("error_message"));
