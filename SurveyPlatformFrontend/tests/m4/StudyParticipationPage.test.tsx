@@ -24,6 +24,25 @@ function mount() {
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 describe('real study participation page', () => {
+  it('opens an export for each row with its own session identity, regardless of session completion status', async () => {
+    get.mockImplementation(async (url: string) => {
+      const response = records()
+      response.sessions.content = ['IN_PROGRESS', 'COMPLETED', 'ABANDONED'].map((status, index) => ({ ...response.sessions.content[0], sessionId: `session-${index}`, anonymousParticipantId: `person-${index}`, status: status as 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED' }))
+      return { data: url.endsWith('/participation') ? response : { ...study, status: 'CLOSED' } }
+    })
+    mount()
+    await screen.findByText('session-0')
+    for (const index of [0, 1, 2]) {
+      const button = screen.getByRole('button', { name: `Export data for session session-${index}` })
+      expect(button).toHaveProperty('disabled', false)
+      fireEvent.click(button)
+      expect(screen.getByText(`Session ID: session-${index}`)).toBeTruthy()
+      expect(screen.getByText(`Participant ID: person-${index}`)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+      expect(screen.queryByRole('dialog')).toBeNull()
+    }
+  })
+
   it('reads study details and server totals, and forwards pagination, sorting and refresh requests', async () => {
     setup()
     mount()
@@ -31,7 +50,8 @@ describe('real study participation page', () => {
     expect(screen.getByText('Database study')).toBeTruthy()
     expect(screen.getByText('Saved study description')).toBeTruthy()
     expect(screen.getByLabelText('Participation summary').textContent).toContain('12')
-    expect(screen.getByText('Completed at')).toBeTruthy()
+    expect(screen.queryByText('Completed at')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Export data for session real-session-0' })).toBeTruthy()
     expect(get).toHaveBeenCalledWith('/api/studies/study-1/participation', { params: { page: 0, size: 10, sortBy: 'enteredAt', direction: 'desc' }, signal: expect.any(AbortSignal) })
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('real-session-1')
