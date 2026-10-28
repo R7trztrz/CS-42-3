@@ -17,12 +17,22 @@ function Workspace() {
   return current ? <><p>{current.status}</p><StudyActionsMenu study={current} open={open} onOpenChange={setOpen} onChanged={setCurrent} onDeleted={() => setCurrent(null)} /></> : <p>No studies</p>
 }
 function open() {
-  render(<MemoryRouter><Routes><Route path="/" element={<Workspace />} /><Route path="/studies/a/edit" element={<h2>Editor</h2>} /></Routes></MemoryRouter>)
+  render(<MemoryRouter><Routes><Route path="/" element={<Workspace />} /><Route path="/studies/a/edit" element={<h2>Editor</h2>} /><Route path="/studies/a/participation" element={<h2>Participation records</h2>} /></Routes></MemoryRouter>)
   fireEvent.click(screen.getByRole('button', { name: 'Actions for Campus study' }))
 }
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 describe('study action menu', () => {
+  it('opens the participation page from a collecting study', () => {
+    open()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Participation overview' }))
+    expect(screen.getByRole('heading', { name: 'Participation records' })).toBeTruthy()
+  })
+
+  it.each(['DRAFT', 'CLOSED'] as const)('sets participation menu availability for %s', status => {
+    render(<MemoryRouter><StudyActionsMenu study={{ ...study, status }} open onOpenChange={vi.fn()} onChanged={vi.fn()} onDeleted={vi.fn()} /></MemoryRouter>)
+    expect(screen.getByRole('menuitem', { name: 'Participation overview' })).toHaveProperty('disabled', status === 'DRAFT')
+  })
   it('opens the editor and dismisses on Escape or outside click', () => {
     open()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })

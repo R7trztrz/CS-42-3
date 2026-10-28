@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import StudyClosureControl from '../../components/studies/StudyClosureControl'
+import StudyDataExportButton from '../../components/studies/StudyDataExportButton'
 
 import {
 
@@ -2357,6 +2358,7 @@ function ResearcherEdit() {
               )}
 
               {!isTemplatePreview && <StudyClosureControl key={study.id} study={study} onStudyChange={setStudy} />}
+              {!isTemplatePreview && <StudyDataExportButton status={study.status} />}
 
               {isEditable && !isTemplatePreview && (
 
