@@ -28,6 +28,11 @@ turnstile:
   secret: ${TURNSTILE_SECRET:}
 
 app:
+  behavior:
+    # Limit events persisted in a single collection transaction.
+    max-events-per-batch: ${BEHAVIOR_MAX_EVENTS_PER_BATCH:1000}
+    # Bound the entire UTF-8 JSON request before parsing; default is 1 MiB.
+    max-payload-bytes: ${BEHAVIOR_MAX_PAYLOAD_BYTES:1048576}
   exports:
     # Keep private ZIP artifacts outside static web resources.
     storage-directory: ${EXPORT_STORAGE_DIRECTORY:./data/exports}
