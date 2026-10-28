@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { ParticipationResponse } from '../../services/studyApi'
+import ParticipantConsentContent, { consentAcknowledgement } from './ParticipantConsentContent'
 
 import campusPost from '../../assets/participant-demo-campus.jpg'
 import './ParticipantDemo.css'
@@ -184,34 +185,12 @@ export function ConsentView({ onBack, onNext, document, confirmation, notice, pe
       </p>
 
       {notice}
-      {document ?? <div className="demo-consent-grid">
-        <article>
-          <span>01</span>
-          <div>
-            <h2>What you will do</h2>
-            <p>Complete a camera setup, browse a simulated feed, and answer a questionnaire.</p>
-          </div>
-        </article>
-        <article>
-          <span>02</span>
-          <div>
-            <h2>How data is used</h2>
-            <p>Interaction and gaze data will be analysed for academic research purposes.</p>
-          </div>
-        </article>
-        <article>
-          <span>03</span>
-          <div>
-            <h2>Your choice</h2>
-            <p>Participation is voluntary. You may leave before submitting your responses.</p>
-          </div>
-        </article>
-      </div>}
+      {document ?? <ParticipantConsentContent />}
 
       {confirmation ?? <label className="demo-consent-check">
         <input defaultChecked type="checkbox" />
         <span>
-          <strong>I have read the participant information and agree to take part.</strong>
+          <strong lang="en">{consentAcknowledgement}</strong>
           <small>This is sample content for the interface demonstration.</small>
         </span>
       </label>}

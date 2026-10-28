@@ -23,8 +23,14 @@ import QuestionBankListPage from '../researcher/questionBank/pages/QuestionBankL
 import QuestionFormPage from '../researcher/questionBank/pages/QuestionFormPage'
 import QuestionnaireEditorPage from '../researcher/questionnaire/pages/QuestionnaireEditorPage'
 import ParticipantDemo from '../pages/participant/ParticipantDemo'
+import ParticipationOverviewDemo from '../pages/researcher/ParticipationOverviewDemo'
+import StudyParticipationPage from '../pages/researcher/StudyParticipationPage'
 
 const router = createBrowserRouter([
+  {
+    path: '/participation-overview-demo',
+    element: <ParticipationOverviewDemo />,
+  },
   {
     path: '/login',
     element: <LoginPage />,
@@ -44,6 +50,10 @@ const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      {
+        path: '/studies/:studyId/participation',
+        element: <StudyParticipationPage />,
+      },
       {
         path: '/researcher-dashboard',
         element: <ResearcherDashboard />,

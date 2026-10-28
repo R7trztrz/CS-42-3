@@ -11,7 +11,7 @@ afterEach(() => {
 })
 
 describe('ConsentStep', () => {
-  it('warns that the placeholder consent text is not approved for production', () => {
+  it('shows the English consent content without the placeholder banner', () => {
     render(
       <ConsentStep
         consentDocument={makeConsentDocument({ approvedForProduction: false })}
@@ -21,7 +21,10 @@ describe('ConsentStep', () => {
       />,
     )
 
-    expect(screen.getByRole('note').textContent).toMatch(/not been approved for/i)
+    expect(screen.queryByRole('note')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Data collection and methods' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Privacy and data use' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Voluntary participation and withdrawal' })).toBeTruthy()
   })
 
   it('does not show the placeholder warning once a document is approved', () => {
