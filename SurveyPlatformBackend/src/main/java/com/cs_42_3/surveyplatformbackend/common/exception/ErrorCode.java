@@ -15,6 +15,8 @@ package com.cs_42_3.surveyplatformbackend.common.exception;
  * @author Simon Tian
  */
 public enum ErrorCode {
+    BEHAVIOR_BATCH_INVALID("BEHAVIOR_BATCH_INVALID"),
+    BEHAVIOR_BATCH_TOO_LARGE("BEHAVIOR_BATCH_TOO_LARGE"),
     EXPORT_NOT_FOUND("EXPORT_NOT_FOUND"),
     EXPORT_NOT_READY("EXPORT_NOT_READY"),
     EXPORT_EXPIRED("EXPORT_EXPIRED"),

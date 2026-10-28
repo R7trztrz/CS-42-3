@@ -42,6 +42,13 @@ import java.time.Instant;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /** Reports safe behavior upload errors through the common response contract. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.behavior.exception.BehaviorBatchException.class)
+    public ResponseEntity<ErrorResponse> handleBehavior(
+            com.cs_42_3.surveyplatformbackend.behavior.exception.BehaviorBatchException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
     /** Returns safe export failures using the shared error response contract. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.export.exception.ExportException.class)
     public ResponseEntity<ErrorResponse> handleExport(

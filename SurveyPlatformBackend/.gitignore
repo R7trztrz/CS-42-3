@@ -21,6 +21,9 @@
 # Shareable configuration template; the real local .env remains ignored.
 !.env.example
 
+# Share only this explicitly approved frontend integration document.
+!docs/behavior-upload-integration.md
+
 # Application source and resources.
 !src/
 !src/**/

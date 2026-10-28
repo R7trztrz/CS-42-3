@@ -837,3 +837,175 @@ validation disabled; it verifies component injection and scheduler separation on
 The PostgreSQL suite uses actual Flyway migrations and is skipped without Docker.
 Study-wide exports, behavior exports and frontend integration remain future
 increments; this increment does not claim completion of all M7 requirements.
+
+## Participant behavior uploads (FR-47/48 backend)
+
+Frontend developers can use the standalone [behavior upload integration guide](docs/behavior-upload-integration.md)
+for the request contract, queue lifecycle, error handling and acceptance checklist.
+
+`POST /api/participant-session/behavior-batches` accepts a JSON batch with the
+existing `X-Participant-Session-Token` header. Use the opaque participant token,
+not the researcher's JWT. In Swagger, authorize `participantSessionToken`.
+The server derives the session and study from authentication; `sessionId` and
+`studyId` are not accepted in the request body. No frontend collector/uploader
+or behavior export category is added by this backend increment.
+The body uses an `events` JSON array, not the gaze endpoint's serialized `payload`
+string. Event count is derived by the server; do not send a separate `eventCount`.
+
+```json
+{
+  "schemaVersion": 1,
+  "batchId": "36db590d-2945-4bd3-a16a-640289316fcb",
+  "streamId": "05520822-f473-4ad2-bf0c-a04d15df4880",
+  "sequence": 1,
+  "events": [
+    {
+      "type": "click",
+      "timestamp": 1793145600000,
+      "sessionElapsedMs": 1250.5,
+      "pageId": "feed-page",
+      "x": 320,
+      "y": 180,
+      "componentId": "post-1",
+      "componentType": "PostWidget"
+    },
+    {
+      "type": "keydown",
+      "timestamp": 1793145600100,
+      "sessionElapsedMs": 1350.5,
+      "pageId": "feed-page",
+      "code": "ArrowDown",
+      "componentId": null,
+      "componentType": null
+    }
+  ]
+}
+```
+
+The server returns `201 Created` for a new committed batch or `200 OK` for an
+identical replay. Both return the original acknowledgement shape:
+
+```json
+{
+  "sessionId": "a60c8e68-2cd5-48d3-a0fa-84e21484a949",
+  "batchId": "36db590d-2945-4bd3-a16a-640289316fcb",
+  "streamId": "05520822-f473-4ad2-bf0c-a04d15df4880",
+  "sequence": 1,
+  "eventCount": 2,
+  "receivedAt": "2026-10-28T00:00:02Z"
+}
+```
+
+Responses use `Cache-Control: no-store`. Retrying a stored batch does not change
+`receivedAt`, insert events again or extend the session's activity timestamp.
+
+### Wire contract and limits
+
+`schemaVersion` must be integer 1. `batchId` and `streamId` must be canonical
+UUID strings. `sequence` starts at 1 per stream and must not exceed JavaScript's
+safe integer maximum (9007199254740991). Out-of-order batches and sequence gaps
+are accepted; sequence does not prove complete delivery. Use a new stream UUID
+when creating a new page collection instance, including after a refresh. Batch
+UUIDs, stream UUIDs, sequence and event contents must remain unchanged on retry.
+
+Every event requires `type`, `timestamp`, `sessionElapsedMs` and `pageId`.
+`timestamp` is integer epoch milliseconds in the range 0–253402300799999
+(1970 through year 9999). `sessionElapsedMs` is finite and may be negative or
+equal to another event's value. The backend does not compare client timestamps
+against its own clock or invent relative times. Use the same `SessionClock`
+instance as gaze collection for both time fields.
+
+`pageId` is a nonblank string of at most 128 UTF-16 code units. Optional
+`componentId` and `componentType` may be omitted or null; when present they must
+be nonblank and at most 255/128 UTF-16 code units respectively. Null bytes and
+unpaired Unicode surrogates are rejected. These attribution values are supplied
+by the browser; the server does not infer or verify them against a rendered DOM.
+
+| Event type | Required event-specific fields | Meaning |
+|---|---|---|
+| `click` | `x`, `y` | Finite viewport CSS-pixel coordinates; negative values are retained. |
+| `keydown` | `code` | `KeyboardEvent.code`, 1–64 ASCII letters/digits, starting with a letter. |
+| `mousemove` | `x`, `y` | Same coordinate contract as click. |
+| `scroll` | `scrollX`, `scrollY` | Finite scroll offsets; negative offsets are allowed. |
+| `visibilitychange` | `hidden` | JSON boolean corresponding to document visibility. |
+
+Fields belonging to another event type may be omitted or null but must not
+carry values. Unknown fields are rejected, including `key`, `value`, password
+fields, arbitrary DOM content and nested custom payloads. Numeric/boolean strings
+are not coerced, and trailing JSON values are rejected. The backend accepts all
+five event types; the current frontend collector only produces click/keydown.
+This does not imply that the other frontend listeners have been implemented.
+
+Defaults are 1000 events and 1048576 bytes (1 MiB) per request. The byte limit is
+checked on a bounded input stream before JSON parsing; the service also bounds
+the canonical batch representation. Optional environment overrides:
+
+```dotenv
+# Maximum event count per transaction; supported configuration range is 1–10000.
+BEHAVIOR_MAX_EVENTS_PER_BATCH=1000
+# Maximum raw/canonical UTF-8 batch bytes; supported range is 1024–8388608.
+BEHAVIOR_MAX_PAYLOAD_BYTES=1048576
+```
+
+### Persistence, permissions and retry handling
+
+V23 creates `behavior_batches` and `behavior_events`. A batch is unique by
+`(session_id, batch_id)` and by `(session_id, stream_id, sequence)`. Events retain
+their original array order through `event_index`; common columns contain the
+type, timestamps, page and component identifiers, while JSONB stores only the
+validated event-specific payload. No derived behavioral metrics are computed.
+
+The semantic SHA-256 digest ignores JSON spacing/property order, normalizes UUID
+case and treats omitted/null optional attribution fields equivalently. Reusing
+a batch ID for different contents, or a stream sequence for a different batch,
+returns `409 PARTICIPANT_IDEMPOTENCY_CONFLICT` rather than duplicating data.
+
+Uploads call the existing M5 collection policy and activity port in the same
+transaction as both inserts, preserving Study-before-session lock order.
+The session must have consented, remain `IN_PROGRESS`, and be in `BROWSING` or
+`QUESTIONNAIRE`; its study must be `COLLECTING`. The questionnaire phase permits
+late browsing-batch delivery. Eye tracking may be disabled. All events and the
+activity update commit together or roll back together. The check runs before
+replay lookup: even previously stored batches cannot be retried after the study
+closes or the session ends. A close/delete waits for an upload already holding
+the collection locks. Permanent study deletion cascades through sessions,
+batches and events without a separate cleanup operation.
+
+| HTTP status | Meaning and frontend handling |
+|---|---|
+| 200 / 201 | Batch acknowledged; remove only that confirmed batch from the local queue. |
+| 400 | `BEHAVIOR_BATCH_INVALID`; correct the request, do not retry unchanged. |
+| 401 | Participant token missing/invalid or session deleted; stop using this token. |
+| 404 | `PARTICIPANT_SESSION_NOT_FOUND`. |
+| 409 | Identity conflict or invalid/ended session; inspect the returned code. |
+| 410 | `STUDY_CLOSED`; stop collecting and retrying. |
+| 413 | `BEHAVIOR_BATCH_TOO_LARGE`; split the unaccepted data into smaller batches. |
+| 415 | Send `Content-Type: application/json`. |
+
+### Frontend handoff
+
+Keep collection separate from upload. Add shared-clock/page context when events
+are captured, isolate queues by session, and cut immutable batches with stable
+IDs before sending. A practical initial client policy is every 2 seconds or 200
+events; this cadence is not enforced by the backend. Do not clear the entire
+collector array when a request completes: new events may have arrived meanwhile.
+Remove only the acknowledged batch and retain failed batches for retry while
+the session remains writable. Normal completion must wait for required batch
+acknowledgements before ending the session.
+
+The current in-memory array does not survive refreshes. IndexedDB queueing,
+network retry behavior, mousemove throttling at 10–20 Hz, the remaining event
+listeners and browser-to-database integration remain frontend work. New stream
+IDs avoid identity collisions after reload; they do not recover lost memory.
+No behavior export or final-delivery manifest is implemented by this increment.
+
+Focused backend verification:
+
+```powershell
+.\mvnw.cmd "-Dtest=BehaviorBatchValidationTest,BehaviorBatchServiceTest,BehaviorControllerTest,BehaviorTransactionTest,BehaviorPostgresIntegrationTest" test
+```
+
+Local H2 tests verify rollback/cascade behavior with a reduced schema and do not
+prove PostgreSQL JSONB semantics. The container suite applies actual migrations
+and exercises JSONB, concurrent deduplication, lifecycle rejection and close/delete
+serialization. It is explicitly skipped when Docker is unavailable.
