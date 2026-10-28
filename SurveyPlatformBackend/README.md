@@ -710,7 +710,7 @@ read-only behavior and final-attempt selection. The PostgreSQL suite uses the
 actual V20 view and checks the shared JPA/JDBC snapshot during concurrent
 calibration completion. It is explicitly skipped without Docker.
 
-## Single-session questionnaire and eye-tracking exports (M7)
+## Single-session questionnaire, eye-tracking and behavior exports (M7)
 
 All export endpoints require the owning researcher's Bearer JWT and the
 `RESEARCHER` role. The frontend export UI is not included in this increment.
@@ -723,7 +723,7 @@ All export endpoints require the owning researcher's Bearer JWT and the
    ```
 
    The response is `202 Accepted` with task metadata and a `Location` polling URI.
-   Select `QUESTIONNAIRE`, `GAZE`, or both. Other categories are rejected. Sessions
+   Select any nonempty combination of `QUESTIONNAIRE`, `GAZE` and `BEHAVIOR`. Other categories are rejected. Sessions
    may be in progress, completed or abandoned, including sessions in closed studies.
 2. Poll `GET /api/studies/{studyId}/exports/{exportId}`. States are `PENDING`,
    `RUNNING`, `COMPLETED`, `FAILED` and `EXPIRED`. Failed tasks include a safe
@@ -735,12 +735,14 @@ All export endpoints require the owning researcher's Bearer JWT and the
    expiry/file loss and 404 for missing/foreign tasks or deleted studies.
 
 For gaze-only exports, use `{"dataTypes":["GAZE"]}`. For a combined export, use
-`{"dataTypes":["QUESTIONNAIRE","GAZE"]}`. The selected categories are persisted
+`{"dataTypes":["QUESTIONNAIRE","GAZE","BEHAVIOR"]}`. For behavior only, use
+`{"dataTypes":["BEHAVIOR"]}`. All seven nonempty combinations are supported.
+The selected categories are persisted
 with the task and returned unchanged by polling. Each writer runs only when its
-category was selected: gaze-only exports do not read or validate questionnaires.
+category was selected: behavior-only exports do not read or validate questionnaire or raw gaze records.
 
-Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v2, and the
-selected category files below when records exist. Existing schema-v1 archives
+Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v3, and the
+selected category files below when records exist. Existing schema-v1/v2 archives
 remain downloadable until their original expiry. Session and response CSV
 columns are unchanged from v1.
 
@@ -750,6 +752,8 @@ columns are unchanged from v1.
 | `gaze_events.csv` | One row per saved gaze prediction, when `GAZE` is selected. |
 | `gaze_batches.csv` | Original received batch metadata and browser-reported dropped counts. |
 | `calibration_attempts.csv` | All stored attempts, including unavailable/abandoned outcomes and the final-selection flag. |
+| `behavior_events.csv` | Raw behavior payloads and readable event-specific columns, when `BEHAVIOR` is selected. |
+| `behavior_batches.csv` | Stored stream/batch identities, sequence, version, event count and receipt time. |
 
 Questions and option
 labels come from the immutable publication snapshot, never the current question
@@ -784,6 +788,25 @@ final expected sequence, so lost tail batches and wholly lost streams cannot be
 detected from these tables. An export is evidence of stored records, not a claim
 of complete browser delivery.
 
+Behavior CSV includes click, keydown, mousemove, scroll and visibilitychange
+records that actually exist. Common columns identify the study, session, stream,
+batch, sequence, array index, type, page, component and client event time.
+Expanded columns `x`, `y`, `key_code`, `scroll_x`, `scroll_y`, `hidden` extract the
+stored `payload` JSON; fields that do not apply remain blank rather than zero or
+false. The full stored JSON is retained in `payload`. No typing speed, click
+counts or other scientific metrics are derived. Rows are ordered by
+`session_elapsed_ms`, `batch_id`, `event_index`, matching the existing V23 index.
+
+Batch CSV is ordered by `stream_id`, `sequence`, `batch_id`. Sequence gaps are
+counted separately for each stream; a new stream starting at 1 is valid. Missing
+sequences produce warnings while stored events remain exportable. No behavior
+drop counter or final expected sequence exists, so delivery completeness and
+lost tail batches cannot be established. Empty behavior files are omitted with
+an explanation; absent types do not distinguish unimplemented collection, no
+activity or lost uploads. Clock-origin changes after a reload are not repaired
+by sorting. Event validation reuses the upload rules per row, without applying
+today's upload batch-size limits to historical records.
+
 Generation uses a read-only REPEATABLE READ transaction and a JDBC cursor for
 steps/answers and gaze rows. Invalid item references, answer types/options,
 branch paths, submission ordering, batch/event count or index mismatches,
@@ -810,6 +833,8 @@ EXPORT_SCAN_INTERVAL=2s
 
 V21 adds durable task and independent file-cleanup tables. V22 extends the
 category constraint without changing V21 tasks and adds the gaze ordering index.
+V24 extends the constraint to all three categories and their combinations,
+retaining existing task selections and V23 behavior storage unchanged.
 A dedicated scheduler
 claims tasks using PostgreSQL row locks and `SKIP LOCKED`. A committed `RUNNING`
 task without a live processing lock is recovered after restart; temporary files
@@ -829,13 +854,13 @@ Already-open downloads may finish; new downloads after deletion/expiry are denie
 Focused verification:
 
 ```powershell
-.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,GazeExportWriterTest,ExportDataTypeTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
+.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,GazeExportWriterTest,BehaviorExportWriterTest,ExportDataTypeTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
 ```
 
 The application-wiring test starts an isolated H2 context with migrations and schema
 validation disabled; it verifies component injection and scheduler separation only.
 The PostgreSQL suite uses actual Flyway migrations and is skipped without Docker.
-Study-wide exports, behavior exports and frontend integration remain future
+Study-wide exports and frontend integration remain future
 increments; this increment does not claim completion of all M7 requirements.
 
 ## Participant behavior uploads (FR-47/48 backend)
@@ -848,7 +873,8 @@ existing `X-Participant-Session-Token` header. Use the opaque participant token,
 not the researcher's JWT. In Swagger, authorize `participantSessionToken`.
 The server derives the session and study from authentication; `sessionId` and
 `studyId` are not accepted in the request body. No frontend collector/uploader
-or behavior export category is added by this backend increment.
+is added by the upload module. Persisted behavior can be downloaded through the
+researcher-only `BEHAVIOR` export category documented above.
 The body uses an `events` JSON array, not the gaze endpoint's serialized `payload`
 string. Event count is derived by the server; do not send a separate `eventCount`.
 
@@ -997,7 +1023,8 @@ The current in-memory array does not survive refreshes. IndexedDB queueing,
 network retry behavior, mousemove throttling at 10–20 Hz, the remaining event
 listeners and browser-to-database integration remain frontend work. New stream
 IDs avoid identity collisions after reload; they do not recover lost memory.
-No behavior export or final-delivery manifest is implemented by this increment.
+No final-delivery manifest is implemented by the upload module. Exported behavior
+reflects saved records, not an assertion that every browser event was delivered.
 
 Focused backend verification:
 

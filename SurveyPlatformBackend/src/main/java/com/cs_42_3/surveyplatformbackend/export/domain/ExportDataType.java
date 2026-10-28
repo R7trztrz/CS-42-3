@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
  * @author Simon Tian
  */
 public enum ExportDataType {
-    QUESTIONNAIRE, GAZE;
+    QUESTIONNAIRE, GAZE, BEHAVIOR;
 
     /** Stores selections in canonical order so equivalent requests have one representation. */
     public static String encode(Set<ExportDataType> types) {
