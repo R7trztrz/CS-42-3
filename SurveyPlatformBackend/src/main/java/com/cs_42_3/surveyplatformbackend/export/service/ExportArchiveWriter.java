@@ -21,6 +21,7 @@ public class ExportArchiveWriter {
     private final SessionExportWriter sessions;
     private final QuestionnaireExportWriter questionnaire;
     private final GazeExportWriter gaze;
+    private final BehaviorExportWriter behavior;
 
     public void write(UUID study, UUID sessionId, Set<ExportDataType> types, Instant snapshotAt,
                       OutputStream output) throws IOException {
@@ -40,13 +41,19 @@ public class ExportArchiveWriter {
             } else {
                 readme.append("\nEye-tracking CSV files were omitted: GAZE was not selected.\n");
             }
+            if (types.contains(ExportDataType.BEHAVIOR)) {
+                readme.append("\n## Behavior data\n").append(behavior.write(archive, session))
+                        .append("\n").append(behaviorSchema());
+            } else {
+                readme.append("\nBehavior CSV files were omitted: BEHAVIOR was not selected.\n");
+            }
             archive.text("README.md", readme.toString());
         }
     }
 
     private String commonSchema(UUID study, UUID session, Set<ExportDataType> types, Instant snapshot) {
         return """
-                # Session data export — schema v2
+                # Session data export — schema v3
 
                 Study: %s
                 Session: %s
@@ -59,7 +66,6 @@ public class ExportArchiveWriter {
                 For Excel, use Data > From Text/CSV and select 65001: Unicode (UTF-8).
                 IDs are anonymous identifiers, not counts of distinct people. No credentials or camera video are exported.
                 This is a consistent snapshot of persisted data, not proof that every browser event arrived.
-                Behavior data is not included because that export category is not implemented.
 
                 ## sessions.csv
                 study_id/session_id identify the source; anonymous_participant_id is the per-study alias.
@@ -84,6 +90,32 @@ public class ExportArchiveWriter {
                 answer_text resolves published labels; MULTI_CHOICE uses a JSON string array.
                 submitted_at is step submission time; answered_at exists only for saved answers.
                 Branch-unvisited and not-yet-submitted items have no rows; partial sessions are legitimate.
+                """;
+    }
+
+    private String behaviorSchema() {
+        return """
+                ### behavior_events.csv
+                One row per stored event, sorted by session_elapsed_ms, batch_id, event_index.
+                study_id/session_id identify its source; stream_id identifies the page collection instance.
+                batch_id/sequence/event_index retain original batch identity, stream sequence and array order.
+                event_type is click/keydown/mousemove/scroll/visibilitychange. page_id/component_id/component_type
+                preserve reported browser attribution; missing attribution is blank.
+                occurred_at is client event time in UTC; session_elapsed_ms is the reported shared-clock value.
+                Negative/equal elapsed values are valid. Sorting does not repair clock-origin changes after reload.
+                x/y are viewport CSS pixels, key_code is KeyboardEvent.code, scroll_x/scroll_y are scroll offsets,
+                and hidden is the visibility flag. Inapplicable columns are blank, not invented zeros or false values.
+                payload preserves the stored JSON object; expanded columns extract its fields without new metrics.
+                No characters typed into inputs, DOM content, aggregate metrics or inferred events are added.
+
+                ### behavior_batches.csv
+                One row per stored batch ordered by stream_id, sequence, batch_id.
+                study_id/session_id/batch_id/stream_id identify its source and collection instance.
+                sequence is local to that stream, schema_version is the stored upload version,
+                event_count is the declared count checked against saved events, received_at is server receipt time.
+                Sequence gaps are counted separately per stream, not across stream restarts.
+                No final expected sequence or behavior drop count is persisted, so a gap-free result cannot prove
+                complete delivery. Absent types can mean uncollected, absent activity or lost uploads.
                 """;
     }
 

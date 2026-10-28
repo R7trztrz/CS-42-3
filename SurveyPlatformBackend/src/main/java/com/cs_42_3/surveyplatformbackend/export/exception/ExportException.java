@@ -29,4 +29,9 @@ public class ExportException extends RuntimeException {
         return new ExportException(ErrorCode.EXPORT_DATA_INVALID, HttpStatus.CONFLICT,
                 "Stored eye-tracking data is inconsistent. Contact the project administrator.");
     }
+
+    public static ExportException invalidBehaviorData() {
+        return new ExportException(ErrorCode.EXPORT_DATA_INVALID, HttpStatus.CONFLICT,
+                "Stored behavior data is inconsistent. Contact the project administrator.");
+    }
 }

@@ -39,7 +39,7 @@ public class ExportServiceImpl implements ExportService {
         if (request == null || request.dataTypes() == null
                 || request.dataTypes().isEmpty() || request.dataTypes().stream().anyMatch(Objects::isNull)) {
             throw new ExportException(ErrorCode.EXPORT_CATEGORY_UNSUPPORTED, HttpStatus.BAD_REQUEST,
-                    "Select at least one supported category: QUESTIONNAIRE or GAZE.");
+                    "Select at least one supported category: QUESTIONNAIRE, GAZE or BEHAVIOR.");
         }
         return jobs.insert(study, session, Set.copyOf(request.dataTypes()), clock.instant());
     }
