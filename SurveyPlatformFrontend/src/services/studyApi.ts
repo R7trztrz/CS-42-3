@@ -3,6 +3,26 @@ import participantHttpClient from '../participant/api/participantHttpClient'
 
 export type StudyStatus = 'DRAFT' | 'COLLECTING' | 'CLOSED'
 
+export type StudyParticipantStatus = 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED'
+export type ParticipationSort = 'enteredAt' | 'status'
+export type StudyParticipationResponse = {
+  summary: { total: number; inProgress: number; completed: number; abandoned: number }
+  sessions: {
+    content: { sessionId: string; anonymousParticipantId: string; status: StudyParticipantStatus; enteredAt: string; completedAt: string | null }[]
+    page: number
+    size: number
+    totalElements: number
+    totalPages: number
+  }
+}
+
+export async function getStudyParticipation(studyId: string, params: {
+  page: number; size: number; sortBy: ParticipationSort; direction: 'asc' | 'desc'
+}, signal?: AbortSignal) {
+  const response = await api.get<StudyParticipationResponse>(`/api/studies/${studyId}/participation`, { params, signal })
+  return response.data
+}
+
 export type CreateStudyRequest = {
   title: string
   description?: string

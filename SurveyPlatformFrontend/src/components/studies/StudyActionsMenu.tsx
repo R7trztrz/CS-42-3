@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { StudyResponse, StudySummaryResponse } from '../../services/studyApi'
 import StudyActionDialog from './StudyActionDialog'
+import StudyDataExportButton from './StudyDataExportButton'
 
 type Props = {
   study: StudySummaryResponse
@@ -22,7 +23,7 @@ export default function StudyActionsMenu({ study, open, onOpenChange, onChanged,
 
   function showMenu() {
     const rect = trigger.current?.getBoundingClientRect()
-    if (rect) setPosition({ top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 156)), left: Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216)) })
+    if (rect) setPosition({ top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 244)), left: Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216)) })
     onOpenChange(true)
   }
 
@@ -68,6 +69,8 @@ export default function StudyActionsMenu({ study, open, onOpenChange, onChanged,
             }
           }}>
           <button role="menuitem" type="button" disabled={study.status === 'CLOSED'} className={itemClass} onClick={() => { onOpenChange(false); navigate(`/studies/${study.id}/edit`) }}>Open study</button>
+          <button role="menuitem" type="button" disabled={study.status === 'DRAFT'} className={itemClass} onClick={() => { onOpenChange(false); navigate(`/studies/${study.id}/participation`) }}>Participation overview</button>
+          <StudyDataExportButton status={study.status} menuItem className={itemClass} onActivate={() => { onOpenChange(false); trigger.current?.focus() }} />
           <button role="menuitem" type="button" disabled={study.status !== 'COLLECTING'} className={itemClass} onClick={() => { onOpenChange(false); setAction('close') }}>Close study</button>
           <div role="separator" className="my-1 border-t border-gray-200" />
           <button role="menuitem" type="button" className={`${itemClass} text-red-700 hover:bg-red-50 focus:bg-red-50`} onClick={() => { onOpenChange(false); setAction('delete') }}>Delete study</button>

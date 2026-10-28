@@ -36,12 +36,6 @@ function ResearcherHeader({ activePage }: ResearcherHeaderProps) {
           </div>
 
           <div className="flex items-center gap-3 text-sm">
-            <Link
-                to="/account/change-password"
-                className="font-medium text-gray-300 hover:text-white"
-            >
-              Account
-            </Link>
             <button
                 type="button"
                 onClick={handleLogout}
