@@ -9,9 +9,11 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.*;
 import java.util.UUID;
+import java.util.Optional;
 
 /**
- * Reads the M5 session model without loading credentials, device payloads or raw research data.
+ * Reads the M5 session model without loading credentials or raw research data.
+ * Only the details projection loads device JSON for allow-listed mapping by the service.
  * Callers must authorize the study before using this repository in a snapshot transaction.
  *
  * @author Simon Tian
@@ -21,6 +23,18 @@ import java.util.UUID;
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class StudyParticipationQueryRepository {
     private final EntityManager entityManager;
+
+    public Optional<StudyParticipantDetailRecord> findSessionDetails(UUID studyId, UUID sessionId) {
+        return entityManager.createQuery("""
+                select new com.cs_42_3.surveyplatformbackend.study.repository.StudyParticipantDetailRecord(
+                    s.id, s.anonymousParticipantId, s.status, s.phase, s.abandonmentReason,
+                    s.enteredAt, s.consentedAt, s.calibrationCompletedAt, s.browsingCompletedAt,
+                    s.completedAt, s.abandonedAt, s.lastActivityAt, s.deviceInfo)
+                from ParticipantSession s where s.studyId = :studyId and s.id = :sessionId
+                """, StudyParticipantDetailRecord.class)
+                .setParameter("studyId", studyId).setParameter("sessionId", sessionId)
+                .getResultList().stream().findFirst();
+    }
 
     public StudyParticipationSummaryResponse summarize(UUID studyId) {
         var counts = entityManager.createQuery("""

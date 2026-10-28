@@ -641,3 +641,156 @@ The controller and H2 suites run without Docker. The PostgreSQL suite uses the
 actual Flyway schema and checks snapshot consistency while another transaction
 updates a session and inserts a new one. It is skipped without Docker. This
 feature adds no frontend page, session-details endpoint or export pipeline.
+
+### FR-20: participant session details
+
+Use a session ID returned by FR-19 and authenticate with a researcher Bearer JWT:
+
+```http
+GET /api/studies/{studyId}/participants/{sessionId}
+```
+
+Only the study owner can read the session. Missing and foreign-owned studies
+return 404 `STUDY_NOT_FOUND`; missing sessions and sessions outside the specified
+study return 404 `PARTICIPANT_SESSION_NOT_FOUND`. Invalid UUIDs return 400;
+authentication and role failures return 401/403. CLOSED studies remain readable.
+Deleting the study makes its session details unavailable.
+
+The response includes:
+
+- `studyId`, `sessionId` and `anonymousParticipantId`;
+- `status`, `phase` and `abandonmentReason`;
+- `enteredAt`, `consentedAt`, `calibrationCompletedAt`, `browsingCompletedAt`,
+  `completedAt`, `abandonedAt` and `lastActivityAt`;
+- `deviceInfo`, restricted to `browser`, `browserVersion`, `os`, `screenWidth`,
+  `screenHeight` and `timezone`;
+- `eyeTracking`, containing `enabled`, `calibrationState`,
+  `calibrationAttemptCount`, `completedAttemptId`, `trackingAvailable`,
+  `unavailableReason`, `quality`, `qualityBasis` and `lowQualityReasons`.
+
+Missing timestamps stay null. Device information is null when not supplied or
+cleared after consent refusal. Unknown device JSON keys are ignored rather than
+passed through. No questionnaire answers, behavior/gaze events, calibration
+point measurements, session credentials or download URLs are returned.
+
+The eye-tracking module reads the existing `eye_tracking_session_quality` view
+from V20. The final grade and availability belong to the attempt referenced by
+`calibration_completions`, not the most recently uploaded attempt. No score is
+recalculated, and provisional attempts are not substituted for a missing final
+record. The summary distinguishes these states:
+
+| `calibrationState` | Meaning |
+|---|---|
+| `DISABLED` | Eye tracking is disabled for the study. |
+| `NOT_STARTED` | Eye tracking is enabled, but no attempt has been stored. |
+| `IN_PROGRESS` | Attempts exist, but no final attempt has been selected. |
+| `RECORDED` | A final attempt has been selected, including abandoned or unavailable outcomes. |
+
+Without a final record, availability and quality fields remain null and
+`lowQualityReasons` is empty. A recorded unavailable attempt instead returns
+`trackingAvailable: false` and its stored reason. Available tracking is not proof
+that gaze events were saved. The response intentionally contains no raw event
+counts or claims that the captured data is complete.
+
+The query uses one read-only REPEATABLE READ transaction for the JPA session
+projection and M6 JDBC summary. It does not infer timeouts, transition session
+states, update timestamps, acquire write locks or start an export. Responses use
+`Cache-Control: no-store`. This feature introduces no database migration and no
+frontend page; FR-21 and M7 remain separate work.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd -B -ntp "-Dtest=StudyParticipantDetailControllerTest,StudyParticipantDetailPersistenceTest,StudyParticipantDetailPostgresIntegrationTest,StudyParticipationControllerTest,StudyParticipationPersistenceTest" test
+```
+
+The H2 suite uses the actual V19 tables and a reduced, H2-compatible calibration
+view. It verifies missing data, device allow-listing, session/study isolation,
+read-only behavior and final-attempt selection. The PostgreSQL suite uses the
+actual V20 view and checks the shared JPA/JDBC snapshot during concurrent
+calibration completion. It is explicitly skipped without Docker.
+
+## Single-session questionnaire exports (M7, first increment)
+
+All export endpoints require the owning researcher's Bearer JWT and the
+`RESEARCHER` role. The frontend export UI is not included in this increment.
+
+1. Create a task with
+   `POST /api/studies/{studyId}/participants/{sessionId}/exports`:
+
+   ```json
+   { "dataTypes": ["QUESTIONNAIRE"] }
+   ```
+
+   The response is `202 Accepted` with task metadata and a `Location` polling URI.
+   Only `QUESTIONNAIRE` is supported; other categories are rejected. Sessions
+   may be in progress, completed or abandoned, including sessions in closed studies.
+2. Poll `GET /api/studies/{studyId}/exports/{exportId}`. States are `PENDING`,
+   `RUNNING`, `COMPLETED`, `FAILED` and `EXPIRED`. Failed tasks include a safe
+   error code/message; retry by creating a new task. `snapshotAt` records the
+   generation read transaction start, not the original task request time.
+3. Download `GET /api/studies/{studyId}/exports/{exportId}/download` after completion.
+   Supply the JWT on the download request as well. Responses use `no-store` and
+   an attachment filename. Downloads return 409 before completion, 410 after
+   expiry/file loss and 404 for missing/foreign tasks or deleted studies.
+
+Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v1, and
+`responses.csv` when saved questionnaire submissions exist. Questions and option
+labels come from the immutable publication snapshot, never the current question
+bank. One response row represents one saved step: `ANSWERED` includes the raw
+answer JSON and readable value, while `SKIPPED` represents an optional unanswered
+step. Unvisited branches and not-yet-submitted questions do not create rows.
+Multi-choice readable values are JSON string arrays. If the questionnaire was
+disabled or has no saved submissions, the response file is omitted and the reason
+is recorded in README. Partial sessions are legitimate, not validation failures.
+Session metadata includes stored lifecycle timestamps and final calibration
+quality metadata; it includes no credentials, device payloads or raw gaze data.
+
+Generation uses a read-only REPEATABLE READ transaction and a JDBC cursor for
+steps/answers. Invalid item references, answer types/options, branch paths or
+submission ordering fail the task instead of publishing a partial archive.
+CSV uses RFC 4180 escaping, UTC ISO-8601 timestamps and UTF-8 without BOM.
+Research text is preserved, including formula-like prefixes: import columns as
+text when opening raw exports in spreadsheet software.
+
+Private files default to `./data/exports`, relative to the backend working
+directory, and are ignored by Git. Optional environment variables:
+
+```dotenv
+# Persist outside the checkout in deployed environments.
+EXPORT_STORAGE_DIRECTORY=./data/exports
+# Download validity starts after successful generation.
+EXPORT_RETENTION=24h
+# Keep enabled on an instance responsible for task generation and cleanup.
+EXPORT_SCHEDULER_ENABLED=true
+# Poll interval for task generation, expiry and file cleanup.
+EXPORT_SCAN_INTERVAL=2s
+```
+
+V21 adds durable task and independent file-cleanup tables. A dedicated scheduler
+claims tasks using PostgreSQL row locks and `SKIP LOCKED`. A committed `RUNNING`
+task without a live processing lock is recovered after restart; temporary files
+are overwritten safely. The worker retains the task lock while a separate
+transaction reads the source snapshot, so the connection pool needs at least
+two connections per active worker (the normal Boot pool default is sufficient
+for this single worker). For multiple instances, all workers must share the
+same private export storage and database; otherwise run the worker on a single
+instance and route downloads to storage-accessible instances.
+
+Deleting a study waits for its active generators, queues both ZIP and temporary
+file cleanup in the deletion transaction, then cascades task rows. File deletion
+runs after commit, retries failures with bounded backoff and treats missing files
+as success. Expired and failed artifacts use the same durable cleanup mechanism.
+Already-open downloads may finish; new downloads after deletion/expiry are denied.
+
+Focused verification:
+
+```powershell
+.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
+```
+
+The application-wiring test starts an isolated H2 context with migrations and schema
+validation disabled; it verifies component injection and scheduler separation only.
+The PostgreSQL suite uses actual Flyway migrations and is skipped without Docker.
+Study-wide exports, other data categories and frontend integration remain future
+increments; this increment does not claim completion of all M7 requirements.

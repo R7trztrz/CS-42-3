@@ -17,7 +17,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Upgrades real PostgreSQL V9/V10 baselines through the eye-tracking tables without rewriting history.
+ * Upgrades real PostgreSQL V9/V10 baselines through export tasks without rewriting history.
  *
  * @author Simon Tian
  */
@@ -28,7 +28,7 @@ class MainlineMigrationUpgradeIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"9", "10"})
-    void mainBaselineUpgradesThroughV20WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
+    void mainBaselineUpgradesThroughV21WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
         String schema = "main_upgrade_" + baseline;
         flyway(schema, baseline).migrate();
 
@@ -72,12 +72,12 @@ class MainlineMigrationUpgradeIntegrationTest {
             }
 
             var upgraded = flyway(schema, null);
-            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(20 - Integer.parseInt(baseline));
+            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(21 - Integer.parseInt(baseline));
             assertThat(upgraded.validateWithResult().validationSuccessful).isTrue();
             List<String> finalHistory = values(connection,
                     "SELECT version || ':' || script || ':' || checksum || ':' || success "
                     + "FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank");
-            assertThat(finalHistory).hasSize(20).startsWith(originalHistory.toArray(String[]::new));
+            assertThat(finalHistory).hasSize(21).startsWith(originalHistory.toArray(String[]::new));
             assertThat(values(connection, businessDigestSql)).isEqualTo(originalBusinessData);
             assertThat(values(connection,
                     "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17','18','19','20') "

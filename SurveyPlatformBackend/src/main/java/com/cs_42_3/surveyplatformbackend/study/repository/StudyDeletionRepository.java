@@ -22,6 +22,15 @@ public class StudyDeletionRepository {
     private final JdbcTemplate jdbc;
 
     public void removeDependencies(UUID studyId, Instant now) {
+        // Wait for active generators before queuing deterministic ZIP/temporary paths.
+        // Generators never acquire a Study lock, so this preserves the Study-first lock order.
+        jdbc.query("SELECT id FROM export_jobs WHERE study_id = ? ORDER BY id FOR UPDATE",
+                (rs, row) -> rs.getObject(1, UUID.class), studyId);
+        jdbc.update("""
+                INSERT INTO export_file_cleanup_tasks(export_id, created_at, next_attempt_at)
+                SELECT id, ?, ? FROM export_jobs WHERE study_id = ?
+                ON CONFLICT (export_id) DO NOTHING
+                """, Timestamp.from(now), Timestamp.from(now), studyId);
         // Immutable asset IDs also identify tasks; no files are touched inside this transaction.
         jdbc.update("""
                 INSERT INTO asset_file_cleanup_tasks

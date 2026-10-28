@@ -12,6 +12,28 @@ import { makeQuestion } from './fixtures'
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 describe('published study questionnaire', () => {
+  it('keeps the first selection when a loaded question becomes interactive', async () => {
+    get.mockResolvedValue({ data: { currentQuestion: makeQuestion(), readyToSubmit: false } })
+    let clicked = false
+    // Observe the DOM commit instead of depending on a timer to flush passive effects first.
+    const observer = new MutationObserver(() => {
+      const radio = screen.queryByLabelText('Yes') as HTMLInputElement | null
+      if (!radio || radio.closest('fieldset')?.disabled || clicked) return
+      clicked = true
+      fireEvent.click(radio)
+    })
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+    try {
+      render(<QuestionnaireStep sessionToken="first-selection" onCompleteQuestionnaire={vi.fn()} isCompleting={false} completeErrorMessage={null} />)
+      await waitFor(() => {
+        expect(clicked).toBe(true)
+        expect(screen.getByLabelText('Yes')).toHaveProperty('checked', true)
+      })
+    } finally {
+      observer.disconnect()
+    }
+  })
+
   it('loads the linked session questions, follows server transitions and allows final submission', async () => {
     get.mockResolvedValue({ data: { currentQuestion: makeQuestion({
       text: 'Which campus feed did you prefer?',
