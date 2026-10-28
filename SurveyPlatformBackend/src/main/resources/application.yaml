@@ -28,6 +28,15 @@ turnstile:
   secret: ${TURNSTILE_SECRET:}
 
 app:
+  exports:
+    # Keep private ZIP artifacts outside static web resources.
+    storage-directory: ${EXPORT_STORAGE_DIRECTORY:./data/exports}
+    # Completed downloads expire after this duration.
+    retention: ${EXPORT_RETENTION:24h}
+    # Disable only when another application instance is processing shared tasks.
+    scheduler-enabled: ${EXPORT_SCHEDULER_ENABLED:true}
+    # Scan durable jobs and cleanup tasks on the dedicated export scheduler.
+    scan-interval: ${EXPORT_SCAN_INTERVAL:2s}
   participant-base-url: ${APP_PARTICIPANT_BASE_URL:http://localhost:5173}
   participation:
     inactivity-timeout: ${PARTICIPANT_INACTIVITY_TIMEOUT:30m}

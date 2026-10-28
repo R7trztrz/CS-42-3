@@ -34,6 +34,29 @@ function baseState(overrides: Record<string, unknown> = {}) {
 }
 
 describe('QuestionnaireStep', () => {
+  it('retains the current draft on retry but resets it for a different item or session', () => {
+    const props = { onCompleteQuestionnaire: vi.fn(), isCompleting: false, completeErrorMessage: null }
+    useParticipantQuestionnaireMock.mockReturnValue(baseState({ currentQuestion: makeQuestion() }))
+    const { rerender } = render(<QuestionnaireStep sessionToken="session-a" {...props} />)
+    fireEvent.click(screen.getByLabelText('Yes'))
+    expect(screen.getByLabelText('Yes')).toHaveProperty('checked', true)
+
+    useParticipantQuestionnaireMock.mockReturnValue(baseState({
+      currentQuestion: makeQuestion(), errorMessage: 'Please retry the submission.',
+    }))
+    rerender(<QuestionnaireStep sessionToken="session-a" {...props} />)
+    expect(screen.getByLabelText('Yes')).toHaveProperty('checked', true)
+
+    useParticipantQuestionnaireMock.mockReturnValue(baseState({ currentQuestion: makeQuestion({ itemId: 'next-item' }) }))
+    rerender(<QuestionnaireStep sessionToken="session-a" {...props} />)
+    expect(screen.getByLabelText('Yes')).toHaveProperty('checked', false)
+    fireEvent.click(screen.getByLabelText('Yes'))
+    expect(screen.getByLabelText('Yes')).toHaveProperty('checked', true)
+
+    rerender(<QuestionnaireStep sessionToken="session-b" {...props} />)
+    expect(screen.getByLabelText('Yes')).toHaveProperty('checked', false)
+  })
+
   it('shows the closed outcome without answer, skip, retry or submit controls', () => {
     useParticipantQuestionnaireMock.mockReturnValue(baseState({ isClosed: true }))
     render(<QuestionnaireStep sessionToken="token" onCompleteQuestionnaire={vi.fn()} isCompleting={false} completeErrorMessage={null} />)

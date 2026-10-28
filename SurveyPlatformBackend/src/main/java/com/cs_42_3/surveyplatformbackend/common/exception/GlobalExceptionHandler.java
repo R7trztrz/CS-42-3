@@ -42,6 +42,13 @@ import java.time.Instant;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /** Returns safe export failures using the shared error response contract. */
+    @ExceptionHandler(com.cs_42_3.surveyplatformbackend.export.exception.ExportException.class)
+    public ResponseEntity<ErrorResponse> handleExport(
+            com.cs_42_3.surveyplatformbackend.export.exception.ExportException exception) {
+        return ResponseEntity.status(exception.getStatus())
+                .body(new ErrorResponse(exception.getCode().code(), exception.getMessage()));
+    }
     /** Rejects closure of a study that has not entered collection. */
     @ExceptionHandler(com.cs_42_3.surveyplatformbackend.study.exception.StudyNotClosableException.class)
     public ResponseEntity<ErrorResponse> handleStudyNotClosable(

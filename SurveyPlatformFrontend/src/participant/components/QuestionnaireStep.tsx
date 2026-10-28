@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { QuestionnaireView } from '../../pages/participant/ParticipantDemoTemplate'
 import FinishedStep from './FinishedStep'
-import { useParticipantQuestionnaire } from '../hooks/useParticipantQuestionnaire'
+import { useParticipantQuestionnaire, type UseParticipantQuestionnaireResult } from '../hooks/useParticipantQuestionnaire'
 import type { ParticipantQuestion, SubmitAnswerPayload } from '../model/participantSession'
 
 type QuestionnaireStepProps = {
@@ -19,22 +19,6 @@ const EMPTY_ANSWER: SubmitAnswerPayload = {
   scaleValue: null,
   textValue: null,
   unanswered: false,
-}
-
-// Local answer draft for the question currently on screen. This never
-// decides what the *next* question is -- it only shapes the payload that
-// gets PUT to the server, which returns the next question (or
-// readyToSubmit) on its own.
-function useAnswerDraft(question: ParticipantQuestion | null) {
-  const [draft, setDraft] = useState<SubmitAnswerPayload>(EMPTY_ANSWER)
-
-  // A new question (by itemId) always starts from a blank draft, even if
-  // the participant is revisiting a position after a branch.
-  useEffect(() => {
-    setDraft(EMPTY_ANSWER)
-  }, [question?.itemId])
-
-  return [draft, setDraft] as const
 }
 
 function isAnswerPresent(question: ParticipantQuestion, draft: SubmitAnswerPayload): boolean {
@@ -69,7 +53,6 @@ function QuestionnaireStep({
     submitAnswer,
     reload,
   } = useParticipantQuestionnaire(sessionToken)
-  const [draft, setDraft] = useAnswerDraft(currentQuestion)
   const description = studyTitle
     ? `Please answer the questions for "${studyTitle}" about your experience.`
     : 'Please answer the following questions about your experience.'
@@ -112,6 +95,41 @@ function QuestionnaireStep({
     )
   }
 
+  // Remount only when the session or item changes. A passive reset after an
+  // async load could otherwise erase the participant's first interaction.
+  return (
+    <QuestionnaireAnswerForm
+      key={JSON.stringify([sessionToken, currentQuestion.itemId])}
+      currentQuestion={currentQuestion}
+      description={description}
+      isLoading={isLoading}
+      isSubmitting={isSubmitting}
+      isCompleting={isCompleting}
+      errorMessage={errorMessage}
+      submitAnswer={submitAnswer}
+    />
+  )
+}
+
+type QuestionnaireAnswerFormProps = Pick<UseParticipantQuestionnaireResult,
+  'isLoading' | 'isSubmitting' | 'errorMessage' | 'submitAnswer'> & {
+  currentQuestion: ParticipantQuestion
+  description: string
+  isCompleting: boolean
+}
+
+// This draft belongs only to the mounted question; the server still determines
+// transitions. Rerenders and failed submissions of the same item retain it.
+function QuestionnaireAnswerForm({
+  currentQuestion,
+  description,
+  isLoading,
+  isSubmitting,
+  isCompleting,
+  errorMessage,
+  submitAnswer,
+}: QuestionnaireAnswerFormProps) {
+  const [draft, setDraft] = useState<SubmitAnswerPayload>(EMPTY_ANSWER)
   const canSkip = !currentQuestion.required
   const canSubmit = isAnswerPresent(currentQuestion, draft)
   const options = [...currentQuestion.options].sort((a, b) => a.order - b.order)
