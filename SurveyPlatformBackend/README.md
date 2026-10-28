@@ -710,7 +710,7 @@ read-only behavior and final-attempt selection. The PostgreSQL suite uses the
 actual V20 view and checks the shared JPA/JDBC snapshot during concurrent
 calibration completion. It is explicitly skipped without Docker.
 
-## Single-session questionnaire, eye-tracking and behavior exports (M7)
+## Session and study-wide data exports (M7)
 
 All export endpoints require the owning researcher's Bearer JWT and the
 `RESEARCHER` role. The frontend export UI is not included in this increment.
@@ -722,6 +722,11 @@ All export endpoints require the owning researcher's Bearer JWT and the
    { "dataTypes": ["QUESTIONNAIRE"] }
    ```
 
+   To export every session in the study, send the same body to
+   `POST /api/studies/{studyId}/exports` instead. All persisted session statuses
+   are included, without state/time filtering. Study lifecycle state does not
+   restrict reads; an empty study can also be exported.
+
    The response is `202 Accepted` with task metadata and a `Location` polling URI.
    Select any nonempty combination of `QUESTIONNAIRE`, `GAZE` and `BEHAVIOR`. Other categories are rejected. Sessions
    may be in progress, completed or abandoned, including sessions in closed studies.
@@ -729,6 +734,9 @@ All export endpoints require the owning researcher's Bearer JWT and the
    `RUNNING`, `COMPLETED`, `FAILED` and `EXPIRED`. Failed tasks include a safe
    error code/message; retry by creating a new task. `snapshotAt` records the
    generation read transaction start, not the original task request time.
+   Metadata includes `scope` (`SESSION` or `STUDY`), `sessionId` (null for a study
+   export), and `failedSessionId` when a session-specific failure occurs. Task
+   states are pollable; this version does not expose a live percentage.
 3. Download `GET /api/studies/{studyId}/exports/{exportId}/download` after completion.
    Supply the JWT on the download request as well. Responses use `no-store` and
    an attachment filename. Downloads return 409 before completion, 410 after
@@ -741,8 +749,8 @@ The selected categories are persisted
 with the task and returned unchanged by polling. Each writer runs only when its
 category was selected: behavior-only exports do not read or validate questionnaire or raw gaze records.
 
-Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v3, and the
-selected category files below when records exist. Existing schema-v1/v2 archives
+Each UTF-8 ZIP contains `sessions.csv`, `README.md` with schema v4, and the
+selected category files below when records exist. Existing schema-v1/v2/v3 archives
 remain downloadable until their original expiry. Session and response CSV
 columns are unchanged from v1.
 
@@ -754,6 +762,7 @@ columns are unchanged from v1.
 | `calibration_attempts.csv` | All stored attempts, including unavailable/abandoned outcomes and the final-selection flag. |
 | `behavior_events.csv` | Raw behavior payloads and readable event-specific columns, when `BEHAVIOR` is selected. |
 | `behavior_batches.csv` | Stored stream/batch identities, sequence, version, event count and receipt time. |
+| `data_availability.csv` | Study scope only: per-session file availability, row counts and session notes. |
 
 Questions and option
 labels come from the immutable publication snapshot, never the current question
@@ -765,6 +774,24 @@ disabled or has no saved submissions, the response file is omitted and the reaso
 is recorded in README. Partial sessions are legitimate, not validation failures.
 Session metadata includes stored lifecycle timestamps and final calibration
 quality metadata; it includes no credentials, device payloads or raw gaze coordinates.
+
+Study-wide files combine records from all sessions using the exact same per-session
+row writers and validation. They contain one header per CSV and are grouped by
+session UUID ascending, with each session retaining the ordering described below.
+Missing data for one session does not create placeholder data rows. A data file is
+omitted only if it has no rows across the entire study or its category was not
+selected. An empty study produces just `sessions.csv` headers and README.
+
+For studies with sessions, `data_availability.csv` has one row for each session
+and potential category file. Columns are `session_id`, `file_name`, `status`,
+`reason`, `record_count` and `session_notes`. Status is `PRESENT`, `NO_SAVED_RECORDS`
+or `NOT_SELECTED`. Known disabled switches are recorded as `QUESTIONNAIRE_DISABLED`
+or `EYE_TRACKING_DISABLED`; otherwise absence is reported without guessing its
+cause. `session_notes` contains the selected-category notes and warnings once on
+that session's first manifest row, and applies to the whole session. Counts are
+export receipt metadata, not scientific metrics. The manifest does not claim
+that unreceived browser data was captured or lost. No feed/image/configuration
+assets are bundled by a study data export.
 
 Gaze events retain `x/y` in viewport CSS pixels, scroll offsets, viewport size,
 device ratio, page ID, widget attribution, browser wall-clock timestamp and
@@ -835,6 +862,9 @@ V21 adds durable task and independent file-cleanup tables. V22 extends the
 category constraint without changing V21 tasks and adds the gaze ordering index.
 V24 extends the constraint to all three categories and their combinations,
 retaining existing task selections and V23 behavior storage unchanged.
+V25 adds scope, allows a null target session only for STUDY jobs, and records
+safe failure-session identity. Existing jobs are backfilled as SESSION without
+changing their data selections, timestamps, status or download expiry.
 A dedicated scheduler
 claims tasks using PostgreSQL row locks and `SKIP LOCKED`. A committed `RUNNING`
 task without a live processing lock is recovered after restart; temporary files
@@ -845,6 +875,17 @@ for this single worker). For multiple instances, all workers must share the
 same private export storage and database; otherwise run the worker on a single
 instance and route downloads to storage-accessible instances.
 
+Study generation uses keyset pages of 200 session IDs inside one generation-time
+REPEATABLE READ snapshot; it does not open a transaction per session or collect
+all study records in memory. At most eight temporary CSV writers append to files
+under the private `<exportId>.work` directory. After all sessions validate, the
+files are packed into one ZIP and the workspace is removed. A failure publishes
+no archive; session-specific errors identify `failedSessionId`, and the durable
+cleanup task removes the ZIP, `.part` file and flat workspace. Restart recovery
+clears the job's old workspace before regenerating it. Long exports retain a
+database snapshot and a task lock, so study deletion may wait for generation.
+Collection writes continue without waiting on a Study read lock from the exporter.
+
 Deleting a study waits for its active generators, queues both ZIP and temporary
 file cleanup in the deletion transaction, then cascades task rows. File deletion
 runs after commit, retries failures with bounded backoff and treats missing files
@@ -854,14 +895,14 @@ Already-open downloads may finish; new downloads after deletion/expiry are denie
 Focused verification:
 
 ```powershell
-.\mvnw.cmd "-Dtest=QuestionnaireExportWriterTest,GazeExportWriterTest,BehaviorExportWriterTest,ExportDataTypeTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
+.\mvnw.cmd "-Dtest=StudyExportWriterTest,QuestionnaireExportWriterTest,GazeExportWriterTest,BehaviorExportWriterTest,ExportDataTypeTest,ExportServiceTest,ExportWorkerTest,LocalExportStorageTest,ExportControllerTest,ExportApplicationWiringTest,ExportPostgresIntegrationTest" test
 ```
 
 The application-wiring test starts an isolated H2 context with migrations and schema
 validation disabled; it verifies component injection and scheduler separation only.
 The PostgreSQL suite uses actual Flyway migrations and is skipped without Docker.
-Study-wide exports and frontend integration remain future
-increments; this increment does not claim completion of all M7 requirements.
+Frontend export controls and end-to-end browser acceptance remain separate work;
+backend checks alone do not establish delivery of every M7 user interface requirement.
 
 ## Participant behavior uploads (FR-47/48 backend)
 

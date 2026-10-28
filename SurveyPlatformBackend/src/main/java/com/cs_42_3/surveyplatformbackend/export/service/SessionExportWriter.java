@@ -23,6 +23,16 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
 public class SessionExportWriter {
+    private static final String[] HEADERS = { "study_id", "session_id", "anonymous_participant_id", "status",
+                "phase", "abandonment_reason", "entered_at", "consented_at", "calibration_completed_at",
+                "browsing_completed_at", "completed_at", "abandoned_at", "last_activity_at",
+                "questionnaire_enabled", "eye_tracking_enabled", "calibration_state", "tracking_available",
+                "calibration_quality", "quality_basis", "unavailable_reason", "low_quality_reasons", "snapshot_at"};
+
+    public void writeEmpty(ExportArchive archive) throws IOException {
+        archive.finish(archive.csv("sessions.csv", HEADERS));
+    }
+
     private final JdbcTemplate jdbc;
     private final EyeTrackingSummaryReadService eyeTracking;
     private final ObjectMapper mapper;
@@ -45,11 +55,7 @@ public class SessionExportWriter {
 
     public void write(ExportArchive archive, ExportSessionRecord session, Instant snapshotAt) throws IOException {
         var quality = eyeTracking.getSummary(session.studyId(), session.sessionId());
-        var csv = archive.csv("sessions.csv", "study_id", "session_id", "anonymous_participant_id", "status",
-                "phase", "abandonment_reason", "entered_at", "consented_at", "calibration_completed_at",
-                "browsing_completed_at", "completed_at", "abandoned_at", "last_activity_at",
-                "questionnaire_enabled", "eye_tracking_enabled", "calibration_state", "tracking_available",
-                "calibration_quality", "quality_basis", "unavailable_reason", "low_quality_reasons", "snapshot_at");
+        var csv = archive.csv("sessions.csv", HEADERS);
         csv.printRecord(session.studyId(), session.sessionId(), session.anonymousId(), session.status(), session.phase(),
                 session.reason(), session.entered(), session.consented(), session.calibrated(), session.browsed(),
                 session.completed(), session.abandoned(), session.activity(), session.questionnaireEnabled(),

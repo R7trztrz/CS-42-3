@@ -11,6 +11,7 @@ import java.util.UUID;
  */
 public interface ExportService {
     ExportJobResponse create(UUID owner, UUID study, UUID session, CreateExportRequest request);
+    ExportJobResponse createStudy(UUID owner, UUID study, CreateExportRequest request);
     ExportJobResponse get(UUID owner, UUID study, UUID export);
     InputStreamResource download(UUID owner, UUID study, UUID export);
 }

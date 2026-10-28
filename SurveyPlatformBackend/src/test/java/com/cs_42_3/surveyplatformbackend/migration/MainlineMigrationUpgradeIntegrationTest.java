@@ -28,7 +28,7 @@ class MainlineMigrationUpgradeIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"9", "10"})
-    void mainBaselineUpgradesThroughV24WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
+    void mainBaselineUpgradesThroughV25WithoutChangingHistoryOrExistingData(String baseline) throws Exception {
         String schema = "main_upgrade_" + baseline;
         flyway(schema, baseline).migrate();
 
@@ -72,12 +72,12 @@ class MainlineMigrationUpgradeIntegrationTest {
             }
 
             var upgraded = flyway(schema, null);
-            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(24 - Integer.parseInt(baseline));
+            assertThat(upgraded.migrate().migrationsExecuted).isEqualTo(25 - Integer.parseInt(baseline));
             assertThat(upgraded.validateWithResult().validationSuccessful).isTrue();
             List<String> finalHistory = values(connection,
                     "SELECT version || ':' || script || ':' || checksum || ':' || success "
                     + "FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank");
-            assertThat(finalHistory).hasSize(24).startsWith(originalHistory.toArray(String[]::new));
+            assertThat(finalHistory).hasSize(25).startsWith(originalHistory.toArray(String[]::new));
             assertThat(values(connection, businessDigestSql)).isEqualTo(originalBusinessData);
             assertThat(values(connection,
                     "SELECT script FROM flyway_schema_history WHERE version IN ('10','11','16','17','18','19','20') "

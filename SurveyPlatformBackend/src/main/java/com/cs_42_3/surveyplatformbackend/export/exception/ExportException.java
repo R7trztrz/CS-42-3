@@ -13,11 +13,27 @@ import org.springframework.http.HttpStatus;
 public class ExportException extends RuntimeException {
     private final ErrorCode code;
     private final HttpStatus status;
+    private final java.util.UUID failedSessionId;
 
     public ExportException(ErrorCode code, HttpStatus status, String message) {
+        this(code, status, message, null);
+    }
+
+    private ExportException(ErrorCode code, HttpStatus status, String message, java.util.UUID session) {
         super(message);
         this.code = code;
         this.status = status;
+        this.failedSessionId = session;
+    }
+
+    /** Adds only session identity to failures, never source answers or event payloads. */
+    public static ExportException forSession(java.util.UUID session, Exception failure) {
+        ExportException contextual = failure instanceof ExportException known
+                ? new ExportException(known.getCode(), known.getStatus(), "Session " + session + ": " + known.getMessage(), session)
+                : new ExportException(ErrorCode.EXPORT_GENERATION_FAILED, HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Export generation failed for session " + session + ". Create a new task to retry.", session);
+        contextual.initCause(failure);
+        return contextual;
     }
 
     public static ExportException invalidData() {

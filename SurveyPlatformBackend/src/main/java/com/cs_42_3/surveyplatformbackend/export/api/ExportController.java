@@ -29,6 +29,24 @@ public class ExportController {
     private final ExportService service;
     private final CurrentResearcher researcher;
 
+    @PostMapping("/exports")
+    @Operation(summary = "Create a study-wide data export",
+            description = "FR-52: exports every persisted session in my study from one generation-time snapshot. "
+                    + "Select any nonempty combination of QUESTIONNAIRE, GAZE and BEHAVIOR. "
+                    + "An empty study produces sessions.csv headers and README. Poll the returned Location URI. "
+                    + "State polling is supported; no live percentage is reported. Validation failures identify failedSessionId.")
+    @ApiResponses({@ApiResponse(responseCode = "202", description = "Study export queued."),
+            @ApiResponse(responseCode = "400", description = "Invalid UUID or category selection."),
+            @ApiResponse(responseCode = "401", description = "Researcher authentication required."),
+            @ApiResponse(responseCode = "403", description = "RESEARCHER role required."),
+            @ApiResponse(responseCode = "404", description = "Missing or foreign-owned study.")})
+    public ResponseEntity<ExportJobResponse> createStudy(@PathVariable UUID studyId,
+                                                       @Valid @RequestBody CreateExportRequest request) {
+        var job = service.createStudy(researcher.getId(), studyId, request);
+        return ResponseEntity.accepted().location(URI.create("/api/studies/" + studyId + "/exports/" + job.id()))
+                .cacheControl(CacheControl.noStore()).body(job);
+    }
+
     @PostMapping("/participants/{sessionId}/exports")
     @Operation(summary = "Create a data export for one session",
             description = "Returns a durable asynchronous task, not the ZIP. Select any nonempty combination of QUESTIONNAIRE, GAZE and BEHAVIOR. "
@@ -62,10 +80,14 @@ public class ExportController {
                     + "Credentials are never included. "
                     + "Returns 409 before completion, 410 after expiry or file loss, and 404 after study deletion.")
     public ResponseEntity<InputStreamResource> download(@PathVariable UUID studyId, @PathVariable UUID exportId) {
-        var file = service.download(researcher.getId(), studyId, exportId);
+        var owner = researcher.getId();
+        var metadata = service.get(owner, studyId, exportId);
+        var file = service.download(owner, studyId, exportId);
+        String prefix = metadata.scope() == com.cs_42_3.surveyplatformbackend.export.domain.ExportScope.STUDY
+                ? "study-export-" : "session-export-";
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename("session-export-" + exportId + ".zip").build().toString())
+                        .filename(prefix + exportId + ".zip").build().toString())
                 .contentType(MediaType.parseMediaType("application/zip")).body(file);
     }
 }

@@ -48,7 +48,9 @@ public class ExportWorker {
         var job = pending.get();
         try {
             // The outer job lock prevents deletion and duplicate writers. Participant writes remain unlocked.
-            Instant snapshot = snapshots.generate(job.id(), job.studyId(), job.sessionId(), job.dataTypes());
+            Instant snapshot = job.scope() == com.cs_42_3.surveyplatformbackend.export.domain.ExportScope.STUDY
+                    ? snapshots.generateStudy(job.id(), job.studyId(), job.dataTypes())
+                    : snapshots.generate(job.id(), job.studyId(), job.sessionId(), job.dataTypes());
             storage.publish(job.id());
             Instant now = clock.instant();
             jobs.complete(job.id(), snapshot, now, now.plus(retention));
@@ -58,7 +60,11 @@ public class ExportWorker {
                     ? invalid.getCode().code() : ErrorCode.EXPORT_GENERATION_FAILED.code();
             String message = failure instanceof ExportException invalid ? invalid.getMessage()
                     : "Export generation failed. Retry by creating a new export task.";
-            jobs.fail(job.id(), code, message, clock.instant());
+            if (failure instanceof ExportException invalid && invalid.getFailedSessionId() != null) {
+                jobs.fail(job.id(), code, message, clock.instant(), invalid.getFailedSessionId());
+            } else {
+                jobs.fail(job.id(), code, message, clock.instant());
+            }
             // Log identifiers and the exception class, never answer payloads or snapshot content.
             log.warn("Export {} failed ({})", job.id(), failure.getClass().getSimpleName());
         }
