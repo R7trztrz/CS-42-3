@@ -5,6 +5,40 @@ export type StudyStatus = 'DRAFT' | 'COLLECTING' | 'CLOSED'
 
 export type StudyParticipantStatus = 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED'
 export type ParticipationSort = 'enteredAt' | 'status'
+export type StudyParticipantDetail = {
+  studyId: string
+  sessionId: string
+  anonymousParticipantId: string
+  status: StudyParticipantStatus
+  phase: 'CONSENT' | 'CALIBRATION' | 'BROWSING' | 'QUESTIONNAIRE' | 'FINISHED'
+  abandonmentReason: 'CONSENT_DECLINED' | 'PARTICIPANT_EXIT' | 'INACTIVITY_TIMEOUT' | 'STUDY_CLOSED' | null
+  enteredAt: string
+  consentedAt: string | null
+  calibrationCompletedAt: string | null
+  browsingCompletedAt: string | null
+  completedAt: string | null
+  abandonedAt: string | null
+  lastActivityAt: string | null
+  deviceInfo: {
+    browser: string | null; browserVersion: string | null; os: string | null
+    screenWidth: number | null; screenHeight: number | null; timezone: string | null
+  } | null
+  eyeTracking: {
+    enabled: boolean
+    calibrationState: 'DISABLED' | 'NOT_STARTED' | 'IN_PROGRESS' | 'RECORDED'
+    calibrationAttemptCount: number
+    completedAttemptId: string | null
+    trackingAvailable: boolean | null
+    unavailableReason: string | null
+    quality: 'GOOD' | 'FAIR' | 'POOR' | 'NOT_MEASURED' | null
+    qualityBasis: 'CALIBRATION' | 'VALIDATION' | 'NONE' | null
+    lowQualityReasons: string[]
+  }
+}
+
+export async function getStudyParticipant(studyId: string, sessionId: string, signal?: AbortSignal) {
+  return (await api.get<StudyParticipantDetail>(`/api/studies/${studyId}/participants/${sessionId}`, { signal })).data
+}
 export type StudyParticipationResponse = {
   summary: { total: number; inProgress: number; completed: number; abandoned: number }
   sessions: {

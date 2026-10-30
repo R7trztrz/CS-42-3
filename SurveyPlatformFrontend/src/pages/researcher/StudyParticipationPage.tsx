@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import axios from 'axios'
 import ResearcherHeader from '../../components/researcher/ResearcherHeader'
 import StudyDataExportButton from '../../components/studies/StudyDataExportButton'
@@ -11,6 +11,7 @@ const dateFormat = new Intl.DateTimeFormat('en-AU', { day: '2-digit', month: 'sh
 const formatDate = (value: string) => dateFormat.format(new Date(value))
 
 export default function StudyParticipationPage() {
+  const navigate = useNavigate()
   const { studyId = '' } = useParams()
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(10)
@@ -100,10 +101,12 @@ export default function StudyParticipationPage() {
             </div>
             <div className="pod-table-scroll" role="region" aria-label="Participant records" tabIndex={0}>
               <table><thead><tr><th>Participant ID</th><th>Status</th><th>Entered at</th><th>Export data</th></tr></thead>
-                <tbody>{data.sessions.content.map(session => <tr key={session.sessionId}>
-                  <td><div className="pod-participant"><div><span className="pod-participant-id" title={session.anonymousParticipantId}>{session.anonymousParticipantId.slice(0, 8)}<span aria-hidden="true">...</span><span className="sr-only">{session.anonymousParticipantId.slice(8)}</span></span><small>{session.sessionId}</small></div><button className="pod-copy" aria-label={`Copy participant ID ${session.anonymousParticipantId}`} onClick={() => void copyId(session.anonymousParticipantId)}>⧉</button></div></td>
+                <tbody>{data.sessions.content.map(session => <tr key={session.sessionId} tabIndex={0} aria-label={`View details for participant ${session.anonymousParticipantId}`} title="View session details" className="cursor-pointer focus-visible:outline-2 focus-visible:outline-emerald-600"
+                  onClick={() => navigate(`/studies/${studyId}/participants/${session.sessionId}`)}
+                  onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); navigate(`/studies/${studyId}/participants/${session.sessionId}`) } }}>
+                  <td><div className="pod-participant"><div><span className="pod-participant-id" title={session.anonymousParticipantId}>{session.anonymousParticipantId.slice(0, 8)}<span aria-hidden="true">...</span><span className="sr-only">{session.anonymousParticipantId.slice(8)}</span></span><small>{session.sessionId}</small></div><button className="pod-copy" aria-label={`Copy participant ID ${session.anonymousParticipantId}`} onClick={event => { event.stopPropagation(); void copyId(session.anonymousParticipantId) }}>⧉</button></div></td>
                   <td><span className={`pod-session-status pod-session-status--${session.status.toLowerCase()}`}><i aria-hidden="true" />{labels[session.status]}</span></td>
-                  <td><time dateTime={session.enteredAt}>{formatDate(session.enteredAt)}</time></td><td>{study && <StudyDataExportButton studyId={study.id} studyTitle={study.title} status={study.status} session={{ sessionId: session.sessionId, participantId: session.anonymousParticipantId }} />}</td>
+                  <td><time dateTime={session.enteredAt}>{formatDate(session.enteredAt)}</time></td><td onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}>{study && <StudyDataExportButton studyId={study.id} studyTitle={study.title} status={study.status} session={{ sessionId: session.sessionId, participantId: session.anonymousParticipantId }} />}</td>
                 </tr>)}{data.sessions.content.length === 0 && <tr><td colSpan={4}>No participant sessions yet.</td></tr>}</tbody>
               </table>
             </div>

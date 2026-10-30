@@ -5,7 +5,7 @@ import { getStudy, type StudyStatus } from '../../services/studyApi'
 import { createSessionExport, createStudyExport, downloadStudyExport, getStudyExport, type ExportDataType, type ExportJob } from '../../services/exportApi'
 
 export type SessionExportTarget = { sessionId: string; participantId: string }
-type Props = { studyId: string; studyTitle: string; status: StudyStatus; open: boolean; onClose: () => void; session?: SessionExportTarget }
+type Props = { studyId: string; studyTitle: string; status: StudyStatus; open: boolean; onClose: () => void; session?: SessionExportTarget; initialDataTypes?: ExportDataType[] }
 const categories: { value: ExportDataType; label: string; description: string }[] = [
   { value: 'QUESTIONNAIRE', label: 'Questionnaire', description: 'Saved answers and skipped questions.' },
   { value: 'GAZE', label: 'Eye tracking', description: 'Saved gaze events, batches and calibration attempts.' },
@@ -15,12 +15,12 @@ const labels: Record<ExportJob['status'], string> = { PENDING: 'Queued', RUNNING
 const buttonClass = 'rounded-sm border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40'
 const primaryClass = 'rounded-sm bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40'
 
-export default function StudyExportDialog({ studyId, studyTitle, status, open, onClose, session }: Props) {
+export default function StudyExportDialog({ studyId, studyTitle, status, open, onClose, session, initialDataTypes }: Props) {
   const headingId = useId()
   const closeButton = useRef<HTMLButtonElement>(null)
   const busy = useRef(false)
   const mounted = useRef(true)
-  const [selected, setSelected] = useState<ExportDataType[]>(['QUESTIONNAIRE', 'GAZE', 'BEHAVIOR'])
+  const [selected, setSelected] = useState<ExportDataType[]>(() => initialDataTypes ?? ['QUESTIONNAIRE', 'GAZE', 'BEHAVIOR'])
   const [job, setJob] = useState<ExportJob | null>(null)
   const [pending, setPending] = useState<'create' | 'download' | null>(null)
   const [error, setError] = useState('')

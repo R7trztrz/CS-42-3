@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { StudyParticipationResponse, StudyResponse } from '../../src/services/studyApi'
@@ -19,11 +19,31 @@ function setup(status: StudyResponse['status'] = 'COLLECTING') {
   get.mockImplementation(async (url: string, config?: { params: { page: number } }) => ({ data: url.endsWith('/participation') ? records(config?.params.page) : { ...study, status } }))
 }
 function mount() {
-  return render(<MemoryRouter initialEntries={['/studies/study-1/participation']}><Routes><Route path="/studies/:studyId/participation" element={<StudyParticipationPage />} /></Routes></MemoryRouter>)
+  return render(<MemoryRouter initialEntries={['/studies/study-1/participation']}><Routes><Route path="/studies/:studyId/participation" element={<StudyParticipationPage />} /><Route path="/studies/:studyId/participants/:sessionId" element={<h2>Session details destination</h2>} /></Routes></MemoryRouter>)
 }
 afterEach(() => { cleanup(); vi.resetAllMocks() })
 
 describe('real study participation page', () => {
+  it.each(['click', 'Enter', ' '])('opens the session from the whole row using %s', async action => {
+    setup(); mount()
+    const row = await screen.findByRole('row', { name: 'View details for participant participant-from-database' })
+    if (action === 'click') fireEvent.click(within(row).getByText('Completed'))
+    else fireEvent.keyDown(row, { key: action })
+    expect(screen.getByRole('heading', { name: 'Session details destination' })).toBeTruthy()
+  })
+
+  it('keeps copy and export actions independent of row navigation', async () => {
+    setup(); mount()
+    const copy = await screen.findByRole('button', { name: 'Copy participant ID participant-from-database' })
+    fireEvent.click(copy)
+    expect(screen.queryByRole('heading', { name: 'Session details destination' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Export data for session real-session-0' }))
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('heading', { name: 'Session details destination' })).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('opens an export for each row with its own session identity, regardless of session completion status', async () => {
     get.mockImplementation(async (url: string) => {
       const response = records()
@@ -52,6 +72,7 @@ describe('real study participation page', () => {
     expect(screen.getByLabelText('Participation summary').textContent).toContain('12')
     expect(screen.queryByText('Completed at')).toBeNull()
     expect(screen.getByRole('button', { name: 'Export data for session real-session-0' })).toBeTruthy()
+    expect(screen.getByRole('row', { name: 'View details for participant participant-from-database' })).toHaveProperty('tabIndex', 0)
     expect(get).toHaveBeenCalledWith('/api/studies/study-1/participation', { params: { page: 0, size: 10, sortBy: 'enteredAt', direction: 'desc' }, signal: expect.any(AbortSignal) })
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     await screen.findByText('real-session-1')
