@@ -29,9 +29,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
       ASSET_STORAGE_DIRECTORY: /app/data/assets
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      EXPORT_STORAGE_DIRECTORY: /app/data/exports
+      APP_PARTICIPANT_BASE_URL: ${APP_PARTICIPANT_BASE_URL:-http://localhost:5173}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
     volumes:
       - study_assets:/app/data/assets
+      - study_exports:/app/data/exports
     ports:
       - "8080:8080"
     depends_on:
@@ -54,3 +57,4 @@ services:
 volumes:
   postgres_data:
   study_assets:
+  study_exports:

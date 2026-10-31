@@ -1,4 +1,10 @@
+param(
+    [switch]$KeepRunning,
+    [switch]$LegacyDemo
+)
+
 Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $projectName = "survey-verify-$([guid]::NewGuid().ToString('N').Substring(0, 8))"
@@ -8,9 +14,12 @@ $composeArgs = @(
     "compose",
     "--project-name", $projectName,
     "--env-file", $envFile,
-    "--file", "docker-compose.server.yml",
-    "--file", "docker-compose.demo.yml"
+    "--file", "docker-compose.server.yml"
 )
+if ($LegacyDemo) {
+    $composeArgs += @("--file", "docker-compose.demo.yml")
+}
+$checksPassed = $false
 
 function Invoke-Compose {
     param([string[]]$Arguments)
@@ -107,6 +116,25 @@ try {
     Wait-ForHealthyService -Service "db"
     Wait-ForHealthyService -Service "frontend"
 
+    $apiReady = $false
+    $deadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $null = Invoke-WebRequest -Uri "$participantBaseUrl/backend/auth/login" -Method Post -ContentType "application/json" -Body '{}' -UseBasicParsing -TimeoutSec 10
+        }
+        catch {
+            if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 400) {
+                $apiReady = $true
+                break
+            }
+        }
+        Start-Sleep -Seconds 3
+    }
+    if (-not $apiReady) {
+        throw "Backend login validation did not become ready through Nginx."
+    }
+    Write-Host "PASS: Nginx forwards login requests to the ready backend (HTTP 400 for missing fields)"
+
     $backendUrl = $null
     $deadline = (Get-Date).AddSeconds(180)
     while ((Get-Date) -lt $deadline) {
@@ -132,9 +160,16 @@ try {
         throw "The application page did not return HTTP 200."
     }
     Write-Host "PASS: application page returned HTTP 200"
+    $checksPassed = $true
     Write-Host "All smoke checks passed. This is a local demonstration, not a production deployment."
 }
 finally {
+    if ($KeepRunning -and $checksPassed) {
+        Write-Host "Application URL: $participantBaseUrl"
+        Write-Host "Compose project: $projectName"
+        Write-Host "Private environment file (keep locally): $envFile"
+    }
+    else {
     try {
         Invoke-Compose -Arguments @("down", "--volumes", "--remove-orphans")
     }
@@ -142,5 +177,6 @@ finally {
         Write-Warning "Could not automatically remove the temporary Docker demo. Run the cleanup command shown in the deployment guide."
     }
     Remove-Item -LiteralPath $envFile -Force -ErrorAction SilentlyContinue
+    }
     Pop-Location
 }

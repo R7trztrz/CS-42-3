@@ -26,10 +26,12 @@ services:
       TURNSTILE_SECRET: ${TURNSTILE_SECRET:?TURNSTILE_SECRET is required}
       APP_PARTICIPANT_BASE_URL: ${APP_PARTICIPANT_BASE_URL:-http://localhost:8088}
       ASSET_STORAGE_DIRECTORY: /app/data/assets
+      EXPORT_STORAGE_DIRECTORY: /app/data/exports
       SPRINGDOC_API_DOCS_ENABLED: "false"
       SPRINGDOC_SWAGGER_UI_ENABLED: "false"
     volumes:
       - study_assets:/app/data/assets
+      - study_exports:/app/data/exports
     depends_on:
       db:
         condition: service_healthy
@@ -56,3 +58,4 @@ services:
 volumes:
   postgres_data:
   study_assets:
+  study_exports:

@@ -1,8 +1,56 @@
 # Server Deployment Guide
 
 Repository: R7trztrz/CS-42-3
-Configuration/documentation review: 7 October 2026 (Australia/Sydney)
-Status: M4/M5 demonstrations require the explicit demo override described below. Production M6 completion wiring, shared-server deployment, and automated CD remain pending.
+Configuration/documentation update: 31 October 2026 (Australia/Sydney)
+Status: Integrated code includes the M6 completion gate. Shared-server deployment and automated CD are not established by local checks.
+
+## Current integrated local setup
+
+This section supersedes the older demo-only instructions in sections 5 and 6.
+The integrated application supplies `EyeTrackingCollectionCompletionGate` outside
+the `dev` and `test` profiles. Use `docker-compose.server.yml` alone to exercise
+it. `docker-compose.demo.yml` is retained only for explicitly requested legacy
+demonstrations that bypass the completion gate.
+
+From PowerShell in the repository root, with Docker Desktop running:
+
+```powershell
+.\scripts\verify-server-demo.ps1 -KeepRunning
+```
+
+This builds the current source in a uniquely named Compose project with a new
+database and new data volumes. It uses temporary random local credentials and
+public Turnstile test keys. It does not import accounts or data from old stacks.
+It checks the database and frontend health, verifies backend login input
+validation through Nginx, checks the participant URL setting, and opens the app
+entry point over HTTP. These are smoke checks, not full browser regression tests.
+The script prints the application URL, project name and private environment file
+path. Keep that environment file while using this stack; it is outside Git.
+Without `-KeepRunning`, the script removes its temporary stack after checking it.
+Use `-LegacyDemo` only when the older no-op completion behaviour is required.
+
+The backend now mounts both `study_assets` and `study_exports`. Export files
+remain subject to the application's configured retention policy. Database state
+is stored in `postgres_data`. Do not remove these volumes to update a stack.
+
+For subsequent rebuilds of an existing integrated server-style stack, use its
+actual project name and environment file, as printed by the script:
+
+```powershell
+docker compose -p <existing-project> --env-file <existing-env-file> -f docker-compose.server.yml up -d --build --force-recreate backend frontend
+```
+
+Before upgrading an old database, back it up and validate its Flyway migration
+history. Existing export files inside an old backend container are not copied
+automatically into the new export volume. Copy any needed exports before
+recreating that old container. The independent smoke environment does not
+perform a data migration or establish production readiness.
+
+## Historical setup reference
+
+The remaining sections describe the earlier October environment. Statements
+about a missing M6 adapter and mandatory demo override are historical and must
+not be used for the integrated version above.
 
 ## 1. Scope
 
