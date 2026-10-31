@@ -268,19 +268,21 @@ export function ExperienceView({ onNext, children, pending = false, actions, err
 }) {
   return (
     <section className={`demo-experience${children ? ' demo-experience--study' : ''}`}>
-      <header className="demo-experience__header">
-        <div className="demo-brand demo-brand--dark">
-          <span className="demo-brand__mark">SP</span>
-          <span>
-            <strong>Study activity</strong>
-            <small>Browse the feed naturally</small>
-          </span>
-        </div>
-        {!children && <div className="demo-experience__time">
-          <span>Activity</span>
-          <strong>02:00</strong>
-        </div>}
-      </header>
+      {!children && (
+        <header className="demo-experience__header">
+          <div className="demo-brand demo-brand--dark">
+            <span className="demo-brand__mark">SP</span>
+            <span>
+              <strong>Study activity</strong>
+              <small>Browse the feed naturally</small>
+            </span>
+          </div>
+          <div className="demo-experience__time">
+            <span>Activity</span>
+            <strong>02:00</strong>
+          </div>
+        </header>
+      )}
 
       <div className="demo-social-shell">
         {children ?? <><aside className="demo-social-nav">
@@ -316,14 +318,18 @@ export function ExperienceView({ onNext, children, pending = false, actions, err
         </main></>}
 
         <aside className="demo-activity-panel">
-          <p className="demo-eyebrow">Study activity</p>
-          <h2>Browse as you normally would</h2>
-          <p>Take a moment to explore the post. Continue when you are ready.</p>
-          <button className="demo-button demo-button--coral" onClick={onNext} type="button" disabled={pending}>
-            {pending ? 'Continuing...' : 'Finish browsing'} <ArrowIcon />
-          </button>
-          {actions}
-          {error && <p role="alert">{error}</p>}
+          <div className="demo-activity-panel__copy">
+            <p className="demo-eyebrow">Study activity</p>
+            <h2>Browse as you normally would</h2>
+            <p>Take a moment to explore the post. Continue when you are ready.</p>
+          </div>
+          <div className="demo-activity-panel__actions">
+            <button className="demo-button demo-button--coral" onClick={onNext} type="button" disabled={pending}>
+              {pending ? 'Continuing...' : 'Finish browsing'} <ArrowIcon />
+            </button>
+            {actions}
+          </div>
+          {error && <p className="demo-activity-panel__error" role="alert">{error}</p>}
         </aside>
       </div>
     </section>
