@@ -11,6 +11,7 @@ export default defineConfig({
       'tests/m4/**/*.test.tsx',
       'tests/m5/**/*.test.ts',
       'tests/m5/**/*.test.tsx',
+      'tests/interaction/**/*.test.ts',
     ],
     clearMocks: true,
     restoreMocks: true,
