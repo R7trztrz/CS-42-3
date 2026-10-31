@@ -25,6 +25,7 @@ import QuestionnaireEditorPage from '../researcher/questionnaire/pages/Questionn
 import ParticipantDemo from '../pages/participant/ParticipantDemo'
 import ParticipationOverviewDemo from '../pages/researcher/ParticipationOverviewDemo'
 import StudyParticipationPage from '../pages/researcher/StudyParticipationPage'
+import ParticipantSessionDetails from '../pages/researcher/ParticipantSessionDetails'
 
 const router = createBrowserRouter([
   {
@@ -50,6 +51,10 @@ const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      {
+        path: '/studies/:studyId/participants/:sessionId',
+        element: <ParticipantSessionDetails />,
+      },
       {
         path: '/studies/:studyId/participation',
         element: <StudyParticipationPage />,

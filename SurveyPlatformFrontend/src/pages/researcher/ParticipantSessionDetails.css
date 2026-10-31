@@ -1,0 +1,24 @@
+.session-detail-main .pod-breadcrumb { flex-wrap: wrap; }
+.session-detail-main .pod-breadcrumb a { color: #047857; }
+.session-detail-main .pod-breadcrumb a:hover { text-decoration: underline; }
+.session-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.session-detail-button { display: inline-block; border: 1px solid #cbd5e1; border-radius: 3px; background: white; padding: 9px 14px; color: #047857; font-size: 13px; font-weight: 600; }
+.session-detail-button:hover { border-color: #047857; background: #ecfdf5; }
+.session-detail-button:disabled { cursor: not-allowed; opacity: .5; }
+.session-detail-updated { margin: 18px 0; color: #68798a; font-size: 12px; }
+.session-detail-section { margin: 20px 0; border: 1px solid #d9e2e8; border-radius: 4px; background: #fff; padding: 24px; min-width: 0; }
+.session-detail-section h3 { font-size: 17px; font-weight: 600; }
+.session-detail-help { margin-top: 10px; color: #68798a; font-size: 13px; line-height: 1.7; }
+.session-detail-fields { margin-top: 14px; }
+.session-detail-fields > div { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(0, 1.3fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid #edf0f3; font-size: 13px; line-height: 1.6; }
+.session-detail-fields > div:last-child { border-bottom: 0; }
+.session-detail-fields dt { color: #68798a; }
+.session-detail-fields dd { overflow-wrap: anywhere; color: #172033; }
+.session-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 20px; }
+.session-detail-grid > section { margin: 0; }
+.session-detail-exports { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-top: 20px; }
+.session-detail-exports article { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; border-top: 3px solid #10b981; background: #f3f8f6; padding: 18px; }
+.session-detail-exports h4 { font-size: 14px; font-weight: 600; }
+.session-detail-exports p { flex: 1; color: #68798a; font-size: 12px; line-height: 1.7; }
+@media (max-width: 900px) { .session-detail-grid, .session-detail-exports { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .session-detail-section { padding: 18px; } .session-detail-fields > div { grid-template-columns: 1fr; gap: 4px; } }
