@@ -709,6 +709,17 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
     setBehaviorErrorMessage('')
     stopBehaviorCollection()
 
+    // Start draining gaze immediately so queued gaze is delivered before
+    // the browsing phase ends. Behaviour upload can continue in parallel.
+    let gazeStopPromise: Promise<void> | null = null
+
+    if (eyeTracking) {
+      setIsSavingGaze(true)
+      gazeStopPromise = eyeTracking.stopTracking().finally(() => {
+        setIsSavingGaze(false)
+      })
+    }
+
     const behaviorUpload = behaviorUploadRef.current
     if (behaviorUpload) {
       behaviorUpload.stopAutoFlush()
@@ -719,22 +730,15 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
       } catch (error) {
         console.error('Behavior data upload failed.', error)
         setBehaviorErrorMessage(
-          'Unable to save interaction data. Please check your connection and try again.',
+          'Unable to save interaction data. The study will continue and pending data can retry later.',
         )
+      } finally {
         setIsSavingBehavior(false)
-        return
       }
-
-      setIsSavingBehavior(false)
     }
 
-    if (eyeTracking) {
-      setIsSavingGaze(true)
-      try {
-        await eyeTracking.stopTracking()
-      } finally {
-        setIsSavingGaze(false)
-      }
+    if (gazeStopPromise) {
+      await gazeStopPromise
     }
 
     await action()
@@ -978,7 +982,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                 actions={
                   <>
                     <button
-                      className="demo-button demo-button--quiet mt-3 w-full"
+                      className="demo-button demo-button--quiet participation-browsing__leave"
                       type="button"
                       disabled={
                         participantSession.isActionPending ||
@@ -1001,7 +1005,7 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                       </label>
                     )}
                     {isSavingBehavior && (
-                      <p className="mt-3 text-sm" role="status">
+                      <p className="mt-3 text-sm">
                         Saving interaction data...
                       </p>
                     )}
