@@ -12,6 +12,8 @@ import {
 
   useEffect,
 
+  useRef,
+
   useState,
 
 } from 'react'
@@ -24,11 +26,20 @@ import {
 
 import {
 
+  clearBehaviorEvents,
+
   startBehaviorCollection,
 
   stopBehaviorCollection,
 
 } from '../../interaction/behaviorCollector'
+
+import {
+  createBehaviorUploadSession,
+  type BehaviorUploadSession,
+} from '../../interaction/behaviorUploader'
+
+import { createSessionClock } from '../../eyetracking/gaze/sessionClock'
 
 import CanvasContainer from '../../components/editor/CanvasContainer'
 
@@ -642,31 +653,94 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
     }
   }, [eyeTracking, isActivityActive])
 
+  const behaviorUploadRef = useRef<BehaviorUploadSession | null>(null)
+  const [isSavingBehavior, setIsSavingBehavior] = useState(false)
+  const [behaviorErrorMessage, setBehaviorErrorMessage] = useState('')
+
   useEffect(() => {
-    if (!isActivityActive) {
+    const sessionToken = participantSession.sessionToken
+
+    if (!isActivityActive || !sessionToken) {
       return
     }
 
-    startBehaviorCollection()
+    // Eye-tracking studies share the exact same SessionClock instance.
+    // Non-eye-tracking studies still receive a session-scoped clock.
+    const behaviorClock = eyeTracking?.clock ?? createSessionClock()
+
+    clearBehaviorEvents()
+    startBehaviorCollection(behaviorClock, 'feed')
+
+    const uploadSession = createBehaviorUploadSession({
+      sessionId: participantSession.session?.sessionId ?? '',
+      sessionToken,
+    })
+    behaviorUploadRef.current = uploadSession
+    uploadSession.startAutoFlush()
 
     return () => {
       stopBehaviorCollection()
+      uploadSession.stopAutoFlush()
+
+      // Normal BROWSING exits are awaited by leaveBrowsing(). This final
+      // best-effort flush also protects route/unmount cleanup.
+      void uploadSession.flush().catch((error) => {
+        if (import.meta.env.DEV) {
+          console.warn('Final behavior flush could not be confirmed.', error)
+        }
+      })
+
+      if (behaviorUploadRef.current === uploadSession) {
+        behaviorUploadRef.current = null
+      }
     }
-  }, [isActivityActive])
+  }, [
+    eyeTracking,
+    isActivityActive,
+    participantSession.session?.sessionId,
+    participantSession.sessionToken,
+  ])
 
   const [isSavingGaze, setIsSavingGaze] = useState(false)
 
   // Gaze still queued in the browser is delivered before the phase changes:
   // once the session leaves BROWSING the server no longer accepts it.
   const leaveBrowsing = async (action: () => Promise<boolean>) => {
+    setBehaviorErrorMessage('')
+    stopBehaviorCollection()
+
+    // Start draining gaze immediately so queued gaze is delivered before
+    // the browsing phase ends. Behaviour upload can continue in parallel.
+    let gazeStopPromise: Promise<void> | null = null
+
     if (eyeTracking) {
       setIsSavingGaze(true)
-      try {
-        await eyeTracking.stopTracking()
-      } finally {
+      gazeStopPromise = eyeTracking.stopTracking().finally(() => {
         setIsSavingGaze(false)
+      })
+    }
+
+    const behaviorUpload = behaviorUploadRef.current
+    if (behaviorUpload) {
+      behaviorUpload.stopAutoFlush()
+      setIsSavingBehavior(true)
+
+      try {
+        await behaviorUpload.flush()
+      } catch (error) {
+        console.error('Behavior data upload failed.', error)
+        setBehaviorErrorMessage(
+          'Unable to save interaction data. The study will continue and pending data can retry later.',
+        )
+      } finally {
+        setIsSavingBehavior(false)
       }
     }
+
+    if (gazeStopPromise) {
+      await gazeStopPromise
+    }
+
     await action()
   }
 
@@ -896,11 +970,29 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                 participantSession.session?.phase === 'BROWSING' && (
               <ExperienceView
                 onNext={() => void leaveBrowsing(participantSession.completeBrowsing)}
-                pending={participantSession.isActionPending || isSavingGaze}
-                error={participantSession.actionErrorMessage}
+                pending={
+                  participantSession.isActionPending ||
+                  isSavingGaze ||
+                  isSavingBehavior
+                }
+                error={
+                  behaviorErrorMessage ||
+                  participantSession.actionErrorMessage
+                }
                 actions={
                   <>
-                    <button className="demo-button demo-button--quiet mt-3 w-full" type="button" disabled={participantSession.isActionPending || isSavingGaze} onClick={() => void leaveBrowsing(participantSession.abandon)}>Leave study</button>
+                    <button
+                      className="demo-button demo-button--quiet participation-browsing__leave"
+                      type="button"
+                      disabled={
+                        participantSession.isActionPending ||
+                        isSavingGaze ||
+                        isSavingBehavior
+                      }
+                      onClick={() => void leaveBrowsing(participantSession.abandon)}
+                    >
+                      Leave study
+                    </button>
                     {eyeTrackingSnapshot?.canToggleGazeDot && (
                       // Test mode only (VITE_EYE_TRACKING_TEST_MODE); real participants never see it.
                       <label className="mt-3 flex w-full items-center gap-2 text-sm">
@@ -912,8 +1004,15 @@ function ParticipationPage({ studyToken }: { studyToken?: string } = {}) {
                         Show the live gaze dot (test mode)
                       </label>
                     )}
+                    {isSavingBehavior && (
+                      <p className="mt-3 text-sm">
+                        Saving interaction data...
+                      </p>
+                    )}
                     {isSavingGaze && (
-                      <p className="mt-3 text-sm" role="status">Saving eye-tracking data...</p>
+                      <p className="mt-3 text-sm" role="status">
+                        Saving eye-tracking data...
+                      </p>
                     )}
                   </>
                 }
