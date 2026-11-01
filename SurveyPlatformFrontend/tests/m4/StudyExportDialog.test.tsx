@@ -123,4 +123,33 @@ describe('Study export dialog', () => {
     await screen.findByText('Export expired')
     expect(screen.queryByRole('button', { name: 'Download ZIP' })).toBeNull()
   })
+
+  it('retries a failed status check on the same task and allows download', async () => {
+    getStudyExport
+        .mockRejectedValueOnce(new Error('Offline'))
+        .mockResolvedValue({ ...job, status: 'COMPLETED' })
+
+    render(<StudyExportDialog {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Generate export' }))
+
+    const retryButton = await screen.findByRole('button', {
+      name: 'Retry status check',
+    })
+    expect(screen.getByText(/Unable to check export status/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Download ZIP' })).toBeNull()
+
+    fireEvent.click(retryButton)
+    await screen.findByText('Ready to download')
+
+    expect(screen.queryByRole('button', { name: 'Retry status check' })).toBeNull()
+    expect(createStudyExport).toHaveBeenCalledTimes(1)
+    expect(getStudyExport).toHaveBeenCalledTimes(2)
+    for (const call of getStudyExport.mock.calls) {
+      expect(call.slice(0, 2)).toEqual(['study-1', 'export-1'])
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download ZIP' }))
+    await screen.findByText(/Download requested/)
+    expect(downloadStudyExport).toHaveBeenCalledWith('study-1', 'export-1')
+  })
 })
