@@ -35,8 +35,7 @@ CS-42-3/
 ├── docker-compose.yml          # Local containers on ports 5173, 8080 and 5432
 ├── docker-compose.server.yml   # Nginx entry point on port 8088 by default
 ├── .env.docker.example         # Local Docker configuration template
-├── .env.server.example         # Nginx deployment configuration template
-└── scripts/                    # Deployment smoke checks and migration utilities
+└── .env.server.example         # Nginx deployment configuration template
 ```
 
 ## Prerequisites
