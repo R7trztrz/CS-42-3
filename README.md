@@ -32,7 +32,7 @@ The backend is a modular monolith: feature modules share one Spring Boot applica
 CS-42-3/
 ├── SurveyPlatformBackend/      # Spring Boot application and Flyway migrations
 ├── SurveyPlatformFrontend/     # React application and feed templates
-├── docker-compose.yml         # Local containers on ports 5173, 8080 and 5432
+├── docker-compose.yml          # Local containers on ports 5173, 8080 and 5432
 ├── docker-compose.server.yml   # Nginx entry point on port 8088 by default
 ├── .env.docker.example         # Local Docker configuration template
 ├── .env.server.example         # Nginx deployment configuration template
@@ -280,4 +280,4 @@ Frontend `VITE_` settings are embedded during image building, so changing them r
 
 For source startup, private images and exports default to `SurveyPlatformBackend/data/assets` and `SurveyPlatformBackend/data/exports` when launched from that directory. Override these with `ASSET_STORAGE_DIRECTORY` and `EXPORT_STORAGE_DIRECTORY` when needed. Export downloads expire after 24 hours by default; expiry does not delete source research records.
 
-Keep real environment files, keys and generated data out of version control. Existing databases must retain their applied Flyway history. For legacy M4/M5 feature databases, consult the [migration upgrade guide](M4_M5_Migration_Upgrade_Guide.md) before using the current code. The [deployment guide](Server_Deployment_Guide.md#current-integrated-local-setup) contains additional operational details; its later historical sections describe older configurations.
+Keep real environment files, keys and generated data out of version control. Existing databases must retain their applied Flyway history.
