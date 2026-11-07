@@ -1,4 +1,4 @@
-/** FR-49 public API. See docs/fr-49-calibration.md for ownership and integration contracts. */
+/** Public eye-tracking API for calibration, gaze collection and widget attribution. */
 export type {
   CalibrationAttempt,
   CalibrationIssue,
