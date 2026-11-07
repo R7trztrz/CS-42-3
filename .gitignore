@@ -20,4 +20,3 @@
 !/docker-compose.server.yml
 !/docker-compose.demo.yml
 !/.env.server.example
-!/scripts/
